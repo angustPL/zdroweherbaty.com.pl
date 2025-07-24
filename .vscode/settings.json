@@ -1,0 +1,43 @@
+{
+    // Uwaga: Wcięcia (tabSize, insertSpaces), końcówki linii i kodowanie są pobierane z .editorconfig,
+    // o ile nie zostaną jawnie nadpisane poniżej. Zalecamy nie ustawiać ich tutaj, by zachować spójność w całym zespole.
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "[php]": {
+        "editor.defaultFormatter": "bmewburn.vscode-intelephense-client"
+    },
+    "[blade]": {
+        "editor.defaultFormatter": "shufo.vscode-blade-formatter"
+    },
+    "[javascript]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+    },
+    "[typescript]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+    },
+    "[json]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+    },
+    "[css]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+    },
+    "[scss]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+    },
+    "[html]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+    },
+    "tailwindCSS.includeLanguages": {
+        "php": "html",
+        "blade": "html"
+    },
+    "tailwindCSS.emmetCompletions": true,
+    "color-highlight.enable": true,
+    "files.associations": {
+        "*.blade.php": "blade"
+    },
+    "emmet.includeLanguages": {
+        "blade": "html"
+    },
+    "livewire.autoComplete": true
+}

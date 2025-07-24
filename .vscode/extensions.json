@@ -1,0 +1,28 @@
+{
+    // Lista rekomendowanych rozszerzeń dla tego projektu Laravel + Livewire + frontend
+    "recommendations": [
+        "amiralizadeh9480.laravel-extra-intellisense", // relacje Eloquent
+        "bmewburn.vscode-intelephense-client", // podpowiedzi PHP
+        "ryannaddy.laravel-artisan", // komendy Artisan
+        "onecentlin.laravel-blade", // Blade snippets
+        "shufo.vscode-blade-formatter", // formatowanie Blade
+        "mikestead.dotenv", // .env
+        "stef-k.laravel-goto-view", // Livewire/Blade nawigacja
+        "xdebug.php-debug", // debugowanie PHP
+        "editorconfig.editorconfig", // styl kodu
+        "eamodio.gitlens", // Git
+        "christian-kohler.path-intellisense", // ścieżki plików
+        "coenraads.bracket-pair-colorizer-2", // nawiasy
+        "bradlc.vscode-tailwindcss", // podpowiedzi Tailwind
+        "esbenp.prettier-vscode", // formatowanie JS/CSS/Blade
+        "ecmel.vscode-html-css", // podpowiedzi CSS w HTML/Blade
+        "zignd.html-css-class-completion", // podpowiedzi klas CSS
+        "naumovs.color-highlight", // podświetlanie kolorów
+        "cssho.vscode-svgviewer", // podgląd SVG
+        "cierra.livewire-vscode", // Livewire support
+        "ms-vscode.vscode-typescript-next", // TypeScript
+        "bradlc.vscode-tailwindcss", // Tailwind CSS IntelliSense
+        "formulahendry.auto-rename-tag", // Auto rename paired HTML/XML tags
+        "ms-vscode.vscode-json" // JSON language support
+    ]
+}
