@@ -3,9 +3,10 @@
 use Illuminate\Support\Facades\Route;
 use Livewire\Volt\Volt;
 
-Route::get('/', function () {
-    return view('welcome');
-})->name('home');
+Volt::route('/', 'pages.welcome')->name('home');
+Volt::route('/dostawa', 'pages.dostawa')->name('dostawa');
+Volt::route('/regulamin', 'pages.regulamin')->name('regulamin');
+Volt::route('/kontakt', 'pages.kontakt')->name('kontakt');
 
 Route::view('dashboard', 'dashboard')
     ->middleware(['auth', 'verified'])
@@ -19,4 +20,4 @@ Route::middleware(['auth'])->group(function () {
     Volt::route('settings/appearance', 'settings.appearance')->name('settings.appearance');
 });
 
-require __DIR__.'/auth.php';
+require __DIR__ . '/auth.php';
