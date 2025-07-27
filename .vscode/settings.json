@@ -2,6 +2,7 @@
     // Uwaga: Wcięcia (tabSize, insertSpaces), końcówki linii i kodowanie są pobierane z .editorconfig,
     // o ile nie zostaną jawnie nadpisane poniżej. Zalecamy nie ustawiać ich tutaj, by zachować spójność w całym zespole.
     "editor.formatOnSave": true,
+    "editor.wordWrap": "on",
     "editor.defaultFormatter": "esbenp.prettier-vscode",
     "[php]": {
         "editor.defaultFormatter": "bmewburn.vscode-intelephense-client"
@@ -27,6 +28,7 @@
     "[html]": {
         "editor.defaultFormatter": "esbenp.prettier-vscode"
     },
+    "php.validate.executablePath": "C:\\Users\\jacek\\.config\\herd\\bin\\php83\\php.exe",
     "tailwindCSS.includeLanguages": {
         "php": "html",
         "blade": "html"
@@ -39,5 +41,28 @@
     "emmet.includeLanguages": {
         "blade": "html"
     },
-    "livewire.autoComplete": true
+    "livewire.autoComplete": true,
+    "chat.editor.fontSize": 22,
+    // Ustawienia wyszukiwania - wykluczanie niepotrzebnych katalogów
+    "search.exclude": {
+        "**/node_modules": true,
+        "**/vendor": true,
+        "**/storage": true,
+        "public/build": true
+    },
+    // Ustawienia plików - ukrywanie plików i katalogów w eksploratorze
+    "files.exclude": {
+        "**/.git": true,
+        "**/.svn": true,
+        "**/.hg": true,
+        "**/CVS": true,
+        "**/.DS_Store": true,
+        "**/Thumbs.db": true,
+        "**/node_modules": true,
+        "**/vendor": true
+    },
+    // Ustawienia dla lintera Tailwind CSS
+    "tailwindCSS.lint.invalidClass": "error",
+    "tailwindCSS.lint.invalidApply": "error",
+    "tailwindCSS.lint.conflictingClass": "warning"
 }

@@ -41,20 +41,22 @@
     @resize.window="adjustPadding()">
     <div class="min-h-screen bg-white">
         <!-- Floating Header -->
-        <flux:header id="header-top" container
-            class="fixed top-0 left-0 right-0 bg-white dark:bg-white border-b-2 border-primary dark:border-primary text-primary justify-between z-50 transition-all duration-300">
+        <flux:header container
+            class="fixed top-0 left-0 right-0 bg-white dark:bg-white border-b-2 border-primary dark:border-primary text-primary justify-between z-20 transition-all duration-300 header-top">
             <flux:sidebar.toggle class="lg:hidden" icon="bars-2" inset="left" />
+            <flux:spacer class="lg:hidden" />
             <!-- Logo z dynamicznym skalowaniem -->
-            <div class="transition-all duration-300 logo-dynamic">
-                <flux:image.logo variant="standard" size="md" href="{{ route('home') }}" />
+            <div class="transition-all duration-300 max-lg:my-2 logo">
+                <flux:image.logo variant="standard" href="{{ route('home') }}" />
             </div>
             <flux:spacer />
             <div class="text-center">
                 <p
-                    class="font-marcellus text-4xl font-bold text-primary -mb-2 mt-4 transition-all duration-300 slogan-dynamic">
+                    class="max-lg:hidden font-marcellus text-4xl font-bold text-primary -mb-2 mt-4 transition-all duration-300 slogan">
                     Herbaty dla całej rodziny
                 </p>
-                <flux:navbar class="-mb-px max-lg:hidden font-marcellus text-lg -pt-0 items-end justify-center">
+                <flux:navbar
+                    class="-mb-px max-lg:hidden font-marcellus text-lg -pt-0 items-end justify-between gap-x-2 menu">
                     <flux:navbar.item href="{{ route('home') }}"
                         class="hover:font-bold {{ request()->routeIs('home') ? 'current font-bold text-xl' : '' }}">
                         Strona główna</flux:navbar.item>
@@ -71,10 +73,49 @@
                 </flux:navbar>
             </div>
             <flux:spacer />
-            <flux:navbar class="me-4">
-                <flux:navbar.item icon="shopping-cart" href="#" badge="3" label="Koszyk" />
+            <flux:navbar>
+                <flux:navbar.item icon="shopping-cart" badge="3" badge-color="zinc" badge-variant="solid"
+                    label="Koszyk" />
             </flux:navbar>
         </flux:header>
+
+        <!-- Mobile Sidebar -->
+        <flux:sidebar sticky stashable
+            class="lg:hidden border-e border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 z-30">
+            <flux:sidebar.toggle class="lg:hidden" icon="x-mark" />
+
+            {{-- <a href="{{ route('home') }}" class="me-5 flex items-center space-x-2 rtl:space-x-reverse">
+                <flux:image.logo variant="standard" size="md" />
+            </a> --}}
+
+            <flux:navlist variant="outline">
+                <flux:navlist.group heading="Menu" class="grid">
+                    <flux:navlist.item icon="home" :href="route('home')" :current="request()->routeIs('home')">
+                        Strona główna
+                    </flux:navlist.item>
+                    <flux:navlist.item icon="truck" :href="route('dostawa')" :current="request()->routeIs('dostawa')">
+                        Dostawa
+                    </flux:navlist.item>
+                    <flux:navlist.item icon="document-text" :href="route('regulamin')"
+                        :current="request()->routeIs('regulamin')">
+                        Regulamin
+                    </flux:navlist.item>
+                    <flux:navlist.item icon="envelope" :href="route('kontakt')"
+                        :current="request()->routeIs('kontakt')">
+                        Kontakt
+                    </flux:navlist.item>
+                </flux:navlist.group>
+            </flux:navlist>
+
+            <flux:spacer />
+
+            <flux:navlist variant="outline">
+                <flux:navlist.group heading="Sklep">
+                    <flux:navlist.item icon="shopping-cart" href="#" label="Koszyk" />
+                </flux:navlist.group>
+            </flux:navlist>
+        </flux:sidebar>
+
         <!-- Main Content -->
         <main>
             {{ $slot }}
@@ -136,14 +177,14 @@
                     </div>
                 </div>
 
-                <div class="border-t border-gray-700 mt-8 pt-8 text-center text-gray-300">
-                    <p>&copy; {{ date('Y') }} Zdrowe Herbaty. Wszystkie prawa zastrzeżone.</p>
+                <div class="border-t border-white mt-8 pt-8 text-center text-gray-300">
+                    <p>&copy; {{ date('Y') }} Bifix Wszystkie prawa zastrzeżone.</p>
                 </div>
             </div>
         </footer>
     </div>
     @livewireScripts
-
+    @fluxScripts
 
 </body>
 

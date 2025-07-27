@@ -86,21 +86,33 @@ select:focus[data-flux-control] {
     @apply outline-hidden ring-2 ring-accent ring-offset-2 ring-offset-accent-foreground;
 }
 
+.header-top .menu a div {
+    @apply text-primary text-lg;
+}
+
+/* .header-top .menu a:hover div {
+    @apply font-bold;
+} */
+
+.header-top .menu a.current div {
+    @apply text-xl font-bold;
+}
+
 /* Dynamiczny header - logo i slogan */
-.logo-dynamic {
+.headeer-top .logo {
     transform: scale(1);
     transition: transform 0.3s ease;
 }
 
 /* Gdy scrolled - zmniejsz logo */
-body.scrolled .logo-dynamic {
+body.scrolled .header-top .logo {
     transform: scale(0.6);
     margin-top: -0.7rem;
     margin-bottom: -0.7rem;
 }
 
 /* CSS dla dynamicznego sloganu */
-.slogan-dynamic {
+.header-top .slogan {
     opacity: 1;
     transform: scaleY(1);
     max-height: 5rem;
@@ -109,7 +121,7 @@ body.scrolled .logo-dynamic {
 }
 
 /* Gdy scrolled - ukryj slogan */
-body.scrolled .slogan-dynamic {
+body.scrolled .header-top .slogan {
     opacity: 0;
     transform: scaleY(0);
     max-height: 0;
