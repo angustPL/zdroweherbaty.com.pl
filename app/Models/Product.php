@@ -8,31 +8,47 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Product extends EnovaModel
 {
     /**
-     * The table associated with the model.
+     * Tabela powiązana z modelem.
      *
      * @var string
      */
     protected $table = 'Towary';
 
     /**
-     * The primary key associated with the table.
+     * Klucz główny powiązany z tabelą.
      *
      * @var string
      */
     protected $primaryKey = 'ID';
 
     /**
-     * The "booted" method of the model.
+     * Metoda "booted" modelu.
      */
     protected static function booted(): void
     {
+        // Global scope dla produktów z grupą - automatycznie filtruje tylko produkty posiadające przypisaną grupę
         static::addGlobalScope('hasGroup', function (Builder $builder) {
             $builder->whereHas('group');
+        });
+
+        // Global scope dla produktów z cechą product_mark - automatycznie filtruje tylko produkty oznaczone jako dostępne w sklepie
+        static::addGlobalScope('hasProductMark', function (Builder $builder) {
+            $builder->whereHas('features', function ($query) {
+                $query->where('Name', config('enova.features.product_mark'));
+            });
         });
     }
 
     /**
-     * Get the feature representing the product group.
+     * Pobiera wszystkie cechy produktu.
+     */
+    public function features()
+    {
+        return $this->hasMany(Feature::class, 'Parent', 'ID');
+    }
+
+    /**
+     * Pobiera cechę reprezentującą grupę produktu.
      */
     public function group()
     {
@@ -40,7 +56,7 @@ class Product extends EnovaModel
     }
 
     /**
-     * Get the feature representing the product name.
+     * Pobiera cechę reprezentującą nazwę produktu.
      */
     public function productNameFeature()
     {
@@ -50,7 +66,24 @@ class Product extends EnovaModel
     }
 
     /**
-     * Scope a query to only include products of a given group.
+     * Pobiera cechę reprezentującą oznaczenie produktu (product_mark).
+     */
+    public function productMark()
+    {
+        return $this->hasOne(Feature::class, 'Parent', 'ID')
+            ->where('Name', config('enova.features.product_mark'));
+    }
+
+    /**
+     * Pobiera główną cenę produktu.
+     */
+    public function price()
+    {
+        return $this->hasOne(Price::class, 'Towar', 'ID');
+    }
+
+    /**
+     * Scope zapytania do produktów z określonej grupy.
      *
      * @param  \Illuminate\Database\Eloquent\Builder  $query
      * @param  string  $cleanGroupName

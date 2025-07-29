@@ -2,11 +2,11 @@
 
 ## Opis Projektu
 
-Nowa wersja sklepu internetowego Zdrowe Herbaty, oparta na frameworku Laravel 12. Projekt jest modernizacją istniejącego sklepu opartego na Zend Framework 1, z zachowaniem kompatybilności z bazą danych Enova.
+Nowa wersja sklepu internetowego Zdrowe Herbaty, oparta na frameworku Laravel 12 z Livewire Volt. Projekt jest modernizacją istniejącego sklepu opartego na Zend Framework 1, z zachowaniem kompatybilności z bazą danych Enova.
 
 ## Założenia Projektu
 
--   Modernizacja technologiczna z ZF1 na Laravel 12
+-   Modernizacja technologiczna z ZF1 na Laravel 12 + Livewire
 -   Zachowanie kompatybilności z istniejącą bazą danych Enova
 -   Uproszczenie struktury kodu przy zachowaniu funkcjonalności
 -   Implementacja nowoczesnych rozwiązań i praktyk programistycznych
@@ -14,6 +14,15 @@ Nowa wersja sklepu internetowego Zdrowe Herbaty, oparta na frameworku Laravel 12
 -   Każde zamówienie jest niezależne (brak kont klientów)
 -   Dane klienta przechowywane w cookies dla ułatwienia wypełniania formularzy
 -   Brak kontroli stanów magazynowych
+
+## Technologie
+
+-   **Laravel 12** - framework PHP
+-   **Livewire Volt** - komponenty reaktywne
+-   **Tailwind CSS** - framework CSS
+-   **Alpine.js** - interaktywność JavaScript
+-   **Flux UI** - komponenty UI
+-   **MSSQL** - baza danych Enova
 
 ## Struktura Bazy Danych (Enova)
 
@@ -49,28 +58,31 @@ Enova używa systemu atrybutów do kategoryzacji produktów:
 
 ## TODO Lista
 
-### Faza 1 - Podstawowa Infrastruktura
+### Faza 1 - Podstawowa Infrastruktura ✅
 
 -   [x] Inicjalizacja projektu Laravel
 -   [x] Konfiguracja Git i repozytorium
 -   [x] Konfiguracja środowiska deweloperskiego
 -   [x] Konfiguracja połączenia z bazą Enova
 
-### Faza 2 - Modele i Mapowanie Danych
+### Faza 2 - Modele i Mapowanie Danych ✅
 
 -   [x] Implementacja bazowego modelu EnovaModel (read-only)
 -   [x] Implementacja modelu produktów (Towary)
 -   [x] Implementacja modelu grup produktowych (Group)
 -   [x] Implementacja modelu atrybutów (Features)
--   [ ] Implementacja modelu cen
+-   [x] Implementacja modelu cen (Price)
 -   [ ] Implementacja modelu VAT
 -   [ ] Implementacja modelu przecen
 
-### Faza 3 - Podstawowe Funkcjonalności
+### Faza 3 - Podstawowe Funkcjonalności 🚧
 
--   [ ] Implementacja listy produktów
+-   [x] Implementacja listy produktów w grupach
+-   [x] Implementacja hierarchicznego sidebar z grupami
+-   [x] Implementacja wyszukiwania w grupach
+-   [x] Implementacja automatycznego rozwijania grup
+-   [x] Implementacja stron statycznych (home, dostawa, regulamin, kontakt)
 -   [ ] Implementacja widoku produktu
--   [ ] Implementacja kategorii
 -   [ ] Implementacja koszyka
 -   [ ] Implementacja procesu zamawiania
 
@@ -78,13 +90,14 @@ Enova używa systemu atrybutów do kategoryzacji produktów:
 
 -   [ ] Implementacja cache'owania
 -   [ ] Optymalizacja zapytań do bazy
--   [ ] Implementacja wyszukiwarki
+-   [ ] Implementacja wyszukiwarki produktów
 -   [ ] Optymalizacja wydajności
 
 ### Faza 5 - Frontend i UX
 
--   [ ] Implementacja responsywnego designu
--   [ ] Optymalizacja UX
+-   [x] Implementacja responsywnego designu
+-   [x] Implementacja sidebar z grupami
+-   [x] Implementacja wyszukiwania w czasie rzeczywistym
 -   [ ] Implementacja animacji i przejść
 -   [ ] Testy użyteczności
 
@@ -106,6 +119,37 @@ Enova używa systemu atrybutów do kategoryzacji produktów:
 5. Wygeneruj klucz aplikacji: `php artisan key:generate`
 6. Uruchom serwer deweloperski: `php artisan serve`
 
+## Funkcjonalności Livewire
+
+### Komponenty Volt
+
+#### Desktop Sidebar (`desktop-sidebar.blade.php`)
+
+-   Hierarchiczne wyświetlanie grup produktów
+-   Wyszukiwanie w czasie rzeczywistym
+-   Automatyczne rozwijanie grup nadrzędnych
+-   Wyróżnianie aktualnej grupy
+
+#### Mobile Sidebar (`sidebar-with-groups.blade.php`)
+
+-   Responsywny sidebar dla urządzeń mobilnych
+-   Menu nawigacyjne
+-   Grupy produktów
+
+#### Strona Grupy (`grupa.blade.php`)
+
+-   Wyświetlanie produktów w grupie
+-   Nazwy produktów z features
+-   Ceny z właściwej definicji
+-   Responsywny grid layout
+
+### Strony Statyczne
+
+-   **Home** (`welcome.blade.php`) - strona główna
+-   **Dostawa** (`dostawa.blade.php`) - informacje o dostawie
+-   **Regulamin** (`regulamin.blade.php`) - regulamin sklepu
+-   **Kontakt** (`kontakt.blade.php`) - dane kontaktowe
+
 ## Integracja z Enova - Grupy Produktów
 
 ### Model Group
@@ -113,17 +157,23 @@ Enova używa systemu atrybutów do kategoryzacji produktów:
 Model `Group` reprezentuje grupy produktów w systemie Enova. Każda grupa jest przechowywana w tabeli `Features` z odpowiednim prefiksem.
 
 #### Główne funkcjonalności:
-- Automatyczne filtrowanie grup po prefiksie zdefiniowanym w konfiguracji (`config('enova.features.product_group_prefix')`)
-- Czyszczenie nazw grup (usuwanie prefiksu i końcowego ukośnika)
-- Relacja z produktami przez klucz obcy `Parent`
+
+-   Automatyczne filtrowanie grup po prefiksie zdefiniowanym w konfiguracji (`config('enova.features.product_group_prefix')`)
+-   Czyszczenie nazw grup (usuwanie prefiksu i końcowego ukośnika)
+-   Relacja z produktami przez klucz obcy `Parent`
+-   Hierarchiczna struktura grup
 
 #### Przykład użycia:
+
 ```php
 // Pobranie wszystkich grup
 $groups = \App\Models\Group::all();
 
 // Pobranie nazwy grupy (z automatycznym czyszczeniem)
 $cleanName = $group->clean_name; // np. "Herbaty zielone"
+
+// Pobranie hierarchicznej struktury
+$hierarchicalGroups = Group::getHierarchicalStructure();
 ```
 
 ### Model Product
@@ -131,11 +181,15 @@ $cleanName = $group->clean_name; // np. "Herbaty zielone"
 Model `Product` reprezentuje produkty w systemie Enova i zawiera rozszerzoną funkcjonalność związaną z grupami.
 
 #### Główne funkcjonalności:
-- Automatyczne filtrowanie produktów posiadających grupę
-- Relacja do modelu Group
-- Scope do wyszukiwania po nazwie grupy
+
+-   Automatyczne filtrowanie produktów posiadających grupę
+-   Relacja do modelu Group
+-   Relacja do modelu Price
+-   Relacja do features (nazwa produktu)
+-   Scope do wyszukiwania po nazwie grupy
 
 #### Przykład użycia:
+
 ```php
 // Pobranie wszystkich produktów z grupą
 $products = \App\Models\Product::all();
@@ -145,7 +199,23 @@ $productsInGroup = \App\Models\Product::whereGroupIs('Herbaty zielone')->get();
 
 // Pobranie grupy dla produktu
 $groupName = $product->group->clean_name;
+
+// Pobranie nazwy z features
+$productName = $product->productNameFeature->Name;
+
+// Pobranie ceny
+$price = $product->price->BruttoValue;
 ```
+
+### Model Price
+
+Model `Price` reprezentuje ceny produktów w systemie Enova.
+
+#### Główne funkcjonalności:
+
+-   Global scope filtrujący po definicji ceny
+-   Relacja do modelu Product
+-   Automatyczne pobieranie właściwej definicji ceny
 
 ## Struktura Katalogów
 
@@ -159,7 +229,11 @@ $groupName = $product->group->clean_name;
 ├── config/
 │   └── enova.php      # Konfiguracja Enova
 ├── resources/
-│   └── views/         # Widoki Blade
+│   └── views/
+│       ├── livewire/   # Komponenty Livewire Volt
+│       │   ├── components/  # Komponenty sidebar
+│       │   └── pages/       # Strony Volt
+│       └── layouts/    # Layouty aplikacji
 └── routes/
     └── web.php        # Definicje routingu
 ```

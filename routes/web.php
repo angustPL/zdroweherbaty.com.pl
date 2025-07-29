@@ -8,6 +8,7 @@ Volt::route('/', 'pages.welcome')->name('home');
 Volt::route('/dostawa', 'pages.dostawa')->name('dostawa');
 Volt::route('/regulamin', 'pages.regulamin')->name('regulamin');
 Volt::route('/kontakt', 'pages.kontakt')->name('kontakt');
+Volt::route('/grupa/{grupa}', 'pages.grupa')->name('grupa');
 
 Route::view('dashboard', 'dashboard')
     ->middleware(['auth', 'verified'])

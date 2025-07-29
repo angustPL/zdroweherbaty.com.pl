@@ -39,9 +39,9 @@
     --color-zinc-900: #171717;
     --color-zinc-950: #0a0a0a;
 
-    --color-accent: var(--color-neutral-800);
-    --color-accent-content: var(--color-neutral-800);
-    --color-accent-foreground: var(--color-white);
+    /* --color-accent: var(--color-primary);
+    --color-accent-content: var(--color-primary);
+    --color-accent-foreground: var(--color-white); */
 }
 
 @layer theme {
@@ -125,4 +125,28 @@ body.scrolled .header-top .slogan {
     opacity: 0;
     transform: scaleY(0);
     max-height: 0;
+    overflow: hidden;
+}
+
+[data-flux-navlist-group] button,
+[data-flux-navlist-item] {
+    @apply h-auto overflow-visible py-1.5;
+}
+
+/* Nadpisanie whitespace-nowrap dla elementów w sidebarach z klasą */
+.sidebar-wrap-text [data-flux-navlist-item] div,
+.sidebar-wrap-text [data-flux-navlist-item] span {
+    @apply whitespace-normal;
+}
+
+/* Niewidoczna ikona x-mark dla elementów nierozwijanych */
+.sidebar-wrap-text [data-flux-navlist-item] [data-flux-icon] {
+    @apply opacity-0;
+}
+
+/* Wyeksponowanie current w sidebarze */
+.sidebar-wrap-text [data-flux-navlist-item][data-current="data-current"],
+.sidebar-wrap-text [data-flux-navlist-item][data-current="data-current"] div,
+.sidebar-wrap-text [data-flux-navlist-item][data-current="data-current"] span {
+    @apply bg-primary text-white font-bold border-0;
 }

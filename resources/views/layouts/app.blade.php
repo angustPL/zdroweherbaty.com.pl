@@ -29,7 +29,6 @@
     },
     handleScroll() {
         this.scrolled = window.scrollY > 50;
-        this.adjustPadding();
         // Dodaj/usuń klasę CSS na body
         if (this.scrolled) {
             document.body.classList.add('scrolled');
@@ -41,9 +40,9 @@
     @resize.window="adjustPadding()">
     <div class="min-h-screen bg-white">
         <!-- Floating Header -->
-        <flux:header container
+        <flux:header container id="header-top"
             class="fixed top-0 left-0 right-0 bg-white dark:bg-white border-b-2 border-primary dark:border-primary text-primary justify-between z-20 transition-all duration-300 header-top">
-            <flux:sidebar.toggle class="lg:hidden" icon="bars-2" inset="left" />
+            <flux:sidebar.toggle class="lg:hidden" icon="bars-3" inset="left" />
             <flux:spacer class="lg:hidden" />
             <!-- Logo z dynamicznym skalowaniem -->
             <div class="transition-all duration-300 max-lg:my-2 logo">
@@ -80,45 +79,23 @@
         </flux:header>
 
         <!-- Mobile Sidebar -->
-        <flux:sidebar sticky stashable
-            class="lg:hidden border-e border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 z-30">
-            <flux:sidebar.toggle class="lg:hidden" icon="x-mark" />
-
-            {{-- <a href="{{ route('home') }}" class="me-5 flex items-center space-x-2 rtl:space-x-reverse">
-                <flux:image.logo variant="standard" size="md" />
-            </a> --}}
-
-            <flux:navlist variant="outline">
-                <flux:navlist.group heading="Menu" class="grid">
-                    <flux:navlist.item icon="home" :href="route('home')" :current="request()->routeIs('home')">
-                        Strona główna
-                    </flux:navlist.item>
-                    <flux:navlist.item icon="truck" :href="route('dostawa')" :current="request()->routeIs('dostawa')">
-                        Dostawa
-                    </flux:navlist.item>
-                    <flux:navlist.item icon="document-text" :href="route('regulamin')"
-                        :current="request()->routeIs('regulamin')">
-                        Regulamin
-                    </flux:navlist.item>
-                    <flux:navlist.item icon="envelope" :href="route('kontakt')"
-                        :current="request()->routeIs('kontakt')">
-                        Kontakt
-                    </flux:navlist.item>
-                </flux:navlist.group>
-            </flux:navlist>
-
-            <flux:spacer />
-
-            <flux:navlist variant="outline">
-                <flux:navlist.group heading="Sklep">
-                    <flux:navlist.item icon="shopping-cart" href="#" label="Koszyk" />
-                </flux:navlist.group>
-            </flux:navlist>
-        </flux:sidebar>
+        <livewire:components.sidebar-with-groups />
 
         <!-- Main Content -->
         <main>
-            {{ $slot }}
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
+                    <!-- Sidebar z grupami produktów (2/6) - ukryty na mobile -->
+                    <div class="max-lg:hidden lg:col-span-1">
+                        <livewire:components.desktop-sidebar />
+                    </div>
+
+                    <!-- Content (3/4 na desktop, pełna szerokość na mobile) -->
+                    <div class="lg:col-span-3">
+                        {{ $slot }}
+                    </div>
+                </div>
+            </div>
         </main>
 
         <!-- Footer -->
@@ -185,7 +162,6 @@
     </div>
     @livewireScripts
     @fluxScripts
-
 </body>
 
 </html>
