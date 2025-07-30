@@ -82,8 +82,11 @@ Enova używa systemu atrybutów do kategoryzacji produktów:
 -   [x] Implementacja wyszukiwania w grupach
 -   [x] Implementacja automatycznego rozwijania grup
 -   [x] Implementacja stron statycznych (home, dostawa, regulamin, kontakt)
+-   [x] Implementacja systemu koszyka z cookies
+-   [x] Implementacja komponentu "Dodaj do koszyka"
+-   [x] Implementacja ikony koszyka w header
+-   [x] Implementacja strony koszyka z tabelą produktów
 -   [ ] Implementacja widoku produktu
--   [ ] Implementacja koszyka
 -   [ ] Implementacja procesu zamawiania
 
 ### Faza 4 - Optymalizacja i Usprawnienia
@@ -98,6 +101,8 @@ Enova używa systemu atrybutów do kategoryzacji produktów:
 -   [x] Implementacja responsywnego designu
 -   [x] Implementacja sidebar z grupami
 -   [x] Implementacja wyszukiwania w czasie rzeczywistym
+-   [x] Implementacja efektów hover na kartach produktów
+-   [x] Implementacja dynamicznych przycisków koszyka
 -   [ ] Implementacja animacji i przejść
 -   [ ] Testy użyteczności
 
@@ -142,6 +147,14 @@ Enova używa systemu atrybutów do kategoryzacji produktów:
 -   Nazwy produktów z features
 -   Ceny z właściwej definicji
 -   Responsywny grid layout
+-   Komponenty "Dodaj do koszyka" z dynamicznym tekstem
+
+#### System Koszyka
+
+-   **CartService** - serwis zarządzający koszykiem w cookies
+-   **Cart Icon** - ikona koszyka w header z licznikiem produktów
+-   **Add to Cart Button** - dynamiczny przycisk z tekstem "W koszyku"/"Dodaj do koszyka"
+-   **Cart Page** - strona koszyka z tabelą produktów i możliwością edycji ilości
 
 ### Strony Statyczne
 
@@ -217,12 +230,64 @@ Model `Price` reprezentuje ceny produktów w systemie Enova.
 -   Relacja do modelu Product
 -   Automatyczne pobieranie właściwej definicji ceny
 
+## System Koszyka
+
+### CartService
+
+Serwis zarządzający koszykiem zakupowym z wykorzystaniem cookies.
+
+#### Główne funkcjonalności:
+
+-   **Dodawanie produktów** - `addToCart($productId, $name, $price, $image)`
+-   **Aktualizacja ilości** - `updateQuantity($productId, $quantity)`
+-   **Usuwanie produktów** - `removeFromCart($productId)`
+-   **Czyszczenie koszyka** - `clearCart()`
+-   **Sprawdzanie zawartości** - `isProductInCart($productId)`
+-   **Automatyczne obliczanie totalów** - `updateCartTotals()`
+
+#### Przykład użycia:
+
+```php
+$cartService = app(CartService::class);
+
+// Dodanie produktu
+$cartService->addToCart(123, 'Herbata Zielona', 25.99, '123_200x120.jpg');
+
+// Sprawdzenie czy produkt jest w koszyku
+$isInCart = $cartService->isProductInCart(123);
+
+// Pobranie koszyka
+$cart = $cartService->getCart();
+```
+
+### Komponenty Koszyka
+
+#### Cart Icon (`cart-icon.blade.php`)
+
+-   Ikona koszyka w header z licznikiem produktów
+-   Automatyczne odświeżanie po zmianach w koszyku
+-   Link do strony koszyka
+
+#### Add to Cart Button (`add-to-cart-button.blade.php`)
+
+-   Dynamiczny przycisk z tekstem zależnym od stanu koszyka
+-   Efekt hover z ikoną dla produktów już w koszyku
+-   Loading state podczas dodawania
+
+#### Cart Page (`koszyk.blade.php`)
+
+-   Tabela produktów z możliwością edycji ilości
+-   Debounce dla aktualizacji ilości (1 sekunda)
+-   Przyciski +/- dla zmiany ilości
+-   Automatyczne przeliczanie wartości
+-   Komunikat o pustym koszyku z ikoną
+
 ## Struktura Katalogów
 
 ```
 ├── app/
 │   ├── Models/         # Modele mapujące dane z Enova
-│   ├── Services/       # Serwisy biznesowe
+│   ├── Services/       # Serwisy biznesowe (CartService)
 │   └── Http/
 │       ├── Controllers/# Kontrolery
 │       └── Requests/   # Walidacja requestów
@@ -231,8 +296,8 @@ Model `Price` reprezentuje ceny produktów w systemie Enova.
 ├── resources/
 │   └── views/
 │       ├── livewire/   # Komponenty Livewire Volt
-│       │   ├── components/  # Komponenty sidebar
-│       │   └── pages/       # Strony Volt
+│       │   ├── components/  # Komponenty (cart-icon, add-to-cart-button)
+│       │   └── pages/       # Strony Volt (grupa, koszyk)
 │       └── layouts/    # Layouty aplikacji
 └── routes/
     └── web.php        # Definicje routingu

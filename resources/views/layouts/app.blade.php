@@ -9,10 +9,6 @@
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600" rel="stylesheet" />
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Marcellus+SC&display=swap">
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Marcellus+SC&display=swap">
     <!-- Scripts -->
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @livewireStyles
@@ -68,13 +64,15 @@
                     <flux:navbar.item href="{{ route('kontakt') }}"
                         class="hover:font-bold {{ request()->routeIs('kontakt') ? 'current font-bold text-xl' : '' }}">
                         Kontakt</flux:navbar.item>
+                    {{-- <flux:navbar.item href="{{ route('koszyk') }}"
+                        class="hover:font-bold {{ request()->routeIs('koszyk') ? 'current font-bold text-xl' : '' }}">
+                        Koszyk</flux:navbar.item> --}}
                     <flux:separator vertical variant="subtle" class="my-2" />
                 </flux:navbar>
             </div>
             <flux:spacer />
             <flux:navbar>
-                <flux:navbar.item icon="shopping-cart" badge="3" badge-color="zinc" badge-variant="solid"
-                    label="Koszyk" />
+                <livewire:components.cart-icon />
             </flux:navbar>
         </flux:header>
 

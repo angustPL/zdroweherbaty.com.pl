@@ -34,7 +34,8 @@ class Product extends EnovaModel
         // Global scope dla produktów z cechą product_mark - automatycznie filtruje tylko produkty oznaczone jako dostępne w sklepie
         static::addGlobalScope('hasProductMark', function (Builder $builder) {
             $builder->whereHas('features', function ($query) {
-                $query->where('Name', config('enova.features.product_mark'));
+                $query->where('Name', config('enova.features.product_mark'))
+                    ->where('Data', '1');
             });
         });
     }

@@ -56,20 +56,30 @@ mount(function ($grupa) {
 
 <div>
     <div class="mb-6">
-        <h1 class="text-3xl font-bold text-gray-900 mb-2">{{ $categoryName }}</h1>
+        <h1 class="text-3xl font-bold text-black mt-1 mb-2">{{ $categoryName }}</h1>
         <p class="text-gray-600">Znaleziono {{ $products->count() }} produktów</p>
     </div>
 
     @if ($products->count() > 0)
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             @foreach ($products as $product)
-                <div class="bg-white rounded-lg shadow-md p-6 border border-gray-200">
-                    <h3 class="text-lg font-semibold text-gray-900 mb-2">
-                        {{ $product['Nazwa'] }}
-                    </h3>
-                    @if ($product['BruttoValue'])
-                        <p class="text-2xl font-bold text-primary">{{ number_format($product['BruttoValue'], 2) }} zł</p>
-                    @endif
+                <div
+                    class="relative text-center bg-white p-4 border border-gray-300 rounded-lg hover:shadow-xl hover:transition-shadow hover:duration-300 duration-300">
+                    <a href="{{ route('towar', $product['ID']) }}" class="absolute top-4 left-4 right-4">
+                        <h3 class="text-primary text-lg font-normal leading-tight text-gray-600 mb-2">
+                            {{ $product['Nazwa'] }}
+                        </h3>
+                    </a>
+                    <a href="{{ route('towar', $product['ID']) }}">
+                        <img src="{{ Storage::disk('public')->exists('img/towary/' . $product['ID'] . '_200x120.jpg') ? Storage::disk('public')->url('img/towary/' . $product['ID'] . '_200x120.jpg') : asset('img/towary/placeholder.jpg') }}"
+                            alt="{{ $product['Nazwa'] }}" class="w-auto max-h-[120px] mx-auto my-[80px]">
+                    </a>
+                    <div class="absolute bottom-4 left-4 right-4 text-center">
+                        <p class="text-center text-2xl mb-1.5">
+                            {{ number_format($product['BruttoValue'], 2, ',', '.') }} zł</p>
+                        <livewire:components.add-to-cart-button :product-id="$product['ID']" :product-name="$product['Nazwa']" :price="$product['BruttoValue']"
+                            :image="$product['ID'] . '_200x120.jpg'" />
+                    </div>
                 </div>
             @endforeach
         </div>

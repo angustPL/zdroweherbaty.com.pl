@@ -45,12 +45,8 @@ mount(function () {
             </flux:navlist.group>
         </flux:navlist>
 
-        {{-- <flux:spacer />
+        <flux:spacer />
 
-        <flux:navlist variant="outline">
-            <flux:navlist.group heading="Sklep">
-                <flux:navlist.item icon="shopping-cart" href="#" label="Koszyk" />
-            </flux:navlist.group>
-        </flux:navlist> --}}
+
     </flux:sidebar>
 </div>

@@ -1,3 +1,5 @@
+@import url("https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,100;0,300;0,400;0,700;0,900;1,100;1,300;1,400;1,700;1,900&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Marcellus+SC&display=swap");
 @import "tailwindcss";
 @import "../../vendor/livewire/flux/dist/flux.css";
 
@@ -9,7 +11,7 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-    --font-sans: "Instrument Sans", ui-sans-serif, system-ui, sans-serif,
+    --font-sans: "Lato", ui-sans-serif, system-ui, sans-serif,
         "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol",
         "Noto Color Emoji";
     --font-marcellus: "Marcellus SC";
@@ -145,8 +147,8 @@ body.scrolled .header-top .slogan {
 }
 
 /* Wyeksponowanie current w sidebarze */
-.sidebar-wrap-text [data-flux-navlist-item][data-current="data-current"],
-.sidebar-wrap-text [data-flux-navlist-item][data-current="data-current"] div,
-.sidebar-wrap-text [data-flux-navlist-item][data-current="data-current"] span {
+.sidebar-wrap-text [data-current="data-current"],
+.sidebar-wrap-text [data-current="data-current"] div,
+.sidebar-wrap-text [data-current="data-current"] span {
     @apply bg-primary text-white font-bold border-0;
 }
