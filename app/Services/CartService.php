@@ -134,7 +134,8 @@ class CartService
         }
 
         $cart['total'] = $total;
-        $cart['item_count'] = count($cart['items']); // Liczba różnych produktów
+        $cart['item_count'] = count($cart['items']); // Liczba unikalnych produktów
+        $cart['total_quantity'] = $itemCount; // Suma wszystkich ilości (opcjonalnie)
     }
 
     /**

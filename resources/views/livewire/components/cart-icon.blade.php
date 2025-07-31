@@ -17,7 +17,7 @@ $loadCart = function () {
 
 ?>
 
-<div class="relative" wire:poll.5s="loadCart" wire:on.cart-updated="loadCart" id="cart-icon">
+<div class="relative" id="cart-icon" x-data x-on:cart-updated-js.window="$wire.loadCart()">
     <a href="{{ route('koszyk') }}"
         class="flex items-center gap-2 px-3 py-2 text-primary hover:text-primary transition-colors">
         <div class="relative">
@@ -26,8 +26,8 @@ $loadCart = function () {
                     d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path>
             </svg>
             @if ($itemCount > 0)
-                <flux:badge size="sm" variant="solid" color="lime"
-                    class="text-primary absolute -bottom-2 -right-2">
+                <flux:badge size="sm" variant="solid" color="zinc" as="button"
+                    class="absolute -bottom-2 -right-2">
                     {{ $itemCount > 99 ? '99+' : $itemCount }}
                 </flux:badge>
             @endif

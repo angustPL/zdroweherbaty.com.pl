@@ -4,7 +4,7 @@ use function Livewire\Volt\{state, mount, layout};
 use App\Models\Product;
 use App\Models\Group;
 
-layout('layouts.app');
+layout('livewire.layouts.app');
 
 state(['grupa' => '', 'products' => [], 'categoryName' => '']);
 

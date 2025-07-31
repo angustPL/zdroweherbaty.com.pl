@@ -36,7 +36,7 @@ state(['selectedDelivery' => 'dpd']);
                 <!-- Delivery Option 1 -->
                 <div class="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200 cursor-pointer hover:ring-2 hover:ring-primary transition-all"
                     wire:click="selectedDelivery = 'dpd'"
-                    :class="{ 'ring-2 ring-primary': $selectedDelivery === 'dpd' }">
+                    :class="{ 'ring-2 ring-primary': $wire.selectedDelivery === 'dpd' }">
                     <div class="p-6">
                         <h3 class="text-lg font-semibold text-gray-900 mb-2">Kurier DPD</h3>
                         <p class="text-gray-600 mb-4">Dostawa w 1-2 dni robocze</p>
@@ -56,7 +56,7 @@ state(['selectedDelivery' => 'dpd']);
                 <!-- Delivery Option 2 -->
                 <div class="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200 cursor-pointer hover:ring-2 hover:ring-primary transition-all"
                     wire:click="selectedDelivery = 'poczta'"
-                    :class="{ 'ring-2 ring-primary': $selectedDelivery === 'poczta' }">
+                    :class="{ 'ring-2 ring-primary': $wire.selectedDelivery === 'poczta' }">
                     <div class="p-6">
                         <h3 class="text-lg font-semibold text-gray-900 mb-2">Poczta Polska</h3>
                         <p class="text-gray-600 mb-4">Dostawa w 2-3 dni robocze</p>
@@ -76,7 +76,7 @@ state(['selectedDelivery' => 'dpd']);
                 <!-- Delivery Option 3 -->
                 <div class="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200 cursor-pointer hover:ring-2 hover:ring-primary transition-all"
                     wire:click="selectedDelivery = 'osobisty'"
-                    :class="{ 'ring-2 ring-primary': $selectedDelivery === 'osobisty' }">
+                    :class="{ 'ring-2 ring-primary': $wire.selectedDelivery === 'osobisty' }">
                     <div class="p-6">
                         <h3 class="text-lg font-semibold text-gray-900 mb-2">Odbiór osobisty</h3>
                         <p class="text-gray-600 mb-4">Bezpłatny odbiór w naszym sklepie</p>

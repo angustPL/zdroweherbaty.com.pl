@@ -18,6 +18,9 @@ $loadCart = function () {
 
 $updateQuantity = function ($productId, $quantity) {
     try {
+        // Debugowanie
+        \Log::info('updateQuantity called:', ['productId' => $productId, 'quantity' => $quantity]);
+
         $cartService = app(CartService::class);
         $cartService->updateQuantity($productId, $quantity);
 
@@ -27,11 +30,15 @@ $updateQuantity = function ($productId, $quantity) {
         // Emituj event do odświeżenia ikony koszyka
         $this->dispatch('cart-updated');
 
+        // JavaScript event dla cart-icon
+        $this->dispatch('cart-updated-js');
+
         $this->dispatch('notify', [
             'type' => 'success',
             'message' => 'Koszyk zaktualizowany',
         ]);
     } catch (\Exception $e) {
+        \Log::error('Error in updateQuantity:', ['error' => $e->getMessage()]);
         $this->dispatch('notify', [
             'type' => 'error',
             'message' => 'Błąd podczas aktualizacji koszyka',
@@ -43,10 +50,15 @@ $removeFromCart = function ($productId) {
     try {
         $cartService = app(CartService::class);
         $cartService->removeFromCart($productId);
-        $this->loadCart();
 
         // Emituj event do odświeżenia ikony koszyka
         $this->dispatch('cart-updated');
+
+        // JavaScript event dla cart-icon
+        $this->dispatch('cart-updated-js');
+
+        // JavaScript - natychmiastowe odświeżenie strony
+        $this->dispatch('remove-cart-item-ui');
 
         $this->dispatch('notify', [
             'type' => 'success',
@@ -67,6 +79,9 @@ $clearCart = function () {
 
         // Emituj event do odświeżenia ikony koszyka
         $this->dispatch('cart-updated');
+
+        // JavaScript event dla cart-icon
+        $this->dispatch('cart-updated-js');
 
         // Reset state i ponowne załadowanie
         $this->reset('cart');
@@ -89,10 +104,16 @@ $clearCart = function () {
 
 ?>
 
-<div wire:key="cart-{{ md5(json_encode($cart)) }}">
+<div>
     <script>
         document.addEventListener('livewire:init', () => {
             Livewire.on('clear-cart-ui', () => {
+                setTimeout(() => {
+                    window.location.reload();
+                }, 100);
+            });
+
+            Livewire.on('remove-cart-item-ui', () => {
                 setTimeout(() => {
                     window.location.reload();
                 }, 100);
@@ -161,7 +182,7 @@ $clearCart = function () {
                                         </div>
                                         <div class="ml-4">
                                             <a href="{{ route('towar', $item['id']) }}"
-                                                class="text-sm/4! font-medium text-gray-900 hover:text-primary">
+                                                class="text-sm font-medium hover:text-primary leading-tight inline-block">
                                                 {{ $item['name'] }}
                                             </a>
                                         </div>
@@ -169,41 +190,41 @@ $clearCart = function () {
                                 </td>
 
                                 {{-- Cena jednostkowa --}}
-                                <td class="px-6 py-4 text-right text-sm text-gray-900">
+                                <td class="px-6 py-4 text-right text-sm whitespace-nowrap">
                                     {{ number_format($item['price'], 2, ',', '.') }} zł
                                 </td>
 
                                 {{-- Ilość --}}
-                                <td class="px-6 py-4 text-center">
+                                <td class="px-6 py-4 text-center whitespace-nowrap">
                                     <div class="flex items-center justify-center gap-2" x-data="{
                                         debounceTimer: null,
                                         updateQuantityDebounced(productId, newQuantity) {
+                                            // Walidacja - ilość musi być > 0
+                                            if (newQuantity <= 0) {
+                                                return;
+                                            }
+
                                             // Natychmiastowa zmiana w UI
                                             $wire.$set('cart.items.' + productId + '.quantity', newQuantity);
-                                    
+
                                             // Przelicz total
                                             let total = 0;
                                             Object.values($wire.cart.items).forEach(item => {
                                                 total += item.price * item.quantity;
                                             });
                                             $wire.$set('cart.total', total);
-                                    
+
                                             // Debounce zapisanie
                                             clearTimeout(this.debounceTimer);
                                             this.debounceTimer = setTimeout(() => {
                                                 $wire.updateQuantity(productId, newQuantity);
-                                            }, 1000);
+                                            }, 500);
                                         }
                                     }">
                                         <flux:button variant="outline" size="sm"
                                             @click="updateQuantityDebounced({{ $productId }}, {{ $item['quantity'] - 1 }})"
-                                            class="w-8 h-8 p-0 flex items-center justify-center">
-                                            <svg class="w-3 h-3" fill="none" stroke="currentColor"
-                                                viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                    d="M20 12H4">
-                                                </path>
-                                            </svg>
+                                            class="w-8 h-8 p-0 flex items-center justify-center {{ $item['quantity'] <= 1 ? 'opacity-50 cursor-not-allowed' : '' }}">
+                                            <span class="text-lg font-bold">−</span>
                                         </flux:button>
 
                                         <span
@@ -212,30 +233,22 @@ $clearCart = function () {
                                         <flux:button variant="outline" size="sm"
                                             @click="updateQuantityDebounced({{ $productId }}, {{ $item['quantity'] + 1 }})"
                                             class="w-8 h-8 p-0 flex items-center justify-center">
-                                            <svg class="w-3 h-3" fill="none" stroke="currentColor"
-                                                viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                    d="M12 4v16m8-8H4"></path>
-                                            </svg>
+                                            <span class="text-lg font-bold">+</span>
                                         </flux:button>
                                     </div>
                                 </td>
 
                                 {{-- Wartość --}}
-                                <td class="px-6 py-4 text-right text-md">
+                                <td class="px-6 py-4 text-right text-md whitespace-nowrap">
                                     {{ number_format($item['price'] * $item['quantity'], 2, ',', '.') }} zł
                                 </td>
 
                                 {{-- Akcje --}}
                                 <td class="px-6 py-4 text-center">
                                     <flux:button variant="outline" size="sm"
-                                        wire:click="removeFromCart({{ $productId }})"
+                                        wire:click="removeFromCart({{ $productId }})" wire:loading.attr="disabled"
                                         class="w-8 h-8 p-0 text-red-500 hover:text-red-700 flex items-center justify-center">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
-                                            </path>
-                                        </svg>
+                                        <flux:icon.trash-2 variant="micro" />
                                     </flux:button>
                                 </td>
                             </tr>
@@ -254,10 +267,9 @@ $clearCart = function () {
                 </div>
 
                 <div class="flex gap-4">
-                    <flux:button variant="outline" wire:click="clearCart" wire:loading.attr="disabled"
+                    <flux:button variant="outline" wire:click="clearCart"
                         class="flex-1 flex items-center justify-center">
-                        <span wire:loading.remove>Wyczyść koszyk</span>
-                        <span wire:loading>Czyszczenie...</span>
+                        Wyczyść koszyk
                     </flux:button>
 
                     <flux:button variant="primary" class="flex-1">

@@ -38,8 +38,14 @@ $addToCart = function () {
         // Emituj globalny event
         $this->dispatch('cart-updated');
 
-        // Debug - sprawdź czy event jest emitowany
-        \Log::info('Cart updated event dispatched from add-to-cart-button');
+        // Debugowanie
+        \Log::info('Cart updated event dispatched');
+
+        // JavaScript event dla cart-icon
+        $this->dispatch('cart-updated-js');
+
+        // Wymuszamy odświeżenie wszystkich komponentów
+        $this->dispatch('$refresh');
 
         // Pokaż powiadomienie
         $this->dispatch('notify', [
@@ -60,7 +66,7 @@ $addToCart = function () {
 
 <div x-data="{ isHovered: false }" @mouseenter="isHovered = true" @mouseleave="isHovered = false">
     @if ($this->isInCart)
-        <flux:button href="{{ route('koszyk') }}" class="flex w-full items-center justify-center">
+        <flux:button href="{{ route('koszyk') }}" variant="filled" class="flex w-full items-center justify-center">
             <span wire:loading.remove x-text="isHovered ? 'Do koszyka' : 'W koszyku'">
             </span>
             <span wire:loading>Dodawanie...</span>
@@ -70,7 +76,7 @@ $addToCart = function () {
             </svg>
         </flux:button>
     @else
-        <flux:button wire:click="addToCart" class="flex w-full items-center justify-center"
+        <flux:button variant="filled" wire:click="addToCart" class="flex w-full items-center justify-center"
             wire:loading.attr="disabled">
             <span wire:loading.remove>
                 Dodaj do koszyka
