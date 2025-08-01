@@ -1,151 +1,126 @@
+{{-- Logika: app/Livewire/Pages/Dostawa.php --}}
 <?php
 
 use function Livewire\Volt\{state, mount, layout};
+use App\Models\Delivery;
 
 layout('layouts.app');
 
-state(['selectedDelivery' => 'dpd']);
+state(['deliveries' => [], 'opcjeDostawy' => []]);
+
+mount(function () {
+    $this->deliveries = Delivery::join('Ceny', 'Towary.ID', '=', 'Ceny.Towar')
+        ->join('Features as PaymentFeatures', function ($join) {
+            $join->on('Towary.ID', '=', 'PaymentFeatures.Parent')->where('PaymentFeatures.Name', '=', config('enova.orders.feature_payment_method'));
+        })
+        ->join('SposobyZaplaty', 'PaymentFeatures.Data', '=', 'SposobyZaplaty.ID')
+        // ->where('Towary.Blokada', '=', 0)
+        ->where('Ceny.Definicja', config('enova.prices.definition'))
+        ->orderBy('MasaBruttoValue')
+        ->orderBy('Ceny.BruttoValue')
+        ->select(['Towary.ID', 'Towary.Nazwa', 'Towary.Opis', 'Towary.MasaBruttoValue', 'Ceny.BruttoValue', 'SposobyZaplaty.Nazwa as PaymentMethodName'])
+        ->get()
+        ->map(function ($delivery) {
+            return [
+                'ID' => $delivery->ID,
+                'Nazwa' => $delivery->Nazwa,
+                'Opis' => $delivery->Opis,
+                'MasaBruttoValue' => $delivery->MasaBruttoValue,
+                'BruttoValue' => $delivery->BruttoValue,
+                'PaymentMethod' => $delivery->PaymentMethodName ?? '-',
+            ];
+        })
+        ->toArray();
+
+    $this->opcjeDostawy = [];
+    foreach ($this->deliveries as $delivery) {
+        $this->opcjeDostawy[$delivery['MasaBruttoValue']][] = $delivery;
+    }
+});
 
 ?>
 
 <div>
-    <!-- Hero Section -->
-    <section class="bg-white">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-            <div class="text-center">
-                <h1 class="text-4xl font-bold text-gray-900 mb-4">
-                    Dostawa
-                </h1>
-                <p class="text-xl text-gray-600 mb-8">
-                    Szybka i bezpieczna dostawa do Twojego domu
-                </p>
+    <div class="text-center mb-12">
+        <h1 class="text-4xl font-bold text-gray-900 mb-4">
+            Opcje dostawy
+        </h1>
+        @if (config('enova.orders.free_delivery_threshold') > 0)
+            <p>
+                Bezpłatna dostawa dla zamówień o wartości większej niż
+                <strong class="text-lg">{{ number_format(config('enova.orders.free_delivery_threshold'), 0, ',', '.') }}
+                    zł</strong>
+            </p>
+            <p>
+                Koszty dostawy dla zamówień o wartości do
+                {{ number_format(config('enova.orders.free_delivery_threshold'), 0, ',', '.') }} zł
+                przedstawia tabela.
+            </p>
+        @endif
+    </div>
+
+    @if (empty($this->opcjeDostawy))
+        <div class="text-center py-12">
+            <svg class="w-20 h-20 mx-auto text-gray-300 mb-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z">
+                </path>
+            </svg>
+            <h3 class="text-xl font-medium mb-2">Brak opcji dostawy</h3>
+            <p class="text-gray-500">Aktualnie nie ma dostępnych opcji dostawy</p>
+        </div>
+    @else
+        <div class="overflow-hidden bg-white shadow-sm rounded-lg border border-gray-200">
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th scope="col"
+                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Zakres wagi
+                            </th>
+                            <th scope="col"
+                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Rodzaj dostawy
+                            </th>
+                            <th scope="col"
+                                class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Sposób zapłaty
+                            </th>
+                            <th scope="col"
+                                class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Koszt
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        @foreach ($this->opcjeDostawy as $zakres)
+                            @php $lp = 1; @endphp
+                            @foreach ($zakres as $value)
+                                <tr>
+                                    @if ($lp == 1)
+                                        <td rowspan="{{ count($zakres) }}"
+                                            class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-right">
+                                            do {{ number_format($value['MasaBruttoValue'], 0, ',', '.') }} kg
+                                        </td>
+                                    @endif
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        {{ $value['Nazwa'] }}
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
+                                        {{ $value['PaymentMethod'] }}
+                                    </td>
+                                    <td
+                                        class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right font-semibold">
+                                        {{ number_format($value['BruttoValue'], 2, ',', '.') }} zł
+                                    </td>
+                                </tr>
+                                @php $lp++; @endphp
+                            @endforeach
+                        @endforeach
+                    </tbody>
+                </table>
             </div>
         </div>
-    </section>
-
-    <!-- Delivery Options Section -->
-    <section class="bg-gray-50 py-12">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="text-center mb-12">
-                <h2 class="text-3xl font-bold text-gray-900 mb-4">
-                    Sposoby dostawy
-                </h2>
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                <!-- Delivery Option 1 -->
-                <div class="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200 cursor-pointer hover:ring-2 hover:ring-primary transition-all"
-                    wire:click="selectedDelivery = 'dpd'"
-                    :class="{ 'ring-2 ring-primary': $wire.selectedDelivery === 'dpd' }">
-                    <div class="p-6">
-                        <h3 class="text-lg font-semibold text-gray-900 mb-2">Kurier DPD</h3>
-                        <p class="text-gray-600 mb-4">Dostawa w 1-2 dni robocze</p>
-                        <div class="space-y-4">
-                            <div class="flex items-center justify-between">
-                                <span class="text-gray-600">Koszt dostawy:</span>
-                                <span class="font-semibold text-primary">15,00 zł</span>
-                            </div>
-                            <div class="flex items-center justify-between">
-                                <span class="text-gray-600">Czas dostawy:</span>
-                                <span class="font-semibold">1-2 dni</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Delivery Option 2 -->
-                <div class="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200 cursor-pointer hover:ring-2 hover:ring-primary transition-all"
-                    wire:click="selectedDelivery = 'poczta'"
-                    :class="{ 'ring-2 ring-primary': $wire.selectedDelivery === 'poczta' }">
-                    <div class="p-6">
-                        <h3 class="text-lg font-semibold text-gray-900 mb-2">Poczta Polska</h3>
-                        <p class="text-gray-600 mb-4">Dostawa w 2-3 dni robocze</p>
-                        <div class="space-y-4">
-                            <div class="flex items-center justify-between">
-                                <span class="text-gray-600">Koszt dostawy:</span>
-                                <span class="font-semibold text-primary">12,00 zł</span>
-                            </div>
-                            <div class="flex items-center justify-between">
-                                <span class="text-gray-600">Czas dostawy:</span>
-                                <span class="font-semibold">2-3 dni</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Delivery Option 3 -->
-                <div class="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200 cursor-pointer hover:ring-2 hover:ring-primary transition-all"
-                    wire:click="selectedDelivery = 'osobisty'"
-                    :class="{ 'ring-2 ring-primary': $wire.selectedDelivery === 'osobisty' }">
-                    <div class="p-6">
-                        <h3 class="text-lg font-semibold text-gray-900 mb-2">Odbiór osobisty</h3>
-                        <p class="text-gray-600 mb-4">Bezpłatny odbiór w naszym sklepie</p>
-                        <div class="space-y-4">
-                            <div class="flex items-center justify-between">
-                                <span class="text-gray-600">Koszt dostawy:</span>
-                                <span class="font-semibold text-green-600">0,00 zł</span>
-                            </div>
-                            <div class="flex items-center justify-between">
-                                <span class="text-gray-600">Czas dostawy:</span>
-                                <span class="font-semibold">Tego samego dnia</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Selected Delivery Info -->
-            @if ($selectedDelivery)
-                <div class="mt-8">
-                    <div class="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200">
-                        <div class="p-6">
-                            <h3 class="text-lg font-semibold text-gray-900 mb-4">Wybrana opcja dostawy</h3>
-                            <div class="space-y-4">
-                                @if ($selectedDelivery === 'dpd')
-                                    <p class="text-gray-600">Kurier DPD - dostawa w 1-2 dni robocze za 15,00 zł</p>
-                                @elseif($selectedDelivery === 'poczta')
-                                    <p class="text-gray-600">Poczta Polska - dostawa w 2-3 dni robocze za 12,00 zł</p>
-                                @elseif($selectedDelivery === 'osobisty')
-                                    <p class="text-gray-600">Odbiór osobisty - bezpłatnie, tego samego dnia</p>
-                                @endif
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            @endif
-        </div>
-    </section>
-
-    <!-- Delivery Info Section -->
-    <section class="bg-white py-12">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="text-center mb-12">
-                <h2 class="text-3xl font-bold text-gray-900 mb-4">
-                    Informacje o dostawie
-                </h2>
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div class="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200">
-                    <div class="p-6">
-                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Obszar dostawy</h3>
-                        <p class="text-gray-600">
-                            Dostarczamy na terenie całej Polski. W przypadku zamówień powyżej 100 zł
-                            dostawa kurierem DPD jest bezpłatna.
-                        </p>
-                    </div>
-                </div>
-
-                <div class="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200">
-                    <div class="p-6">
-                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Śledzenie przesyłki</h3>
-                        <p class="text-gray-600">
-                            Po wysłaniu zamówienia otrzymasz email z numerem śledzenia,
-                            dzięki któremu będziesz mógł śledzić status swojej przesyłki.
-                        </p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
+    @endif
 </div>

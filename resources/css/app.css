@@ -106,9 +106,20 @@ select:focus[data-flux-control] {
     transition: transform 0.3s ease;
 }
 
+.headeer-top .cart-icon {
+    transform: scale(1);
+    transition: transform 0.3s ease;
+}
+
 /* Gdy scrolled - zmniejsz logo */
 body.scrolled .header-top .logo {
     transform: scale(0.6);
+    margin-top: -0.7rem;
+    margin-bottom: -0.7rem;
+}
+
+body.scrolled .header-top .cart-icon {
+    transform: scale(0.7);
     margin-top: -0.7rem;
     margin-bottom: -0.7rem;
 }

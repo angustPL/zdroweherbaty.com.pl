@@ -1,127 +1,7 @@
-<?php
-
-use function Livewire\Volt\{state, mount, layout};
-use App\Services\CartService;
-
-layout('layouts.app');
-
-state(['cart' => []]);
-
-mount(function () {
-    $this->loadCart();
-});
-
-$loadCart = function () {
-    $cartService = app(CartService::class);
-    $this->cart = $cartService->getCart();
-};
-
-$updateQuantity = function ($productId, $quantity) {
-    try {
-        // Debugowanie
-        \Log::info('updateQuantity called:', ['productId' => $productId, 'quantity' => $quantity]);
-
-        $cartService = app(CartService::class);
-        $cartService->updateQuantity($productId, $quantity);
-
-        // NIE ładujemy ponownie koszyka - dane już są w UI
-        // $this->loadCart();
-
-        // Emituj event do odświeżenia ikony koszyka
-        $this->dispatch('cart-updated');
-
-        // JavaScript event dla cart-icon
-        $this->dispatch('cart-updated-js');
-
-        $this->dispatch('notify', [
-            'type' => 'success',
-            'message' => 'Koszyk zaktualizowany',
-        ]);
-    } catch (\Exception $e) {
-        \Log::error('Error in updateQuantity:', ['error' => $e->getMessage()]);
-        $this->dispatch('notify', [
-            'type' => 'error',
-            'message' => 'Błąd podczas aktualizacji koszyka',
-        ]);
-    }
-};
-
-$removeFromCart = function ($productId) {
-    try {
-        $cartService = app(CartService::class);
-        $cartService->removeFromCart($productId);
-
-        // Emituj event do odświeżenia ikony koszyka
-        $this->dispatch('cart-updated');
-
-        // JavaScript event dla cart-icon
-        $this->dispatch('cart-updated-js');
-
-        // JavaScript - natychmiastowe odświeżenie strony
-        $this->dispatch('remove-cart-item-ui');
-
-        $this->dispatch('notify', [
-            'type' => 'success',
-            'message' => 'Produkt usunięty z koszyka',
-        ]);
-    } catch (\Exception $e) {
-        $this->dispatch('notify', [
-            'type' => 'error',
-            'message' => 'Błąd podczas usuwania z koszyka',
-        ]);
-    }
-};
-
-$clearCart = function () {
-    try {
-        $cartService = app(CartService::class);
-        $cartService->clearCart();
-
-        // Emituj event do odświeżenia ikony koszyka
-        $this->dispatch('cart-updated');
-
-        // JavaScript event dla cart-icon
-        $this->dispatch('cart-updated-js');
-
-        // Reset state i ponowne załadowanie
-        $this->reset('cart');
-        $this->loadCart();
-
-        // JavaScript - natychmiastowe ukrycie produktów
-        $this->dispatch('clear-cart-ui');
-
-        $this->dispatch('notify', [
-            'type' => 'success',
-            'message' => 'Koszyk został wyczyszczony',
-        ]);
-    } catch (\Exception $e) {
-        $this->dispatch('notify', [
-            'type' => 'error',
-            'message' => 'Błąd podczas czyszczenia koszyka',
-        ]);
-    }
-};
-
-?>
-
+{{-- Logika: app/Livewire/Pages/Cart.php --}}
 <div>
-    <script>
-        document.addEventListener('livewire:init', () => {
-            Livewire.on('clear-cart-ui', () => {
-                setTimeout(() => {
-                    window.location.reload();
-                }, 100);
-            });
-
-            Livewire.on('remove-cart-item-ui', () => {
-                setTimeout(() => {
-                    window.location.reload();
-                }, 100);
-            });
-        });
-    </script>
     <div class="mb-6">
-        <h1 class="text-3xl font-bold text-gray-900 mb-2">Koszyk</h1>
+        <h1 class="text-3xl font-bold mb-2">Koszyk</h1>
         <p class="text-gray-600">
             @if (empty($cart['items']))
                 Twój koszyk jest pusty
@@ -138,7 +18,7 @@ $clearCart = function () {
                     d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z">
                 </path>
             </svg>
-            <h3 class="text-xl font-medium text-gray-900 mb-2">Twój koszyk jest pusty</h3>
+            <h3 class="text-xl font-medium mb-2">Twój koszyk jest pusty</h3>
             <p class="text-gray-500 mb-6">Dodaj produkty do koszyka, aby rozpocząć zakupy</p>
             <flux:button variant="primary" href="{{ route('home') }}">
                 Przejdź do sklepu
@@ -223,7 +103,7 @@ $clearCart = function () {
                                     }">
                                         <flux:button variant="outline" size="sm"
                                             @click="updateQuantityDebounced({{ $productId }}, {{ $item['quantity'] - 1 }})"
-                                            class="w-8 h-8 p-0 flex items-center justify-center {{ $item['quantity'] <= 1 ? 'opacity-50 cursor-not-allowed' : '' }}">
+                                            class="w-8 h-8 p-0 flex items-center justify-center {{ $item['quantity'] <= 1 ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer' }}">
                                             <span class="text-lg font-bold">−</span>
                                         </flux:button>
 
@@ -232,7 +112,7 @@ $clearCart = function () {
 
                                         <flux:button variant="outline" size="sm"
                                             @click="updateQuantityDebounced({{ $productId }}, {{ $item['quantity'] + 1 }})"
-                                            class="w-8 h-8 p-0 flex items-center justify-center">
+                                            class="w-8 h-8 p-0 flex items-center justify-center cursor-pointer">
                                             <span class="text-lg font-bold">+</span>
                                         </flux:button>
                                     </div>
@@ -247,7 +127,7 @@ $clearCart = function () {
                                 <td class="px-6 py-4 text-center">
                                     <flux:button variant="outline" size="sm"
                                         wire:click="removeFromCart({{ $productId }})" wire:loading.attr="disabled"
-                                        class="w-8 h-8 p-0 text-red-500 hover:text-red-700 flex items-center justify-center">
+                                        class="w-8 h-8 p-0 text-red-500 hover:text-red-700 flex items-center justify-center cursor-pointer">
                                         <flux:icon.trash-2 variant="micro" />
                                     </flux:button>
                                 </td>

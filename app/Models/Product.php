@@ -35,7 +35,8 @@ class Product extends EnovaModel
         static::addGlobalScope('hasProductMark', function (Builder $builder) {
             $builder->whereHas('features', function ($query) {
                 $query->where('Name', config('enova.features.product_mark'))
-                    ->where('Data', '1');
+                    ->where('Data', '1')
+                    ->where('Blokada', 0);
             });
         });
     }
@@ -80,7 +81,9 @@ class Product extends EnovaModel
      */
     public function price()
     {
-        return $this->hasOne(Price::class, 'Towar', 'ID');
+        return $this->hasOne(Price::class, 'Towar', 'ID')
+            ->where('Definicja', config('enova.prices.definition'))
+            ->select(['Towar', 'NettoValue', 'BruttoValue', 'StandardowaIloscValue']);
     }
 
     /**
@@ -98,5 +101,31 @@ class Product extends EnovaModel
         return $query->whereHas('group', function ($groupQuery) use ($fullGroupName) {
             $groupQuery->where('Data', $fullGroupName);
         });
+    }
+
+    /**
+     * Mapuje produkt do tablicy z danymi do wyświetlenia.
+     *
+     * @return array
+     */
+    public function toDisplayArray()
+    {
+        return [
+            'ID' => $this->ID,
+            'Nazwa' => $this->productNameFeature->Name ?? $this->Nazwa,
+            'Grupa' => $this->group->clean_name ?? null,
+            'Opis' => $this->Opis,
+            'MasaNettoValue' => $this->MasaNettoValue,
+            'MasaNettoSymbol' => $this->MasaNettoSymbol,
+            'MasaBruttoValue' => $this->MasaBruttoValue,
+            'MasaBruttoSymbol' => $this->MasaBruttoSymbol,
+            'SWW' => $this->SWW,
+            'DefinicjaStawki' => $this->DefinicjaStawki,
+            'NettoValue' => $this->price->NettoValue,
+            'BruttoValue' => $this->price->BruttoValue,
+            'StandardowaIloscValue' => $this->price->StandardowaIloscValue,
+            'Jednostka' => $this->price->Jednostka,
+            'StandardowaIloscSymbol' => $this->price->StandardowaIloscSymbol,
+        ];
     }
 }

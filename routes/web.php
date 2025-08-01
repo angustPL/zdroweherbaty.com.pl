@@ -11,7 +11,7 @@ Volt::route('/kontakt', 'pages.kontakt')->name('kontakt');
 Volt::route('/grupa/{grupa}', 'pages.grupa')->name('grupa');
 Volt::route('/towar/{id}', 'pages.towar')->name('towar');
 Volt::route('/test-cart', 'pages.test-cart')->name('test-cart');
-Volt::route('/koszyk', 'pages.koszyk')->name('koszyk');
+Route::get('/koszyk', App\Livewire\Pages\Cart::class)->name('koszyk');
 
 Route::view('dashboard', 'dashboard')
     ->middleware(['auth', 'verified'])

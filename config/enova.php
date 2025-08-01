@@ -34,4 +34,14 @@ return [
     'prices' => [
         'definition' => env('ENOVA_PRICE_DEFINITION', 3),
     ],
+
+    'delivery' => [
+        'group_name' => env('ENOVA_DELIVERY_GROUP', 'www_dostawasklep'),
+    ],
+
+    'orders' => [
+        'free_delivery_threshold' => env('ENOVA_ORDERS_FREE_DELIVERY_THRESHOLD', 80),
+        'delivery_group' => env('ENOVA_ORDERS_DELIVERY_GROUP', 'www_dostawasklep'),
+        'feature_payment_method' => env('ENOVA_ORDERS_FEATURE_PAYMENT_METHOD', 'Forma Płatności dla dostawy'),
+    ],
 ];

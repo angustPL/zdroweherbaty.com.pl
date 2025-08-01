@@ -99,56 +99,64 @@
         <!-- Footer -->
         <footer class="bg-primary dark:bg-primary text-white py-12">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mx-6">
                     <!-- Company Info -->
-                    <div class="col-span-1 md:col-span-2">
-                        <h3 class="text-lg font-semibold mb-4">Zdrowe Herbaty</h3>
-                        <p class="text-gray-300 mb-4">
-                            Jesteśmy pasjonatami zdrowego stylu życia i naturalnych produktów.
-                            Nasze herbaty pochodzą z najlepszych źródeł i są starannie selekcjonowane.
+                    <div>
+                        <p>
+                            BiFIX Wojciech Piasecki Sp.j.<br>
+                            Górki Małe<br>
+                            ul. Dworska 33<br>
+                            95-080 Tuszyn<br>
+                            fax 42 614-41-20<br>
+                            <a href="mailto:bifix@bifix.pl">bifix@bifix.pl</a>
                         </p>
-                        <div class="flex space-x-4">
-                            <a href="#" class="text-gray-300 hover:text-white transition-colors">
-                                <span class="sr-only">Facebook</span>
-                                <svg class="h-6 w-6" fill="currentColor" viewBox="0 0 24 24">
-                                    <path
-                                        d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
-                                </svg>
-                            </a>
-                            <a href="#" class="text-gray-300 hover:text-white transition-colors">
-                                <span class="sr-only">Instagram</span>
-                                <svg class="h-6 w-6" fill="currentColor" viewBox="0 0 24 24">
-                                    <path
-                                        d="M12.017 0C5.396 0 .029 5.367.029 11.987c0 6.62 5.367 11.987 11.988 11.987 6.62 0 11.987-5.367 11.987-11.987C24.014 5.367 18.637.001 12.017.001zM8.449 16.988c-1.297 0-2.448-.49-3.323-1.297C4.198 14.895 3.708 13.744 3.708 12.447s.49-2.448 1.297-3.323c.875-.807 2.026-1.297 3.323-1.297s2.448.49 3.323 1.297c.807.875 1.297 2.026 1.297 3.323s-.49 2.448-1.297 3.323c-.875.807-2.026 1.297-3.323 1.297z" />
-                                </svg>
-                            </a>
+                    </div>
+
+                    <div class="lg:col-span-3">
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            <div>
+                                <p>
+                                    DZIAŁ PRZYJĘĆ ZAMÓWIEŃ<br>
+                                    tel. <a href="tel:+48426144058w123">
+                                        42 614-40-88</a> wew. 123<br>
+                                    <a href="mailto:logistyka@bifix.pl">logistyka@bifix.pl</a>
+                                </p>
+                            </div>
+                            <div>
+                                <p>
+                                    DZIAŁ HANDLOWY<br>
+                                    tel. <a href="tel:+48426144058w122">42 614-40-58</a> wew. 122, 125, 126<br>
+                                    <a href="mailto:handel@bifix.pl">handel@bifix.pl</a>
+                                </p>
+                            </div>
+                            <div>
+                                <p>
+                                    HANDEL MIĘDZYNARODOWY<br>
+                                    tel. <a href="tel:+48426144058w142">42 614-40-58</a> wew. 142<br>
+                                    <a href="mailto:export@bifix.pl">export@bifix.pl</a>
+                                </p>
+                            </div>
+                            <div>
+                                <p>
+                                    DZIAŁ MARKETINGU<br>
+                                    tel. <a href="tel:+48426144058w127">42 614-40-58</a> wew. 127<br>
+                                    <a href="mailto:marketing@bifix.pl">marketing@bifix.pl</a>
+                                </p>
+                            </div>
+                            <div>
+                                <p>
+                                    KSIĘGOWOŚĆ<br>
+                                    tel. <a href="tel:+48426144058w129">42 614-40-58</a> wew. 129, 148<br>
+                                    <a href="mailto:ksiegowosc@bifix.pl">ksiegowosc@bifix.pl</a>
+                                </p>
+                            </div>
+                            <div>
+                                <p>
+                                    <a title="Polityka prywatności" href="/polityka-prywatnosci">Polityka
+                                        prywatności</a>
+                                </p>
+                            </div>
                         </div>
-                    </div>
-
-                    <!-- Quick Links -->
-                    <div>
-                        <h3 class="text-lg font-semibold mb-4">Szybkie linki</h3>
-                        <ul class="space-y-2">
-                            <li><a href="{{ route('home') }}"
-                                    class="text-gray-300 hover:text-white transition-colors">Strona główna</a></li>
-                            <li><a href="{{ route('dostawa') }}"
-                                    class="text-gray-300 hover:text-white transition-colors">Dostawa</a></li>
-                            <li><a href="{{ route('regulamin') }}"
-                                    class="text-gray-300 hover:text-white transition-colors">Regulamin</a></li>
-                            <li><a href="{{ route('kontakt') }}"
-                                    class="text-gray-300 hover:text-white transition-colors">Kontakt</a></li>
-                        </ul>
-                    </div>
-
-                    <!-- Contact Info -->
-                    <div>
-                        <h3 class="text-lg font-semibold mb-4">Kontakt</h3>
-                        <ul class="space-y-2 text-gray-300">
-                            <li>ul. Przykładowa 1</li>
-                            <li>00-000 Warszawa</li>
-                            <li>+48 123 456 789</li>
-                            <li>info@zdroweherbaty.com.pl</li>
-                        </ul>
                     </div>
                 </div>
 
