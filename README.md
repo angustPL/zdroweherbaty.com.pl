@@ -96,9 +96,9 @@ Enova używa systemu atrybutów do kategoryzacji produktów:
 
 ### Faza 4 - Optymalizacja i Usprawnienia
 
--   [ ] Implementacja cache'owania
--   [ ] Optymalizacja zapytań do bazy
--   [ ] Implementacja wyszukiwarki produktów
+-   [x] Implementacja cache'owania
+-   [x] Optymalizacja zapytań do bazy
+-   [x] Implementacja wyszukiwarki produktów z Meilisearch
 -   [ ] Optymalizacja wydajności
 
 ### Faza 5 - Frontend i UX
@@ -186,6 +186,20 @@ Projekt przeszedł refaktoryzację z komponentów Volt (inline PHP) na dedykowan
 -   **Kontakt** (`kontakt.blade.php`) - dane kontaktowe
 
 ## Modele Enova
+
+### Globalny warunek Blokada=0
+
+Wszystkie modele Enova automatycznie filtrują rekordy z warunkiem `Towary.Blokada = 0`. Jest to niezbędny warunek globalny, który:
+
+-   **Filtruje aktywne produkty** - wyklucza zablokowane/nieaktywne rekordy
+-   **Zapewnia spójność danych** - tylko aktywne produkty są wyświetlane
+-   **Jest automatyczny** - nie trzeba pamiętać o dodawaniu tego warunku
+
+#### Modele z globalnym scope `notBlocked`:
+
+-   **Product** - produkty nie zablokowane
+-   **Delivery** - opcje dostawy nie zablokowane
+-   **Group** - grupy produktów nie zablokowane
 
 ### Model Delivery
 
@@ -499,3 +513,62 @@ try {
 ```
 
 Dzięki temu aplikacja będzie mogła korzystać z rezerwowego hosta w przypadku awarii głównego połączenia.
+
+## Wyszukiwarka produktów
+
+### Algolia Scout
+
+Wyszukiwarka produktów wykorzystuje **Algolia Scout** - zaawansowany system wyszukiwania w chmurze.
+
+#### Instalacja i konfiguracja:
+
+1. **Zainstaluj pakiety:**
+
+```bash
+composer require laravel/scout
+composer require algolia/scout-extended
+```
+
+2. **Dodaj zmienne środowiskowe do `.env`:**
+
+```
+SCOUT_DRIVER=algolia
+ALGOLIA_APP_ID=your_app_id
+ALGOLIA_SECRET=your_admin_api_key
+ALGOLIA_SEARCH=your_search_only_api_key
+```
+
+3. **Zaindeksuj produkty:**
+
+```bash
+php artisan scout:import "App\Models\Product"
+```
+
+4. **Aktualizuj indeks po zmianach:**
+
+```bash
+php artisan scout:flush "App\Models\Product"
+```
+
+#### Funkcjonalności wyszukiwarki:
+
+-   **Wyszukiwanie w czasie rzeczywistym** - wyniki pojawiają się podczas wpisywania
+-   **Filtrowanie po kategoriach** - wybierz konkretną grupę produktów
+-   **Filtrowanie po cenach** - zakresy cenowe (budget, medium, premium, luxury)
+-   **Sortowanie** - po nazwie lub cenie (rosnąco/malejąco)
+-   **Paginacja** - wyniki podzielone na strony
+-   **Responsywność** - działa na wszystkich urządzeniach
+
+#### Komponent SearchProducts:
+
+-   **Lokalizacja:** `app/Livewire/Components/SearchProducts.php`
+-   **Widok:** `resources/views/livewire/components/search-products.blade.php`
+-   **Route:** `/wyszukaj`
+
+#### Konfiguracja Scout:
+
+-   **Driver:** Algolia (cloud-based)
+-   **Index:** `products`
+-   **Searchable attributes:** name, description, group
+-   **Filterable attributes:** group, price_range
+-   **Sortable attributes:** price, name

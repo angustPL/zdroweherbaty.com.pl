@@ -1,0 +1,165 @@
+@import url("https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,100;0,300;0,400;0,700;0,900;1,100;1,300;1,400;1,700;1,900&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Marcellus+SC&display=swap");
+@import "tailwindcss";
+@import "../../vendor/livewire/flux/dist/flux.css";
+
+@source '../views';
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../vendor/livewire/flux-pro/stubs/**/*.blade.php';
+@source '../../vendor/livewire/flux/stubs/**/*.blade.php';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+    --font-sans: "Lato", ui-sans-serif, system-ui, sans-serif,
+        "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol",
+        "Noto Color Emoji";
+    --font-marcellus: "Marcellus SC";
+
+    --color-primary: #026941;
+    --color-primary-50: #f0f9f4;
+    --color-primary-100: #dcf2e3;
+    --color-primary-200: #bce5c9;
+    --color-primary-300: #8dd1a8;
+    --color-primary-400: #5bb583;
+    --color-primary-500: #3a9a6a;
+    --color-primary-600: #2d7a54;
+    --color-primary-700: #026941;
+    --color-primary-800: #1e4d33;
+    --color-primary-900: #1a3f2a;
+    --color-primary-950: #0d1f15;
+
+    --color-zinc-50: #fafafa;
+    --color-zinc-100: #f5f5f5;
+    --color-zinc-200: #e5e5e5;
+    --color-zinc-300: #d4d4d4;
+    --color-zinc-400: #a3a3a3;
+    --color-zinc-500: #737373;
+    --color-zinc-600: #525252;
+    --color-zinc-700: #404040;
+    --color-zinc-800: #262626;
+    --color-zinc-900: #171717;
+    --color-zinc-950: #0a0a0a;
+
+    /* --color-accent: var(--color-primary);
+    --color-accent-content: var(--color-primary);
+    --color-accent-foreground: var(--color-white); */
+}
+
+@layer theme {
+    .dark {
+        --color-accent: var(--color-white);
+        --color-accent-content: var(--color-white);
+        --color-accent-foreground: var(--color-neutral-800);
+    }
+    .zdrowe-herbaty {
+        --color-primary: #026941;
+    }
+    :root {
+        --color-primary: #026941;
+    }
+}
+
+@layer base {
+    *,
+    ::after,
+    ::before,
+    ::backdrop,
+    ::file-selector-button {
+        border-color: var(--color-gray-200, currentColor);
+    }
+
+    .font-marcellus {
+        font-family: "Marcellus SC", serif;
+    }
+}
+
+[data-flux-field]:not(ui-radio, ui-checkbox) {
+    @apply grid gap-2;
+}
+
+[data-flux-label] {
+    @apply !mb-0 !leading-tight;
+}
+
+input:focus[data-flux-control],
+textarea:focus[data-flux-control],
+select:focus[data-flux-control] {
+    @apply outline-hidden ring-2 ring-accent ring-offset-2 ring-offset-accent-foreground;
+}
+
+.header-top .menu a div {
+    @apply text-primary text-lg;
+}
+
+/* .header-top .menu a:hover div {
+    @apply font-bold;
+} */
+
+.header-top .menu a.current div {
+    @apply text-xl font-bold;
+}
+
+/* Dynamiczny header - logo i slogan */
+.headeer-top .logo {
+    transform: scale(1);
+    transition: transform 0.3s ease;
+}
+
+.headeer-top .cart-icon {
+    transform: scale(1);
+    transition: transform 0.3s ease;
+}
+
+/* Gdy scrolled - zmniejsz logo */
+body.scrolled .header-top .logo {
+    transform: scale(0.6);
+    margin-top: -0.7rem;
+    margin-bottom: -0.7rem;
+}
+
+body.scrolled .header-top .cart-icon {
+    transform: scale(0.7);
+    margin-top: -0.7rem;
+    margin-bottom: -0.7rem;
+}
+
+/* CSS dla dynamicznego sloganu */
+.header-top .slogan {
+    opacity: 1;
+    transform: scaleY(1);
+    max-height: 5rem;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+/* Gdy scrolled - ukryj slogan */
+body.scrolled .header-top .slogan {
+    opacity: 0;
+    transform: scaleY(0);
+    max-height: 0;
+    overflow: hidden;
+}
+
+[data-flux-navlist-group] button,
+[data-flux-navlist-item] {
+    @apply h-auto overflow-visible py-1.5;
+}
+
+/* Nadpisanie whitespace-nowrap dla elementów w sidebarach z klasą */
+.sidebar-wrap-text [data-flux-navlist-item] div,
+.sidebar-wrap-text [data-flux-navlist-item] span {
+    @apply whitespace-normal;
+}
+
+/* Niewidoczna ikona x-mark dla elementów nierozwijanych */
+.sidebar-wrap-text [data-flux-navlist-item] [data-flux-icon] {
+    @apply opacity-0;
+}
+
+/* Wyeksponowanie current w sidebarze */
+.sidebar-wrap-text [data-current="data-current"],
+.sidebar-wrap-text [data-current="data-current"] div,
+.sidebar-wrap-text [data-current="data-current"] span {
+    @apply bg-primary text-white font-bold border-0;
+}
