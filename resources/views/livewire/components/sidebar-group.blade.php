@@ -37,8 +37,8 @@
 
             // Sprawdź czy to jest aktualna grupa
             $isCurrent = false;
-            if (request()->routeIs('grupa')) {
-                $currentGrupa = request()->route('grupa');
+            if (request()->routeIs('group')) {
+                $currentGrupa = request()->route('group');
                 if ($currentGrupa) {
                     // Porównaj po dekodowaniu dla polskich znaków
                     $decodedCurrent = urldecode($currentGrupa);
@@ -48,14 +48,14 @@
         @endphp
         @if (empty($parentPath))
             @if (!empty($encodedPath))
-                <flux:navlist.item href="{{ route('grupa', ['group' => $encodedPath]) }}" :current="$isCurrent"
+                <flux:navlist.item href="{{ route('group', ['group' => $encodedPath]) }}" :current="$isCurrent"
                     icon="x-mark">
                     {{ $groupName }}
                 </flux:navlist.item>
             @endif
         @else
             @if (!empty($encodedPath))
-                <flux:navlist.item href="{{ route('grupa', ['group' => $encodedPath]) }}" :current="$isCurrent">
+                <flux:navlist.item href="{{ route('group', ['group' => $encodedPath]) }}" :current="$isCurrent">
                     {{ $groupName }}
                 </flux:navlist.item>
             @endif

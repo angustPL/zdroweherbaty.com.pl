@@ -32,6 +32,21 @@ mount(function ($id, $name = null) {
             return redirect()->route('towar', [$id, $correctSlug]);
         }
     }
+
+    GoogleTagManager::set('pageType', 'productDetail');
+    GoogleTagManager::set([
+        'event' => 'view_item',
+        'ecommerce' => [
+            'items' => [
+                [
+                    'item_id' => $this->product['ID'],
+                    'item_name' => $this->product['Nazwa'],
+                    'price' => $this->product['BruttoValue'],
+                    'currency' => 'PLN',
+                ],
+            ],
+        ],
+    ]);
 });
 
 ?>
@@ -57,7 +72,7 @@ mount(function ($id, $name = null) {
                 <div class="space-y-6">
                     <div class="text-center">
                         <div class="text-3xl font-bold text-primary mb-4">
-                            {{ number_format($product['BruttoValue'], 2, ',', '.') }} zł
+                            {{ Number::currency($product['BruttoValue'], 'PLN', 'pl_PL') }}
                         </div>
 
                         <div>

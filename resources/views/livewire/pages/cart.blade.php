@@ -63,7 +63,7 @@
                                         </div>
                                         <div class="ml-4">
                                             <div class="text-sm font-medium text-gray-900">
-                                                <a href="{{ route('towar', [$item['id'], Str::slug($item['name'])]) }}"
+                                                <a href="{{ route('product', [$item['id'], Str::slug($item['name'])]) }}"
                                                     class="hover:text-primary">{{ $item['name'] }}</a>
                                             </div>
                                         </div>
@@ -72,7 +72,7 @@
 
                                 {{-- Cena jednostkowa --}}
                                 <td class="px-6 py-4 text-right text-sm whitespace-nowrap">
-                                    {{ number_format($item['price'], 2, ',', '.') }} zł
+                                    {{ Number::currency($item['price'], 'PLN', 'pl_PL') }}
                                 </td>
 
                                 {{-- Ilość --}}

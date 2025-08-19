@@ -21,14 +21,13 @@ mount(function () {
                 <flux:navlist.item icon="home" :href="route('home')" :current="request()->routeIs('home')">
                     Strona główna
                 </flux:navlist.item>
-                <flux:navlist.item icon="truck" :href="route('dostawa')" :current="request()->routeIs('dostawa')">
+                <flux:navlist.item icon="truck" :href="route('delivery')" :current="request()->routeIs('delivery')">
                     Dostawa
                 </flux:navlist.item>
-                <flux:navlist.item icon="document-text" :href="route('regulamin')"
-                    :current="request()->routeIs('regulamin')">
+                <flux:navlist.item icon="document-text" :href="route('terms')" :current="request()->routeIs('terms')">
                     Regulamin
                 </flux:navlist.item>
-                <flux:navlist.item icon="envelope" :href="route('kontakt')" :current="request()->routeIs('kontakt')">
+                <flux:navlist.item icon="envelope" :href="route('contact')" :current="request()->routeIs('contact')">
                     Kontakt
                 </flux:navlist.item>
             </flux:navlist.group>

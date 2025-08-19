@@ -14,26 +14,19 @@ use Livewire\Volt\Volt;
 |
 */
 
-Route::get('/', function () {
-    return view('welcome');
-})->name('home');
+Volt::route('/', 'pages.welcome')->name('home');
 
 // Strony statyczne
-Volt::route('/dostawa', 'pages.dostawa')->name('dostawa');
-Volt::route('/regulamin', 'pages.regulamin')->name('regulamin');
-Volt::route('/kontakt', 'pages.kontakt')->name('kontakt');
+Volt::route('/dostawa', 'pages.delivery')->name('delivery');
+Volt::route('/regulamin', 'pages.terms')->name('terms');
+Volt::route('/kontakt', 'pages.contact')->name('contact');
 
-// Wyszukiwarka produktów
-Volt::route('/wyszukaj', 'pages.search')->name('search');
+// Produkty
+Volt::route('/grupa/{group}', 'pages.group')->name('group');
+Volt::route('/towar/{id}/{name?}', 'pages.product')->name('product');
 
 // Koszyk
-Route::get('/koszyk', App\Livewire\Pages\Cart::class)->name('koszyk');
-
-// Grupy produktów
-Volt::route('/grupa/{group}', 'pages.grupa')->name('grupa');
-
-// Produkt
-Volt::route('/towar/{id}/{name?}', 'pages.towar')->name('towar');
+Route::get('/koszyk', App\Livewire\Pages\Cart::class)->name('cart');
 
 Route::view('dashboard', 'dashboard')
     ->middleware(['auth', 'verified'])

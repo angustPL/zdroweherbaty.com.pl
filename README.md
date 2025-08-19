@@ -572,3 +572,327 @@ php artisan scout:flush "App\Models\Product"
 -   **Searchable attributes:** name, description, group
 -   **Filterable attributes:** group, price_range
 -   **Sortable attributes:** price, name
+
+#### Użycie w kodzie:
+
+```php
+use App\Models\Product;
+
+// Wyszukiwanie z filtrami
+$products = Product::search('herbata zielona')
+    ->within('group', 'Herbaty zielone')
+    ->within('price_range', 'medium')
+    ->orderBy('price', 'asc')
+    ->paginate(12);
+```
+
+## Cache'owanie i Optymalizacja
+
+### Cache'owanie
+
+Aplikacja wykorzystuje system cache'owania Laravel do optymalizacji wydajności:
+
+#### Typy cache'owania:
+
+-   **Cache bazy danych** - wyniki zapytań do Enova
+-   **Cache widoków** - skompilowane szablony Blade
+-   **Cache konfiguracji** - ustawienia aplikacji
+-   **Cache routingu** - zdefiniowane ścieżki
+
+#### Konfiguracja cache:
+
+```php
+// config/cache.php
+'default' => env('CACHE_DRIVER', 'file'),
+'stores' => [
+    'file' => [
+        'driver' => 'file',
+        'path' => storage_path('framework/cache/data'),
+    ],
+    'redis' => [
+        'driver' => 'redis',
+        'connection' => 'cache',
+    ],
+],
+```
+
+#### Użycie w kodzie:
+
+```php
+use Illuminate\Support\Facades\Cache;
+
+// Cache'owanie wyników zapytań
+$products = Cache::remember('products_group_' . $groupId, 3600, function () use ($groupId) {
+    return Product::whereGroupIs($groupId)->get();
+});
+
+// Inwalidacja cache
+Cache::forget('products_group_' . $groupId);
+```
+
+### Optymalizacja Zapytań
+
+#### Eager Loading:
+
+```php
+// Pobieranie produktów z relacjami w jednym zapytaniu
+$products = Product::with(['group', 'price', 'features'])->get();
+```
+
+#### Select Only:
+
+```php
+// Pobieranie tylko potrzebnych kolumn
+$products = Product::select(['ID', 'Nazwa', 'Symbol'])->get();
+```
+
+#### Query Scopes:
+
+```php
+// Globalne scope'y w modelach
+class Product extends EnovaModel
+{
+    protected static function booted()
+    {
+        static::addGlobalScope('notBlocked', function ($query) {
+            $query->where('Blokada', 0);
+        });
+    }
+}
+```
+
+## Testowanie
+
+### Struktura testów:
+
+```
+tests/
+├── Feature/           # Testy funkcjonalności
+│   ├── Auth/         # Testy autoryzacji
+│   ├── Dashboard/    # Testy dashboardu
+│   └── Settings/     # Testy ustawień
+├── Unit/             # Testy jednostkowe
+└── Pest.php          # Konfiguracja Pest
+```
+
+### Uruchamianie testów:
+
+```bash
+# Wszystkie testy
+php artisan test
+
+# Testy z coverage
+php artisan test --coverage
+
+# Konkretny test
+php artisan test --filter=ProductTest
+```
+
+### Przykład testu:
+
+```php
+// tests/Feature/ProductTest.php
+test('can display products in group', function () {
+    $response = $this->get('/kategoria/herbaty-zielone');
+
+    $response->assertStatus(200);
+    $response->assertSee('Herbata Zielona');
+});
+```
+
+## Deployment
+
+### Wymagania produkcyjne:
+
+-   **Serwer:** PHP 8.3+, MySQL/PostgreSQL, Redis (opcjonalnie)
+-   **Web Server:** Nginx/Apache
+-   **SSL:** Certyfikat SSL dla HTTPS
+-   **Cache:** Redis lub Memcached dla lepszej wydajności
+
+### Proces deploymentu:
+
+1. **Przygotowanie serwera:**
+
+    ```bash
+    # Instalacja zależności systemowych
+    sudo apt update
+    sudo apt install php8.3-fpm nginx mysql-server redis-server
+    ```
+
+2. **Konfiguracja aplikacji:**
+
+    ```bash
+    # Sklonowanie kodu
+    git clone <repository> /var/www/zdroweherbaty.com.pl
+    cd /var/www/zdroweherbaty.com.pl
+
+    # Instalacja zależności
+    composer install --optimize-autoloader --no-dev
+    npm install && npm run build
+
+    # Konfiguracja środowiska
+    cp .env.example .env
+    php artisan key:generate
+    ```
+
+3. **Konfiguracja bazy danych:**
+
+    ```bash
+    # Migracje i seedery
+    php artisan migrate --force
+    php artisan db:seed --force
+
+    # Indeksowanie wyszukiwarki
+    php artisan scout:import "App\Models\Product"
+    ```
+
+4. **Optymalizacja:**
+
+    ```bash
+    # Cache'owanie
+    php artisan config:cache
+    php artisan route:cache
+    php artisan view:cache
+
+    # Optymalizacja autoloadera
+    composer dump-autoload --optimize
+    ```
+
+### Konfiguracja Nginx:
+
+```nginx
+server {
+    listen 80;
+    server_name zdroweherbaty.com.pl;
+    return 301 https://$server_name$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name zdroweherbaty.com.pl;
+
+    ssl_certificate /path/to/certificate.crt;
+    ssl_certificate_key /path/to/private.key;
+
+    root /var/www/zdroweherbaty.com.pl/public;
+    index index.php;
+
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+
+    location ~ \.php$ {
+        fastcgi_pass unix:/var/run/php/php8.3-fpm.sock;
+        fastcgi_index index.php;
+        fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
+        include fastcgi_params;
+    }
+
+    location ~ /\.(?!well-known).* {
+        deny all;
+    }
+}
+```
+
+## Monitoring i Logi
+
+### Logi aplikacji:
+
+-   **Laravel logs:** `storage/logs/laravel.log`
+-   **Access logs:** `/var/log/nginx/access.log`
+-   **Error logs:** `/var/log/nginx/error.log`
+
+### Monitoring wydajności:
+
+```bash
+# Sprawdzenie statusu aplikacji
+php artisan about
+
+# Sprawdzenie połączenia z bazą
+php artisan tinker
+DB::connection()->getPdo();
+
+# Sprawdzenie cache'owania
+php artisan cache:table
+php artisan cache:clear
+```
+
+### Backup bazy danych:
+
+```bash
+# Backup MSSQL (Windows)
+sqlcmd -S server -U username -P password -Q "BACKUP DATABASE BIFIX TO DISK='C:\backup\bifix.bak'"
+
+# Backup z tunelu SSH
+ssh user@server "sqlcmd -S localhost -U username -P password -Q 'BACKUP DATABASE BIFIX TO DISK=\"/tmp/bifix.bak\"'"
+scp user@server:/tmp/bifix.bak ./backup/
+```
+
+## Rozwiązywanie Problemów
+
+### Typowe problemy i rozwiązania:
+
+#### Problem z połączeniem do bazy:
+
+```bash
+# Sprawdzenie tunelu SSH
+netstat -an | findstr 11433
+
+# Test połączenia
+php artisan tinker
+DB::connection()->getPdo();
+```
+
+#### Problem z cache'owaniem:
+
+```bash
+# Czyszczenie cache
+php artisan cache:clear
+php artisan config:clear
+php artisan route:clear
+php artisan view:clear
+```
+
+#### Problem z wyszukiwarce:
+
+```bash
+# Reset indeksu Algolia
+php artisan scout:flush "App\Models\Product"
+php artisan scout:import "App\Models\Product"
+```
+
+#### Problem z uprawnieniami:
+
+```bash
+# Ustawienie uprawnień na Linux
+sudo chown -R www-data:www-data /var/www/zdroweherbaty.com.pl
+sudo chmod -R 755 /var/www/zdroweherbaty.com.pl
+sudo chmod -R 775 /var/www/zdroweherbaty.com.pl/storage
+```
+
+## Wsparcie i Kontakt
+
+### Zespół deweloperski:
+
+-   **Lead Developer:** [Nazwa]
+-   **Backend:** [Nazwa]
+-   **Frontend:** [Nazwa]
+-   **DevOps:** [Nazwa]
+
+### Kanały komunikacji:
+
+-   **GitHub Issues:** [Link do repozytorium]
+-   **Email:** [Email zespołu]
+-   **Slack/Discord:** [Kanał zespołu]
+
+### Dokumentacja dodatkowa:
+
+-   **API Documentation:** [Link do dokumentacji API]
+-   **User Manual:** [Link do instrukcji użytkownika]
+-   **Developer Guide:** [Link do przewodnika dewelopera]
+
+---
+
+**Ostatnia aktualizacja:** {{ date('Y-m-d') }}
+
+**Wersja dokumentacji:** 1.0.0

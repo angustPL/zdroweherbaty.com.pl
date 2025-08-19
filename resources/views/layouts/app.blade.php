@@ -2,6 +2,7 @@
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 
 <head>
+    @include('googletagmanager::head')
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
@@ -34,6 +35,7 @@
     }
 }" x-init="adjustPadding()" @scroll.window="handleScroll()"
     @resize.window="adjustPadding()">
+    @include('googletagmanager::body')
     <div class="min-h-screen bg-white">
         <!-- Floating Header -->
         <flux:header container id="header-top"
@@ -55,14 +57,14 @@
                     <flux:navbar.item href="{{ route('home') }}"
                         class="hover:font-bold {{ request()->routeIs('home') ? 'current font-bold text-xl' : '' }}">
                         Strona główna</flux:navbar.item>
-                    <flux:navbar.item href="{{ route('dostawa') }}"
-                        class="hover:font-bold {{ request()->routeIs('dostawa') ? 'current font-bold text-xl' : '' }}">
+                    <flux:navbar.item href="{{ route('delivery') }}"
+                        class="hover:font-bold {{ request()->routeIs('delivery') ? 'current font-bold text-xl' : '' }}">
                         Dostawa</flux:navbar.item>
-                    <flux:navbar.item href="{{ route('regulamin') }}"
-                        class="hover:font-bold {{ request()->routeIs('regulamin') ? 'current font-bold text-xl' : '' }}">
+                    <flux:navbar.item href="{{ route('terms') }}"
+                        class="hover:font-bold {{ request()->routeIs('terms') ? 'current font-bold text-xl' : '' }}">
                         Regulamin</flux:navbar.item>
-                    <flux:navbar.item href="{{ route('kontakt') }}"
-                        class="hover:font-bold {{ request()->routeIs('kontakt') ? 'current font-bold text-xl' : '' }}">
+                    <flux:navbar.item href="{{ route('contact') }}"
+                        class="hover:font-bold {{ request()->routeIs('contact') ? 'current font-bold text-xl' : '' }}">
                         Kontakt</flux:navbar.item>
                     {{-- <flux:navbar.item href="{{ route('koszyk') }}"
                         class="hover:font-bold {{ request()->routeIs('koszyk') ? 'current font-bold text-xl' : '' }}">

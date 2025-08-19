@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "146f469e6e4fd511999411176c6b9bee",
+    "content-hash": "e28e2e9ce0aa7d3926eec13e056cfd80",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
@@ -4534,6 +4534,81 @@
                 "source": "https://github.com/Riimu/Kit-PHPEncoder/tree/v2.4.2"
             },
             "time": "2022-12-10T18:12:25+00:00"
+        },
+        {
+            "name": "spatie/laravel-googletagmanager",
+            "version": "2.8.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/spatie/laravel-googletagmanager.git",
+                "reference": "8fe5a953fc1a6b7ef461fd21d9e80bf20c1889a9"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/spatie/laravel-googletagmanager/zipball/8fe5a953fc1a6b7ef461fd21d9e80bf20c1889a9",
+                "reference": "8fe5a953fc1a6b7ef461fd21d9e80bf20c1889a9",
+                "shasum": ""
+            },
+            "require": {
+                "illuminate/config": "5.1 - 12",
+                "illuminate/http": "5.1 - 12",
+                "illuminate/session": "5.1 - 12",
+                "illuminate/view": "5.1 - 12",
+                "php": ">=5.5"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^11.0"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "aliases": {
+                        "GoogleTagManager": "Spatie\\GoogleTagManager\\GoogleTagManagerFacade"
+                    },
+                    "providers": [
+                        "Spatie\\GoogleTagManager\\GoogleTagManagerServiceProvider"
+                    ]
+                },
+                "branch-alias": {
+                    "dev-master": "1.0-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Spatie\\GoogleTagManager\\": "src"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Sebastian De Deyne",
+                    "email": "sebastian@spatie.be",
+                    "homepage": "https://spatie.be",
+                    "role": "Developer"
+                }
+            ],
+            "description": "Google Tag Manager integration for Laravel",
+            "homepage": "https://github.com/spatie/laravel-googletagmanager",
+            "keywords": [
+                "Google Tag Manager",
+                "laravel",
+                "laravel-googletagmanager",
+                "spatie"
+            ],
+            "support": {
+                "issues": "https://github.com/spatie/laravel-googletagmanager/issues",
+                "source": "https://github.com/spatie/laravel-googletagmanager/tree/2.8.1"
+            },
+            "funding": [
+                {
+                    "url": "https://github.com/spatie",
+                    "type": "github"
+                }
+            ],
+            "time": "2025-08-18T07:52:57+00:00"
         },
         {
             "name": "symfony/clock",

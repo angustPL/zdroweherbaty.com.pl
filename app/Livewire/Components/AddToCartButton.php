@@ -40,6 +40,28 @@ class AddToCartButton extends Component
 
             $this->isInCart = true;
 
+            // GTM add_to_cart event
+            try {
+                \Log::info('Próba wysłania GTM add_to_cart event');
+
+                GoogleTagManager::set([
+                    'event' => 'add_to_cart',
+                    'ecommerce' => [
+                        'items' => [[
+                            'item_id' => $this->productId,
+                            'item_name' => $this->productName,
+                            'price' => $this->price,
+                            'currency' => 'PLN',
+                            'quantity' => 1
+                        ]]
+                    ]
+                ]);
+
+                \Log::info('GTM add_to_cart event wysłany');
+            } catch (\Exception $e) {
+                \Log::error('GTM add_to_cart error: ' . $e->getMessage());
+            }
+
             // Emituj event do odświeżenia CartIcon
             $this->dispatch('cart-updated');
 
