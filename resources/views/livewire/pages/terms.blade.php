@@ -15,6 +15,13 @@ $toggleSection = function ($section) {
     }
 };
 
+// GTM page type
+try {
+    app('googletagmanager')->set('pageType', 'terms');
+} catch (\Exception $e) {
+    // Silent fail - GTM event not critical for functionality
+}
+
 ?>
 
 <div>
@@ -101,10 +108,8 @@ $toggleSection = function ($section) {
                 <ol class="space-y-4 text-gray-700 leading-relaxed">
                     <li>
                         Korzystając z funkcjonalności Sklepu internetowego, Klient ma możliwość poglądowego zapoznania
-                        się z
-                        asortymentem produktów Sprzedawcy oraz złożenia Sprzedawcy zamówienia w zakresie wybranych przez
-                        Klienta
-                        produktów poprzez dodanie ich do Koszyka.
+                        się z asortymentem produktów Sprzedawcy oraz złożenia Sprzedawcy zamówienia w zakresie
+                        wybranych przez Klienta produktów poprzez dodanie ich do Koszyka.
                     </li>
                     <li>
                         Klient może złożyć zamówienie nie posiadając konta w Sklepie Internetowym, poprzez kliknięcie w

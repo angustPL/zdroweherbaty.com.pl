@@ -33,20 +33,25 @@ mount(function ($id, $name = null) {
         }
     }
 
-    GoogleTagManager::set('pageType', 'productDetail');
-    GoogleTagManager::set([
-        'event' => 'view_item',
-        'ecommerce' => [
-            'items' => [
-                [
-                    'item_id' => $this->product['ID'],
-                    'item_name' => $this->product['Nazwa'],
-                    'price' => $this->product['BruttoValue'],
-                    'currency' => 'PLN',
+    // GTM page type and view_item event
+    try {
+        app('googletagmanager')->set('pageType', 'product');
+        app('googletagmanager')->set([
+            'event' => 'view_item',
+            'ecommerce' => [
+                'items' => [
+                    [
+                        'item_id' => $this->product['ID'],
+                        'item_name' => $this->product['Nazwa'],
+                        'price' => $this->product['BruttoValue'],
+                        'currency' => 'PLN',
+                    ],
                 ],
             ],
-        ],
-    ]);
+        ]);
+    } catch (\Exception $e) {
+        // Silent fail - GTM event not critical for functionality
+    }
 });
 
 ?>

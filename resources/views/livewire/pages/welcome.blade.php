@@ -15,6 +15,13 @@ mount(function () {
         ->map(function ($product) {
             return $product->toDisplayArray();
         });
+
+    // GTM page type
+    try {
+        app('googletagmanager')->set('pageType', 'home');
+    } catch (\Exception $e) {
+        // Silent fail - GTM event not critical for functionality
+    }
 });
 
 ?>

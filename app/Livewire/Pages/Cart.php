@@ -22,14 +22,41 @@ class Cart extends Component
     {
         $cartService = app(CartService::class);
         $this->cart = $cartService->getCart();
+
+        // GTM begin_checkout event
+        if (!empty($this->cart['items'])) {
+            try {
+                // Set page type
+                app('googletagmanager')->set('pageType', 'cart');
+
+                $items = [];
+                foreach ($this->cart['items'] as $item) {
+                    $items[] = [
+                        'item_id' => $item['id'],
+                        'item_name' => $item['name'],
+                        'price' => $item['price'],
+                        'currency' => 'PLN',
+                        'quantity' => $item['quantity']
+                    ];
+                }
+
+                app('googletagmanager')->set([
+                    'event' => 'begin_checkout',
+                    'ecommerce' => [
+                        'items' => $items,
+                        'cart_total' => $this->cart['total'] ?? 0,
+                        'cart_count' => $this->cart['item_count'] ?? 0
+                    ]
+                ]);
+            } catch (\Exception $e) {
+                // Silent fail - GTM event not critical for functionality
+            }
+        }
     }
 
     public function updateQuantity($productId, $quantity)
     {
         try {
-            // Debugowanie
-            \Log::info('updateQuantity called:', ['productId' => $productId, 'quantity' => $quantity]);
-
             $cartService = app(CartService::class);
             $cartService->updateQuantity($productId, $quantity);
 
@@ -41,7 +68,6 @@ class Cart extends Component
                 'message' => 'Koszyk zaktualizowany',
             ]);
         } catch (\Exception $e) {
-            \Log::error('Error in updateQuantity:', ['error' => $e->getMessage()]);
             $this->dispatch('notify', [
                 'type' => 'error',
                 'message' => 'Błąd podczas aktualizacji koszyka',

@@ -29,6 +29,13 @@ $submit = function () {
     $this->reset(['name', 'email', 'subject', 'message']);
 };
 
+// GTM page type
+try {
+    app('googletagmanager')->set('pageType', 'contact');
+} catch (\Exception $e) {
+    // Silent fail - GTM event not critical for functionality
+}
+
 ?>
 
 <div>

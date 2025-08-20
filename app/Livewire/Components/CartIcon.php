@@ -4,6 +4,8 @@ namespace App\Livewire\Components;
 
 use Livewire\Component;
 use App\Services\CartService;
+use Spatie\GoogleTagManager\GoogleTagManager;
+use Illuminate\Support\Facades\Log;
 
 class CartIcon extends Component
 {

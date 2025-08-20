@@ -36,6 +36,13 @@ mount(function () {
     foreach ($this->deliveries as $delivery) {
         $this->opcjeDostawy[$delivery['MasaBruttoValue']][] = $delivery;
     }
+
+    // GTM page type
+    try {
+        app('googletagmanager')->set('pageType', 'delivery');
+    } catch (\Exception $e) {
+        // Silent fail - GTM event not critical for functionality
+    }
 });
 
 ?>

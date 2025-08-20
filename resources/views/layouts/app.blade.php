@@ -66,8 +66,8 @@
                     <flux:navbar.item href="{{ route('contact') }}"
                         class="hover:font-bold {{ request()->routeIs('contact') ? 'current font-bold text-xl' : '' }}">
                         Kontakt</flux:navbar.item>
-                    {{-- <flux:navbar.item href="{{ route('koszyk') }}"
-                        class="hover:font-bold {{ request()->routeIs('koszyk') ? 'current font-bold text-xl' : '' }}">
+                    {{-- <flux:navbar.item href="{{ route('cart') }}"
+                        class="hover:font-bold {{ request()->routeIs('cart') ? 'current font-bold text-xl' : '' }}">
                         Koszyk</flux:navbar.item> --}}
                     <flux:separator vertical variant="subtle" class="my-2" />
                 </flux:navbar>

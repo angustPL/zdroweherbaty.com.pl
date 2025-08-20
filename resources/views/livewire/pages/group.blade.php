@@ -1,4 +1,4 @@
-{{-- Logika: app/Livewire/Pages/Grupa.php --}}
+{{-- Logika: app/Livewire/Pages/Group.php --}}
 <?php
 
 use function Livewire\Volt\{state, mount, layout};
@@ -35,6 +35,38 @@ mount(function ($group) {
     // Pobieranie nazwy kategorii
     $category = Group::where('Data', $dbPath)->first();
     $this->categoryName = $category ? $category->clean_name : $decodedGroup;
+
+    // GTM view_item_list event
+    if ($this->products->count() > 0) {
+        try {
+            // Set page type
+            app('googletagmanager')->set('pageType', 'category');
+
+            $items = [];
+            foreach ($this->products as $product) {
+                $items[] = [
+                    'item_id' => $product['ID'],
+                    'item_name' => $product['Nazwa'],
+                    'price' => $product['BruttoValue'],
+                    'currency' => 'PLN',
+                    'item_category' => $this->categoryName,
+                    'item_list_name' => $this->categoryName,
+                    'item_list_id' => $this->group,
+                ];
+            }
+
+            app('googletagmanager')->set([
+                'event' => 'view_item_list',
+                'ecommerce' => [
+                    'items' => $items,
+                    'item_list_name' => $this->categoryName,
+                    'item_list_id' => $this->group,
+                ],
+            ]);
+        } catch (\Exception $e) {
+            // Silent fail - GTM event not critical for functionality
+        }
+    }
 });
 
 ?>

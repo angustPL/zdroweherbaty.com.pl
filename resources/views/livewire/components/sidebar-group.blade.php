@@ -9,8 +9,8 @@
             $currentPath = ($parentPath ?? '') . ($parentPath ? '\\' : '') . $groupName;
             $shouldExpand = false;
 
-            if (request()->routeIs('grupa')) {
-                $currentGrupa = request()->route('grupa');
+            if (request()->routeIs('group')) {
+                $currentGrupa = request()->route('group');
                 if ($currentGrupa) {
                     $decodedGrupa = urldecode($currentGrupa);
                     $currentGroupPath = str_replace(config('enova.grupa_url_separator'), '\\', $decodedGrupa);

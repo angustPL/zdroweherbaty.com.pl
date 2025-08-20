@@ -42,9 +42,7 @@ class AddToCartButton extends Component
 
             // GTM add_to_cart event
             try {
-                \Log::info('Próba wysłania GTM add_to_cart event');
-
-                GoogleTagManager::set([
+                app('googletagmanager')->set([
                     'event' => 'add_to_cart',
                     'ecommerce' => [
                         'items' => [[
@@ -56,10 +54,8 @@ class AddToCartButton extends Component
                         ]]
                     ]
                 ]);
-
-                \Log::info('GTM add_to_cart event wysłany');
             } catch (\Exception $e) {
-                \Log::error('GTM add_to_cart error: ' . $e->getMessage());
+                // Silent fail - GTM event not critical for functionality
             }
 
             // Emituj event do odświeżenia CartIcon

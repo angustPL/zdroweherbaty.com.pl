@@ -24,6 +24,7 @@ Volt::route('/kontakt', 'pages.contact')->name('contact');
 // Produkty
 Volt::route('/grupa/{group}', 'pages.group')->name('group');
 Volt::route('/towar/{id}/{name?}', 'pages.product')->name('product');
+Volt::route('/wyszukaj', 'pages.search')->name('search');
 
 // Koszyk
 Route::get('/koszyk', App\Livewire\Pages\Cart::class)->name('cart');

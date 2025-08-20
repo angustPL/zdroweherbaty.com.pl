@@ -20,7 +20,7 @@
             </svg>
             <h3 class="text-xl font-medium mb-2">Twój koszyk jest pusty</h3>
             <p class="text-gray-500 mb-6">Dodaj produkty do koszyka, aby rozpocząć zakupy</p>
-            <flux:button variant="primary" href="{{ route('home') }}">
+            <flux:button variant="primary" href="{{ route('welcome') }}">
                 Przejdź do sklepu
             </flux:button>
         </div>
@@ -72,7 +72,7 @@
 
                                 {{-- Cena jednostkowa --}}
                                 <td class="px-6 py-4 text-right text-sm whitespace-nowrap">
-                                    {{ Number::currency($item['price'], 'PLN', 'pl_PL') }}
+                                    {{ number_format($item['price'], 2, ',', '.') }} zł
                                 </td>
 
                                 {{-- Ilość --}}
@@ -84,17 +84,33 @@
                                             if (newQuantity <= 0) {
                                                 return;
                                             }
-
+                                    
+                                            // GTM update_cart event
+                                            if (typeof dataLayer !== 'undefined') {
+                                                dataLayer.push({
+                                                    'event': 'update_cart',
+                                                    'ecommerce': {
+                                                        'items': [{
+                                                            'item_id': '{{ $item['id'] }}',
+                                                            'item_name': '{{ $item['name'] }}',
+                                                            'price': {{ $item['price'] }},
+                                                            'currency': 'PLN',
+                                                            'quantity': newQuantity
+                                                        }]
+                                                    }
+                                                });
+                                            }
+                                    
                                             // Natychmiastowa zmiana w UI
                                             $wire.$set('cart.items.' + productId + '.quantity', newQuantity);
-
+                                    
                                             // Przelicz total
                                             let total = 0;
                                             Object.values($wire.cart.items).forEach(item => {
                                                 total += item.price * item.quantity;
                                             });
                                             $wire.$set('cart.total', total);
-
+                                    
                                             // Debounce zapisanie
                                             clearTimeout(this.debounceTimer);
                                             this.debounceTimer = setTimeout(() => {
@@ -128,6 +144,22 @@
                                 <td class="px-6 py-4 text-center">
                                     <flux:button variant="outline" size="sm"
                                         wire:click="removeFromCart({{ $productId }})" wire:loading.attr="disabled"
+                                        onclick="
+                                            if (typeof dataLayer !== 'undefined') {
+                                                dataLayer.push({
+                                                    'event': 'remove_from_cart',
+                                                    'ecommerce': {
+                                                        'items': [{
+                                                            'item_id': '{{ $item['id'] }}',
+                                                            'item_name': '{{ $item['name'] }}',
+                                                            'price': {{ $item['price'] }},
+                                                            'currency': 'PLN',
+                                                            'quantity': {{ $item['quantity'] }}
+                                                        }]
+                                                    }
+                                                });
+                                            }
+                                        "
                                         class="w-8 h-8 p-0 text-red-500 hover:text-red-700 flex items-center justify-center cursor-pointer">
                                         <flux:icon.trash-2 variant="micro" />
                                     </flux:button>
@@ -149,6 +181,25 @@
 
                 <div class="flex gap-4">
                     <flux:button variant="outline" wire:click="clearCart"
+                        onclick="
+                            if (typeof dataLayer !== 'undefined') {
+                                dataLayer.push({
+                                    'event': 'remove_from_cart',
+                                    'ecommerce': {
+                                        'items': [
+                                            @foreach ($cart['items'] as $productId => $item)
+                                            {
+                                                'item_id': '{{ $item['id'] }}',
+                                                'item_name': '{{ $item['name'] }}',
+                                                'price': {{ $item['price'] }},
+                                                'currency': 'PLN',
+                                                'quantity': {{ $item['quantity'] }}
+                                            }@if (!$loop->last),@endif @endforeach
+                                        ]
+                                    }
+                                });
+                            }
+                        "
                         class="flex-1 flex items-center justify-center">
                         Wyczyść koszyk
                     </flux:button>
