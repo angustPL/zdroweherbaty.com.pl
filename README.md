@@ -324,26 +324,28 @@ Serwis zarządzający koszykiem zakupowym z wykorzystaniem cookies.
 
 #### Główne funkcjonalności:
 
--   **Dodawanie produktów** - `addToCart($productId, $name, $price, $image)`
+-   **Dodawanie produktów** - `addToCart($productId, $name, $price, $image, $quantity, $weight)`
 -   **Aktualizacja ilości** - `updateQuantity($productId, $quantity)`
 -   **Usuwanie produktów** - `removeFromCart($productId)`
 -   **Czyszczenie koszyka** - `clearCart()`
 -   **Sprawdzanie zawartości** - `isProductInCart($productId)`
--   **Automatyczne obliczanie totalów** - `updateCartTotals()`
+-   **Automatyczne obliczanie totalów** - `updateCartTotals()` (cena, ilość, waga)
+-   **Wyliczanie łącznej wagi** - automatyczne sumowanie wag wszystkich produktów
 
 #### Przykład użycia:
 
 ```php
 $cartService = app(CartService::class);
 
-// Dodanie produktu
-$cartService->addToCart(123, 'Herbata Zielona', 25.99, '123_200x120.jpg');
+// Dodanie produktu z wagą
+$cartService->addToCart(123, 'Herbata Zielona', 25.99, '123_200x120.jpg', 1, 50.0);
 
 // Sprawdzenie czy produkt jest w koszyku
 $isInCart = $cartService->isProductInCart(123);
 
-// Pobranie koszyka
+// Pobranie koszyka (zawiera total_weight)
 $cart = $cartService->getCart();
+// $cart['total_weight'] - łączna waga wszystkich produktów
 ```
 
 ### Komponenty Koszyka
@@ -370,6 +372,53 @@ $cart = $cartService->getCart();
 -   Automatyczne przeliczanie wartości
 -   Komunikat o pustym koszyku z ikoną
 -   Listener na event `cart-updated`
+
+### System Wagi w Koszyku
+
+#### Funkcjonalności wagi:
+
+-   **Pobieranie wagi produktu** - automatyczne z bazy danych (`MasaBruttoValue`)
+-   **Zapisywanie wagi w koszyku** - każdy produkt ma przypisaną wagę
+-   **Wyliczanie łącznej wagi** - suma (waga × ilość) dla wszystkich produktów
+-   **Aktualizacja wagi** - automatyczne przeliczanie przy zmianie ilości
+
+#### Struktura danych koszyka:
+
+```php
+$cart = [
+    'items' => [
+        123 => [
+            'id' => 123,
+            'name' => 'Herbata Zielona',
+            'price' => 25.99,
+            'quantity' => 2,
+            'image' => '123_200x120.jpg',
+            'weight' => 50.0  // waga w gramach
+        ]
+    ],
+    'total' => 51.98,
+    'item_count' => 1,
+    'total_weight' => 100.0  // łączna waga wszystkich produktów
+];
+```
+
+#### Użycie w komponentach:
+
+```php
+// AddToCartButton automatycznie pobiera wagę z bazy
+$product = Product::find($productId);
+$this->weight = $product->MasaBruttoValue ?? 0;
+
+// CartService wylicza łączną wagę
+private function updateCartTotals(array &$cart): void
+{
+    $totalWeight = 0;
+    foreach ($cart['items'] as $item) {
+        $totalWeight += ($item['weight'] ?? 0) * $item['quantity'];
+    }
+    $cart['total_weight'] = $totalWeight;
+}
+```
 
 ## Strona Dostawy
 

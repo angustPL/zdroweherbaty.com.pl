@@ -11,6 +11,7 @@
     "require": {
         "php": "^8.2",
         "algolia/scout-extended": "^3.2",
+        "artesaos/seotools": "^1.3",
         "laravel-lang/locales": "^2.10",
         "laravel/framework": "^12.0",
         "laravel/scout": "^10.17",

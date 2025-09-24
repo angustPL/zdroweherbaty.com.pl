@@ -6,6 +6,13 @@ use App\Models\Delivery;
 
 layout('layouts.app');
 
+// SEO Meta Tags - canonical URL jest automatycznie ustawiany z konfiguracji
+
+// Open Graph - URL jest automatycznie ustawiany z konfiguracji
+
+// Schema.org JSON-LD - tylko typ (reszta z domyślnych)
+app('seotools.json-ld')->setType('WebPage');
+
 state(['deliveries' => [], 'opcjeDostawy' => []]);
 
 mount(function () {

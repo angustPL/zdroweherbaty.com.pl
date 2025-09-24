@@ -4,6 +4,17 @@ use function Livewire\Volt\{state, mount, rules, layout};
 
 layout('layouts.app');
 
+// SEO Meta Tags
+app('seotools')->setTitle('Kontakt - Zdrowe Herbaty BIFIX');
+app('seotools')->setDescription('Skontaktuj się z nami w sprawie herbat BIFIX. Adres, telefon, email i godziny otwarcia. Chętnie pomożemy!');
+// Canonical URL jest automatycznie ustawiany z konfiguracji
+
+// Open Graph - tylko URL (reszta z domyślnych)
+app('seotools')->opengraph()->setUrl(url('/kontakt'));
+
+// Schema.org JSON-LD - tylko typ (reszta z domyślnych)
+app('seotools.json-ld')->setType('ContactPage');
+
 state([
     'name' => '',
     'email' => '',

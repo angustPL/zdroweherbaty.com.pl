@@ -38,7 +38,7 @@ class CartService
     /**
      * Dodaje produkt do koszyka
      */
-    public function addToCart(int $productId, string $productName, float $price, string $image, int $quantity = 1): array
+    public function addToCart(int $productId, string $productName, float $price, string $image, int $quantity = 1, float $weight = 0): array
     {
         $cart = $this->getCart();
 
@@ -52,7 +52,8 @@ class CartService
                 'name' => $productName,
                 'price' => $price,
                 'quantity' => $quantity,
-                'image' => $image
+                'image' => $image,
+                'weight' => $weight
             ];
         }
 
@@ -127,15 +128,18 @@ class CartService
     {
         $total = 0;
         $itemCount = 0;
+        $totalWeight = 0;
 
         foreach ($cart['items'] as $item) {
             $total += $item['price'] * $item['quantity'];
             $itemCount += $item['quantity'];
+            $totalWeight += ($item['weight'] ?? 0) * $item['quantity'];
         }
 
         $cart['total'] = $total;
         $cart['item_count'] = count($cart['items']); // Liczba unikalnych produktów
         $cart['total_quantity'] = $itemCount; // Suma wszystkich ilości (opcjonalnie)
+        $cart['total_weight'] = $totalWeight; // Łączna waga wszystkich produktów
     }
 
     /**
@@ -158,7 +162,8 @@ class CartService
         return [
             'items' => [],
             'total' => 0,
-            'item_count' => 0
+            'item_count' => 0,
+            'total_weight' => 0
         ];
     }
 }

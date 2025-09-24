@@ -6,7 +6,20 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>{{ config('app.name', 'Zdrowe Herbaty') }}</title>
+
+    @php
+        use Artesaos\SEOTools\Facades\SEOMeta;
+        use Artesaos\SEOTools\Facades\OpenGraph;
+        use Artesaos\SEOTools\Facades\TwitterCard;
+        use Artesaos\SEOTools\Facades\JsonLd;
+    @endphp
+
+    <!-- SEO Meta Tags -->
+    {!! SEOMeta::generate() !!}
+    {!! OpenGraph::generate() !!}
+    {!! TwitterCard::generate() !!}
+    {!! JsonLd::generate() !!}
+
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600" rel="stylesheet" />

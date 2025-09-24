@@ -4,8 +4,17 @@
 use function Livewire\Volt\{state, mount, layout};
 use App\Models\Product;
 use App\Models\Group;
+use Artesaos\SEOTools\Facades\SEOTools;
+use Artesaos\SEOTools\Facades\JsonLd;
 
 layout('layouts.app');
+
+// SEO Meta Tags - canonical URL jest automatycznie ustawiany z konfiguracji
+
+// Open Graph - URL jest automatycznie ustawiany z konfiguracji
+
+// Schema.org JSON-LD - ustawiamy typ przed mount()
+JsonLd::setType('CollectionPage');
 
 state(['group' => '', 'products' => [], 'categoryName' => '']);
 
@@ -35,6 +44,22 @@ mount(function ($group) {
     // Pobieranie nazwy kategorii
     $category = Group::where('Data', $dbPath)->first();
     $this->categoryName = $category ? $category->clean_name : $decodedGroup;
+
+    // Aktualizacja SEO Meta Tags z nazwą kategorii
+    SEOTools::setTitle($this->categoryName . ' - Zdrowe Herbaty BIFIX');
+    SEOTools::setDescription('Przeglądaj herbaty ' . $this->categoryName . ' BIFIX. Znajdź herbaty zielone, czarne, owocowe i ziołowe dla całej rodziny.');
+
+    // Aktualizacja Open Graph
+    SEOTools::opengraph()->setTitle($this->categoryName . ' - Zdrowe Herbaty BIFIX');
+    SEOTools::opengraph()->setDescription('Przeglądaj herbaty ' . $this->categoryName . ' BIFIX. Znajdź herbaty zielone, czarne, owocowe i ziołowe dla całej rodziny.');
+
+    // Aktualizacja Twitter
+    SEOTools::twitter()->setType('summary_large_image');
+    SEOTools::twitter()->setTitle($this->categoryName . ' - Zdrowe Herbaty BIFIX');
+    SEOTools::twitter()->setDescription('Przeglądaj herbaty ' . $this->categoryName . ' BIFIX. Znajdź herbaty zielone, czarne, owocowe i ziołowe dla całej rodziny.');
+
+    // Aktualizacja Schema.org JSON-LD
+    JsonLd::addValue('name', $this->categoryName . ' - Zdrowe Herbaty BIFIX')->addValue('description', 'Przeglądaj herbaty ' . $this->categoryName . ' BIFIX');
 
     // GTM view_item_list event
     if ($this->products->count() > 0) {
@@ -88,4 +113,7 @@ mount(function ($group) {
             <p class="text-gray-500 text-lg">Brak produktów w tej kategorii</p>
         </div>
     @endif
+
+    <!-- Schema.org JSON-LD -->
+    {!! JsonLd::generate() !!}
 </div>

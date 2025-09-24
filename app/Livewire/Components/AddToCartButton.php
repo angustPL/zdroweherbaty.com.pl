@@ -4,6 +4,7 @@ namespace App\Livewire\Components;
 
 use Livewire\Component;
 use App\Services\CartService;
+use App\Models\Product;
 
 class AddToCartButton extends Component
 {
@@ -11,6 +12,7 @@ class AddToCartButton extends Component
     public $productName;
     public $price;
     public $image;
+    public $weight = 0;
     public $isInCart = false;
     public $isLoading = false;
 
@@ -20,6 +22,12 @@ class AddToCartButton extends Component
         $this->productName = $productName;
         $this->price = $price;
         $this->image = $image;
+
+        // Pobierz wagę produktu z bazy danych
+        $product = Product::find($productId);
+        if ($product) {
+            $this->weight = $product->MasaBruttoValue ?? 0;
+        }
 
         $this->checkIfInCart();
     }
@@ -36,7 +44,7 @@ class AddToCartButton extends Component
 
         try {
             $cartService = app(CartService::class);
-            $cartService->addToCart($this->productId, $this->productName, $this->price, $this->image);
+            $cartService->addToCart($this->productId, $this->productName, $this->price, $this->image, 1, $this->weight);
 
             $this->isInCart = true;
 

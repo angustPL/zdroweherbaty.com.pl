@@ -5,6 +5,25 @@ use function Livewire\Volt\{state, mount, layout};
 
 layout('layouts.app');
 
+// SEO Meta Tags - ZABRONIONE INDEKSOWANIE
+app('seotools')->setTitle('Regulamin - Zdrowe Herbaty BIFIX');
+app('seotools')->setDescription('Regulamin sklepu internetowego Zdrowe Herbaty BIFIX. Zasady sprzedaży, dostawy, płatności i reklamacji herbat BIFIX.');
+// Canonical URL jest automatycznie ustawiany z konfiguracji
+
+// ZABRONIENIE INDEKSOWANIA
+app('seotools')->addMeta('robots', 'noindex, nofollow');
+app('seotools')->addMeta('googlebot', 'noindex, nofollow');
+app('seotools')->addMeta('bingbot', 'noindex, nofollow');
+
+// Open Graph - tylko URL (reszta z domyślnych)
+app('seotools')->opengraph()->setUrl(url('/regulamin'));
+
+// ZABRONIENIE INDEKSOWANIA W SOCIAL MEDIA
+app('seotools')->opengraph()->addProperty('robots', 'noindex, nofollow');
+
+// Schema.org JSON-LD - tylko typ (reszta z domyślnych)
+app('seotools.json-ld')->setType('WebPage');
+
 state(['expandedSections' => []]);
 
 $toggleSection = function ($section) {

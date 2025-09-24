@@ -4,8 +4,20 @@
 use function Livewire\Volt\{state, mount, layout};
 use App\Models\Product;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Storage;
+use Artesaos\SEOTools\Facades\SEOTools;
+use Artesaos\SEOTools\Facades\JsonLd;
 
 layout('layouts.app');
+
+// SEO Meta Tags - tylko canonical (reszta z domyślnych)
+app('seotools')->setCanonical(url()->current());
+
+// Open Graph - tylko typ (reszta z domyślnych, w tym URL)
+app('seotools')->opengraph()->setType('product');
+
+// Schema.org JSON-LD - tylko typ (reszta będzie ustawiona w mount())
+app('seotools.json-ld')->setType('Product');
 
 state(['product' => null, 'productId' => null]);
 
@@ -19,6 +31,50 @@ mount(function ($id, $name = null) {
 
     if ($product) {
         $this->product = $product->toDisplayArray();
+
+        // Aktualizacja SEO Meta Tags z danymi produktu
+        SEOTools::setTitle($this->product['Nazwa'] . ' - Zdrowe Herbaty BIFIX');
+        SEOTools::setDescription('Sprawdź ' . $this->product['Nazwa'] . ' BIFIX. Cena: ' . Number::currency($this->product['BruttoValue'], 'PLN', 'pl_PL') . '. ' . Str::limit($this->product['Opis'] ?? '', 150));
+
+        // Canonical URL - generujemy zgodnie z routingiem
+        SEOTools::setCanonical(route('product', [$this->productId, Str::slug($this->product['Nazwa'])]));
+
+        // Aktualizacja Open Graph
+        SEOTools::opengraph()->setTitle($this->product['Nazwa'] . ' - Zdrowe Herbaty BIFIX');
+        SEOTools::opengraph()->setDescription('Sprawdź ' . $this->product['Nazwa'] . ' BIFIX. Cena: ' . Number::currency($this->product['BruttoValue'], 'PLN', 'pl_PL') . '. ' . Str::limit($this->product['Opis'] ?? '', 150));
+        SEOTools::opengraph()->setType('product');
+        SEOTools::opengraph()->setSiteName('Zdrowe Herbaty BIFIX');
+
+        // Ustawienie zdjęcia produktu jako Open Graph image
+        if (!empty($this->product['ID'])) {
+            $imageUrl = Storage::disk('public')->url('img/towary/' . $this->product['ID'] . '_800x600.jpg');
+            SEOTools::opengraph()->addImage($imageUrl);
+        }
+
+        // Aktualizacja Twitter
+        SEOTools::twitter()->setType('summary_large_image');
+        SEOTools::twitter()->setTitle($this->product['Nazwa'] . ' - Zdrowe Herbaty BIFIX');
+        SEOTools::twitter()->setDescription('Sprawdź ' . $this->product['Nazwa'] . ' BIFIX. Cena: ' . Number::currency($this->product['BruttoValue'] ?? 0, 'PLN', 'pl_PL'));
+
+        // Ustawienie zdjęcia produktu jako Twitter image
+        if (!empty($this->product['ID'])) {
+            $imageUrl = Storage::disk('public')->url('img/towary/' . $this->product['ID'] . '_800x600.jpg');
+            SEOTools::twitter()->addImage($imageUrl);
+        }
+
+        // Aktualizacja Schema.org JSON-LD
+        JsonLd::setType('Product')
+            ->addValue('name', $this->product['Nazwa'])
+            ->addValue('description', Str::limit($this->product['Opis'] ?? '', 200))
+            ->addValue('brand', 'BIFIX')
+            ->addValue('category', $this->product['Grupa'] ?? 'Herbata')
+            ->addValue('image', Storage::disk('public')->url('img/towary/' . $this->product['ID'] . '_800x600.jpg'))
+            ->addValue('offers', [
+                '@type' => 'Offer',
+                'price' => $this->product['BruttoValue'],
+                'priceCurrency' => 'PLN',
+                'availability' => 'https://schema.org/InStock',
+            ]);
     } else {
         $this->product = null;
     }
@@ -108,4 +164,7 @@ mount(function ($id, $name = null) {
             <p class="text-gray-500 text-lg">Produkt nie został znaleziony</p>
         </div>
     @endif
+
+    <!-- Schema.org JSON-LD -->
+    {!! JsonLd::generate() !!}
 </div>

@@ -5,6 +5,12 @@ use App\Models\Product;
 
 layout('layouts.app');
 
+// SEO Meta Tags - canonical URL jest automatycznie ustawiany z konfiguracji
+
+// Open Graph - URL jest automatycznie ustawiany z konfiguracji
+
+// Schema.org JSON-LD - wszystkie dane są automatycznie ustawiane z konfiguracji
+
 state(['query' => '']);
 state(['perPage' => 12]);
 state(['currentPage' => 1]);

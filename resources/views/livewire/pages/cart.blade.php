@@ -84,7 +84,7 @@
                                             if (newQuantity <= 0) {
                                                 return;
                                             }
-                                    
+
                                             // GTM update_cart event
                                             if (typeof dataLayer !== 'undefined') {
                                                 dataLayer.push({
@@ -100,17 +100,17 @@
                                                     }
                                                 });
                                             }
-                                    
+
                                             // Natychmiastowa zmiana w UI
                                             $wire.$set('cart.items.' + productId + '.quantity', newQuantity);
-                                    
+
                                             // Przelicz total
                                             let total = 0;
                                             Object.values($wire.cart.items).forEach(item => {
                                                 total += item.price * item.quantity;
                                             });
                                             $wire.$set('cart.total', total);
-                                    
+
                                             // Debounce zapisanie
                                             clearTimeout(this.debounceTimer);
                                             this.debounceTimer = setTimeout(() => {

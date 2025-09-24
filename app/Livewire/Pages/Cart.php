@@ -4,6 +4,8 @@ namespace App\Livewire\Pages;
 
 use Livewire\Component;
 use App\Services\CartService;
+use Artesaos\SEOTools\Facades\SEOTools;
+use Artesaos\SEOTools\Facades\JsonLd;
 
 class Cart extends Component
 {
@@ -15,6 +17,18 @@ class Cart extends Component
 
     public function mount()
     {
+        // SEO Meta Tags - tylko canonical (reszta z domyślnych)
+        SEOTools::setCanonical(url('/koszyk'));
+
+        // Open Graph - tylko URL (reszta z domyślnych)
+        SEOTools::opengraph()->setUrl(url('/koszyk'));
+
+        // Schema.org JSON-LD - pełne dane dla koszyka
+        JsonLd::setType('WebPage')
+            ->addValue('url', url('/koszyk'))
+            ->addValue('name', 'Koszyk - Zdrowe Herbaty BIFIX')
+            ->addValue('description', 'Twój koszyk z herbatami BIFIX. Sprawdź produkty, ilości i przejdź do kasy.');
+
         $this->loadCart();
     }
 
