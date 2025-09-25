@@ -430,14 +430,17 @@ $submitOrder = function () {
                                                     </div>
                                                     @if ($selectedDelivery == $option['id'])
                                                         <div class="mt-3">
-                                                            <button type="button"
+                                                            <div id="danePaczkomatu"
+                                                                class="mb-2 text-sm text-gray-600"></div>
+                                                            <button type="button" onclick="openEasyPackModal()"
+                                                                id="parcelLockerBtn"
                                                                 class="bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors duration-200 flex items-center text-sm">
                                                                 <svg class="w-4 h-4 mr-2" fill="currentColor"
                                                                     viewBox="0 0 24 24">
                                                                     <path
                                                                         d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
                                                                 </svg>
-                                                                Wybierz paczkomat
+                                                                <span id="btnText">Wybierz paczkomat</span>
                                                             </button>
                                                         </div>
                                                     @endif
@@ -464,14 +467,6 @@ $submitOrder = function () {
 
 
 
-                {{-- Przycisk zamówienia --}}
-                <div class="bg-white rounded-lg shadow p-6">
-                    <form wire:submit.prevent="submitOrder">
-                        <flux:button type="submit" variant="primary" class="w-full">
-                            Złóż zamówienie
-                        </flux:button>
-                    </form>
-                </div>
             </div>
 
             {{-- Podsumowanie --}}
@@ -516,5 +511,143 @@ $submitOrder = function () {
                 </div>
             </div>
         </div>
+
+        {{-- Przycisk zamówienia --}}
+        <div class="mt-8">
+            <form wire:submit.prevent="submitOrder">
+                <flux:button type="submit" variant="primary" class="w-full">
+                    Złóż zamówienie
+                </flux:button>
+            </form>
+        </div>
     @endif
+
+
+    <!-- EasyPack CSS -->
+    <link href="//geowidget.easypack24.net/css/easypack.css" media="screen" rel="stylesheet" type="text/css">
+
+    <!-- EasyPack JavaScript -->
+    <script src="//geowidget.easypack24.net/js/sdk-for-javascript.js"></script>
+
+    <script>
+        window.easyPackAsyncInit = function() {
+            easyPack.init({
+                defaultLocale: 'pl',
+                mapType: 'osm',
+                searchType: 'osm',
+                map: {
+                    googleKey: 'AIzaSyDyxnUZuehaTUYAU8FEEie7N0KGk1XMn6c'
+                },
+                points: {
+                    types: ['parcel_locker']
+                },
+                map: {
+                    initialTypes: ['parcel_locker']
+                }
+            });
+        };
+
+        // Sprawdź czy EasyPack jest załadowany po załadowaniu strony
+        document.addEventListener('DOMContentLoaded', function() {
+            // Opóźnij ładowanie paczkomatu, aby elementy były dostępne
+            setTimeout(loadSavedParcelLocker, 500);
+
+            // Dodatkowo: nasłuchuj zmian DOM (Livewire rerender)
+            try {
+                const observer = new MutationObserver((mutations) => {
+                    const displayDiv = document.getElementById('danePaczkomatu');
+                    const btnText = document.getElementById('btnText');
+                    if (displayDiv && btnText && displayDiv.childElementCount === 0) {
+                        loadSavedParcelLocker();
+                    }
+                });
+                observer.observe(document.body, {
+                    subtree: true,
+                    childList: true
+                });
+            } catch (e) {
+                // MutationObserver unavailable
+            }
+        });
+
+        // Hook Livewire: po odświeżeniu komponentu spróbuj ponownie wczytać zapisany paczkomat
+        document.addEventListener('livewire:navigated', () => {
+            setTimeout(loadSavedParcelLocker, 200);
+        });
+
+        // Załaduj zapisany paczkomat z cookies
+        function loadSavedParcelLocker() {
+            const saved = getCookie('selectedParcelLocker');
+
+            if (saved) {
+                try {
+                    const locker = JSON.parse(saved);
+                    const displayDiv = document.getElementById('danePaczkomatu');
+                    const btnText = document.getElementById('btnText');
+
+                    if (displayDiv && locker.name) {
+                        displayDiv.innerHTML = '<strong>' + locker.name + '</strong> - ' +
+                            (locker.address?.line1 || '') + ', ' +
+                            (locker.address?.line2 || '');
+
+                        // Zmień tekst przycisku
+                        if (btnText) {
+                            btnText.textContent = 'Zmień paczkomat';
+                        }
+                    }
+                } catch (e) {
+                    // Błąd parsowania zapisanego paczkomatu
+                }
+            }
+        }
+
+        // Funkcja pomocnicza do odczytu cookies
+        function getCookie(name) {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(';').shift();
+            return null;
+        }
+
+        function openEasyPackModal() {
+            if (typeof easyPack === 'undefined') {
+                alert('EasyPack nie jest załadowany. Spróbuj ponownie za chwilę.');
+                return;
+            }
+
+            if (typeof easyPack.modalMap !== 'function') {
+                alert('EasyPack.modalMap nie jest dostępne. Spróbuj ponownie za chwilę.');
+                return;
+            }
+
+            easyPack.modalMap(function(point, modal) {
+                modal.closeModal();
+                if (point.name) {
+                    // Zapisz wybór do cookies na 30 dni
+                    const expiryDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+                    document.cookie =
+                        `selectedParcelLocker=${JSON.stringify(point)}; expires=${expiryDate.toUTCString()}; path=/`;
+
+                    // Wyświetl wybór
+                    const displayDiv = document.getElementById('danePaczkomatu');
+                    const btnText = document.getElementById('btnText');
+
+                    if (displayDiv) {
+                        displayDiv.innerHTML = '<strong>' + point.name + '</strong> - ' +
+                            (point.address?.line1 || '') + ', ' +
+                            (point.address?.line2 || '');
+                    }
+
+                    // Zmień tekst przycisku
+                    if (btnText) {
+                        btnText.textContent = 'Zmień paczkomat';
+                    }
+                } else {
+                    alert('Brak danych paczkomatu');
+                }
+            }, {
+                width: 500
+            });
+        }
+    </script>
 </div>
