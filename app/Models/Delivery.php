@@ -73,7 +73,7 @@ class Delivery extends EnovaModel
     public function paymentMethod()
     {
         return $this->hasOne(Feature::class, 'Parent', 'ID')
-            ->where('Name', config('enova.orders.feature_payment_method'))
+            ->where('Name', config('enova.payment.feature_payment_method'))
             ->join('SposobyZaplaty', 'Features.Data', '=', 'SposobyZaplaty.ID')
             ->select(['Features.Parent', 'SposobyZaplaty.ID', 'SposobyZaplaty.Nazwa', 'SposobyZaplaty.Opis']);
     }

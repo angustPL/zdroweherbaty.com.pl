@@ -43,8 +43,9 @@ class CartService
         $cart = $this->getCart();
 
         if (isset($cart['items'][$productId])) {
-            // Produkt już istnieje - zwiększ ilość
-            // $cart['items'][$productId]['quantity'] += $quantity;
+            // Produkt już istnieje - nie dodawaj ponownie
+            // Ilość można edytować tylko w koszyku
+            return $cart;
         } else {
             // Nowy produkt
             $cart['items'][$productId] = [
@@ -140,6 +141,7 @@ class CartService
         $cart['item_count'] = count($cart['items']); // Liczba unikalnych produktów
         $cart['total_quantity'] = $itemCount; // Suma wszystkich ilości (opcjonalnie)
         $cart['total_weight'] = $totalWeight; // Łączna waga wszystkich produktów
+
     }
 
     /**

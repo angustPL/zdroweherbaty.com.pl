@@ -131,6 +131,13 @@ class Cart extends Component
         }
     }
 
+    public function getSnapshotData()
+    {
+        return [
+            'cart' => $this->cart,
+        ];
+    }
+
     public function render()
     {
         return view('livewire.pages.cart')->layout('layouts.app');

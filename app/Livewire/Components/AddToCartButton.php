@@ -26,6 +26,7 @@ class AddToCartButton extends Component
         // Pobierz wagę produktu z bazy danych
         $product = Product::find($productId);
         if ($product) {
+            // Waga w kg (tak jak w bazie danych)
             $this->weight = $product->MasaBruttoValue ?? 0;
         }
 
@@ -40,6 +41,11 @@ class AddToCartButton extends Component
 
     public function addToCart()
     {
+        // Sprawdź czy produkt już jest w koszyku
+        if ($this->isInCart) {
+            return;
+        }
+
         $this->isLoading = true;
 
         try {
@@ -81,6 +87,19 @@ class AddToCartButton extends Component
         } finally {
             $this->isLoading = false;
         }
+    }
+
+    public function getSnapshotData()
+    {
+        return [
+            'productId' => $this->productId,
+            'productName' => $this->productName,
+            'price' => $this->price,
+            'image' => $this->image,
+            'weight' => $this->weight,
+            'isInCart' => $this->isInCart,
+            'isLoading' => $this->isLoading,
+        ];
     }
 
     public function render()

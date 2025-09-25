@@ -20,7 +20,7 @@
             </svg>
             <h3 class="text-xl font-medium mb-2">Twój koszyk jest pusty</h3>
             <p class="text-gray-500 mb-6">Dodaj produkty do koszyka, aby rozpocząć zakupy</p>
-            <flux:button variant="primary" href="{{ route('welcome') }}">
+            <flux:button variant="primary" href="{{ route('home') }}">
                 Przejdź do sklepu
             </flux:button>
         </div>
@@ -43,10 +43,6 @@
                             </th>
                             <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                                 Wartość
-                            </th>
-                            <th
-                                class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-
                             </th>
                         </tr>
                     </thead>
@@ -172,7 +168,7 @@
 
             {{-- Podsumowanie --}}
             <div class="bg-white rounded-lg shadow p-6">
-                <div class="flex justify-between items-center mb-6">
+                <div class="flex justify-between items-center mb-4">
                     <span class="text-xl font-medium">Suma:</span>
                     <span class="text-3xl font-bold text-primary">
                         {{ number_format($cart['total'] ?? 0, 2, ',', '.') }} zł
@@ -204,7 +200,7 @@
                         Wyczyść koszyk
                     </flux:button>
 
-                    <flux:button variant="primary" class="flex-1">
+                    <flux:button variant="primary" href="{{ route('order') }}" class="flex-1">
                         Przejdź do zamówienia
                     </flux:button>
                 </div>

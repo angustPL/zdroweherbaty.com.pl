@@ -18,7 +18,7 @@ state(['deliveries' => [], 'opcjeDostawy' => []]);
 mount(function () {
     $this->deliveries = Delivery::join('Ceny', 'Towary.ID', '=', 'Ceny.Towar')
         ->join('Features as PaymentFeatures', function ($join) {
-            $join->on('Towary.ID', '=', 'PaymentFeatures.Parent')->where('PaymentFeatures.Name', '=', config('enova.orders.feature_payment_method'));
+            $join->on('Towary.ID', '=', 'PaymentFeatures.Parent')->where('PaymentFeatures.Name', '=', config('enova.payment.feature_payment_method'));
         })
         ->join('SposobyZaplaty', 'PaymentFeatures.Data', '=', 'SposobyZaplaty.ID')
         // ->where('Towary.Blokada', '=', 0)
@@ -59,15 +59,16 @@ mount(function () {
         <h1 class="text-4xl font-bold text-gray-900 mb-4">
             Opcje dostawy
         </h1>
-        @if (config('enova.orders.free_delivery_threshold') > 0)
+        @if (config('enova.delivery.free_delivery_threshold') > 0)
             <p>
                 Bezpłatna dostawa dla zamówień o wartości większej niż
-                <strong class="text-lg">{{ number_format(config('enova.orders.free_delivery_threshold'), 0, ',', '.') }}
+                <strong
+                    class="text-lg">{{ number_format(config('enova.delivery.free_delivery_threshold'), 0, ',', '.') }}
                     zł</strong>
             </p>
             <p>
                 Koszty dostawy dla zamówień o wartości do
-                {{ number_format(config('enova.orders.free_delivery_threshold'), 0, ',', '.') }} zł
+                {{ number_format(config('enova.delivery.free_delivery_threshold'), 0, ',', '.') }} zł
                 przedstawia tabela.
             </p>
         @endif

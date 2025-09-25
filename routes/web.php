@@ -29,6 +29,9 @@ Volt::route('/wyszukaj', 'pages.search')->name('search');
 // Koszyk
 Route::get('/koszyk', App\Livewire\Pages\Cart::class)->name('cart');
 
+// Zamówienie
+Volt::route('/zamowienie', 'pages.order')->name('order');
+
 Route::view('dashboard', 'dashboard')
     ->middleware(['auth', 'verified'])
     ->name('dashboard');

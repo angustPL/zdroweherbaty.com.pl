@@ -9,7 +9,8 @@
     @if ($products->count() > 0)
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             @foreach ($products as $product)
-                <livewire:components.product-card :product="$product" variant="default" :wire:key="$product['ID']" />
+                <livewire:components.product-card :product-id="$product['ID']" :product-name="$product['Nazwa']" :product-price="$product['BruttoValue']"
+                    :product-group="$product['Grupa']" :product-weight="$product['MasaBruttoValue']" variant="default" :wire:key="$product['ID']" />
             @endforeach
         </div>
 
