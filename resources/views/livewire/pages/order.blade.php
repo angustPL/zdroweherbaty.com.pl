@@ -144,6 +144,9 @@ $loadDeliveryOptions = function () {
 
     $this->deliveryOptions = $filteredDeliveries
         ->map(function ($delivery) {
+            // Sprawdź czy to opcja paczkomatu
+            $isParcelLocker = str_contains(strtolower($delivery->Nazwa), strtolower(config('enova.delivery.parcel_locker_name', 'Paczkomaty 24/7')));
+
             return [
                 'id' => $delivery->ID,
                 'name' => $delivery->Nazwa,
@@ -151,6 +154,7 @@ $loadDeliveryOptions = function () {
                 'max_weight' => $delivery->MasaBruttoValue,
                 'price' => $delivery->BruttoValue,
                 'payment_method' => $delivery->PaymentMethodName ?? '-',
+                'is_parcel_locker' => $isParcelLocker,
             ];
         })
         ->toArray();
@@ -409,16 +413,34 @@ $submitOrder = function () {
                         <div class="space-y-3">
                             @foreach ($deliveryOptions as $option)
                                 <div class="border rounded-lg p-4 hover:bg-gray-50 cursor-pointer transition-colors"
-                                    wire:click="selectedDelivery = {{ $option['id'] }}">
+                                    wire:click="$set('selectedDelivery', {{ $option['id'] }})">
                                     <div class="flex items-center justify-between">
                                         <div class="flex items-center">
-                                            <input type="radio" wire:model="selectedDelivery"
+                                            <input type="radio" wire:model.live="selectedDelivery"
                                                 value="{{ $option['id'] }}" class="mr-3">
                                             <div>
                                                 <div class="font-medium">{{ $option['name'] }}</div>
                                                 @if ($option['description'])
                                                     <div class="text-sm text-gray-600">{{ $option['description'] }}
                                                     </div>
+                                                @endif
+                                                @if ($option['is_parcel_locker'])
+                                                    <div class="text-xs text-gray-500 mt-1">
+                                                        Przewidywany czas dostawy: 1 dzień roboczy
+                                                    </div>
+                                                    @if ($selectedDelivery == $option['id'])
+                                                        <div class="mt-3">
+                                                            <button type="button"
+                                                                class="bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors duration-200 flex items-center text-sm">
+                                                                <svg class="w-4 h-4 mr-2" fill="currentColor"
+                                                                    viewBox="0 0 24 24">
+                                                                    <path
+                                                                        d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+                                                                </svg>
+                                                                Wybierz paczkomat
+                                                            </button>
+                                                        </div>
+                                                    @endif
                                                 @endif
                                             </div>
                                         </div>
@@ -439,6 +461,8 @@ $submitOrder = function () {
                         </div>
                     @endif
                 </div>
+
+
 
                 {{-- Przycisk zamówienia --}}
                 <div class="bg-white rounded-lg shadow p-6">
