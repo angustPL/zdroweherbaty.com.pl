@@ -166,6 +166,34 @@
                 </table>
             </div>
 
+            {{-- Komunikat o darmowej dostawie --}}
+            @php
+                $freeThreshold = (float) config('enova.delivery.free_delivery_threshold', 0);
+                $cartTotal = $cart['total'] ?? 0;
+                $hasFreeDelivery = $freeThreshold > 0 && $cartTotal >= $freeThreshold;
+            @endphp
+            @if ($hasFreeDelivery)
+                <div class="mb-4">
+                    <flux:callout variant="success" icon="check-circle">
+                        <flux:callout.heading>Darmowa dostawa</flux:callout.heading>
+                        <flux:callout.text>
+                            Przekroczono próg {{ number_format($freeThreshold, 2, ',', '.') }} zł — koszt dostawy 0 zł
+                        </flux:callout.text>
+                    </flux:callout>
+                </div>
+            @elseif ($freeThreshold > 0)
+                @php $missing = max(0, $freeThreshold - $cartTotal); @endphp
+                @if ($missing > 0)
+                    <div class="mb-4">
+                        <flux:callout variant="secondary" icon="information-circle">
+                            <flux:callout.heading>
+                                Brakuje {{ number_format($missing, 2, ',', '.') }} zł do darmowej dostawy
+                            </flux:callout.heading>
+                        </flux:callout>
+                    </div>
+                @endif
+            @endif
+
             {{-- Podsumowanie --}}
             <div class="bg-white rounded-lg shadow p-6">
                 <div class="flex justify-between items-center mb-4">

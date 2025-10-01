@@ -147,14 +147,21 @@ $loadDeliveryOptions = function () {
             // Sprawdź czy to opcja paczkomatu
             $isParcelLocker = str_contains(strtolower($delivery->Nazwa), strtolower(config('enova.delivery.parcel_locker_name', 'Paczkomaty 24/7')));
 
+            // Darmowa dostawa po przekroczeniu progu wartości koszyka
+            $cartTotal = $this->cart['total'] ?? 0;
+            $freeThreshold = (float) config('enova.delivery.free_delivery_threshold', 0);
+            $isFree = $cartTotal >= $freeThreshold && $freeThreshold > 0;
+            $price = $isFree ? 0 : $delivery->BruttoValue;
+
             return [
                 'id' => $delivery->ID,
                 'name' => $delivery->Nazwa,
                 'description' => $delivery->Opis,
                 'max_weight' => $delivery->MasaBruttoValue,
-                'price' => $delivery->BruttoValue,
+                'price' => $price,
                 'payment_method' => $delivery->PaymentMethodName ?? '-',
                 'is_parcel_locker' => $isParcelLocker,
+                'is_free' => $isFree,
             ];
         })
         ->toArray();
@@ -238,22 +245,22 @@ $submitOrder = function () {
                             </div>
                         </div>
 
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div>
+                        <div class="grid grid-cols-1 md:grid-cols-6 gap-4">
+                            <div class="md:col-span-4">
                                 <flux:field>
                                     <flux:label>Ulica *</flux:label>
                                     <flux:input wire:model="customerData.street" placeholder="Wprowadź ulicę" />
                                     <flux:error name="customerData.street" />
                                 </flux:field>
                             </div>
-                            <div>
+                            <div class="md:col-span-1">
                                 <flux:field>
                                     <flux:label>Nr *</flux:label>
                                     <flux:input wire:model="customerData.street_number" placeholder="1" />
                                     <flux:error name="customerData.street_number" />
                                 </flux:field>
                             </div>
-                            <div>
+                            <div class="md:col-span-1">
                                 <flux:field>
                                     <flux:label>Lokal</flux:label>
                                     <flux:input wire:model="customerData.apartment" placeholder="1A" />
@@ -270,15 +277,15 @@ $submitOrder = function () {
                             </flux:field>
                         </div>
 
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
+                        <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
+                            <div class="md:col-span-3">
                                 <flux:field>
                                     <flux:label>Kod pocztowy *</flux:label>
                                     <flux:input wire:model="customerData.postal_code" placeholder="00-000" />
                                     <flux:error name="customerData.postal_code" />
                                 </flux:field>
                             </div>
-                            <div>
+                            <div class="md:col-span-9">
                                 <flux:field>
                                     <flux:label>Poczta *</flux:label>
                                     <flux:input wire:model="customerData.post_office" placeholder="Wprowadź pocztę" />
@@ -333,22 +340,22 @@ $submitOrder = function () {
                                     </flux:field>
                                 </div>
 
-                                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                    <div>
+                                <div class="grid grid-cols-1 md:grid-cols-6 gap-4">
+                                    <div class="md:col-span-4">
                                         <flux:field>
                                             <flux:label>Ulica *</flux:label>
                                             <flux:input wire:model="invoiceData.street" placeholder="Wprowadź ulicę" />
                                             <flux:error name="invoiceData.street" />
                                         </flux:field>
                                     </div>
-                                    <div>
+                                    <div class="md:col-span-1">
                                         <flux:field>
                                             <flux:label>Nr *</flux:label>
                                             <flux:input wire:model="invoiceData.street_number" placeholder="1" />
                                             <flux:error name="invoiceData.street_number" />
                                         </flux:field>
                                     </div>
-                                    <div>
+                                    <div class="md:col-span-1">
                                         <flux:field>
                                             <flux:label>Lokal</flux:label>
                                             <flux:input wire:model="invoiceData.apartment" placeholder="1A" />
@@ -365,15 +372,15 @@ $submitOrder = function () {
                                     </flux:field>
                                 </div>
 
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div>
+                                <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
+                                    <div class="md:col-span-3">
                                         <flux:field>
                                             <flux:label>Kod pocztowy *</flux:label>
                                             <flux:input wire:model="invoiceData.postal_code" placeholder="00-000" />
                                             <flux:error name="invoiceData.postal_code" />
                                         </flux:field>
                                     </div>
-                                    <div>
+                                    <div class="md:col-span-9">
                                         <flux:field>
                                             <flux:label>Poczta *</flux:label>
                                             <flux:input wire:model="invoiceData.post_office"
@@ -392,8 +399,34 @@ $submitOrder = function () {
                 <div class="bg-white rounded-lg shadow p-6">
                     <h2 class="text-xl font-semibold mb-4">Wybór dostawy</h2>
 
+                    @php
+                        $freeThreshold = (float) config('enova.delivery.free_delivery_threshold', 0);
+                        $cartTotal = $cart['total'] ?? 0;
+                        $hasFreeDelivery = $freeThreshold > 0 && $cartTotal >= $freeThreshold;
+                    @endphp
+                    @if ($hasFreeDelivery)
+                        <div class="mb-5">
+                            <flux:callout variant="success" icon="check-circle">
+                                <flux:callout.heading>Darmowa dostawa</flux:callout.heading>
+                                <flux:callout.text>Przekroczono próg
+                                    {{ number_format($freeThreshold, 2, ',', '.') }}
+                                    zł — koszt dostawy 0 zł</flux:callout.text>
+                            </flux:callout>
+                        </div>
+                    @elseif ($freeThreshold > 0)
+                        @php $missing = max(0, $freeThreshold - $cartTotal); @endphp
+                        @if ($missing > 0)
+                            <div class="mb-4">
+                                <flux:callout variant="secondary" icon="information-circle">
+                                    <flux:callout.heading>Brakuje {{ number_format($missing, 2, ',', '.') }} zł do
+                                        darmowej dostawy</flux:callout.heading>
+                                </flux:callout>
+                            </div>
+                        @endif
+                    @endif
+
                     {{-- Informacja o wadze koszyka --}}
-                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                    {{-- <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
                         <div class="flex items-center">
                             <svg class="w-5 h-5 text-blue-600 mr-2" fill="none" stroke="currentColor"
                                 viewBox="0 0 24 24">
@@ -407,7 +440,7 @@ $submitOrder = function () {
                                 </div>
                             </div>
                         </div>
-                    </div>
+                    </div> --}}
 
                     @if (count($deliveryOptions) > 0)
                         <div class="space-y-3">
