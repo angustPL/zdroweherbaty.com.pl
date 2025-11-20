@@ -31,15 +31,8 @@ mount(function ($group) {
     $prefix = config('enova.features.product_group_prefix');
     $dbPath = $prefix . $groupPath . '\\';
 
-    // Pobieranie produktów dla danej kategorii z nazwą i ceną
-    $this->products = Product::with(['productNameFeature', 'price', 'group'])
-        ->whereHas('group', function ($query) use ($dbPath) {
-            $query->where('Data', $dbPath);
-        })
-        ->get()
-        ->map(function ($product) {
-            return $product->toDisplayArray();
-        });
+    // Pobieranie produktów dla danej kategorii z cache'owaniem (TTL z konfiguracji, domyślnie 24h)
+    $this->products = Product::getCachedByGroup($dbPath);
 
     // Pobieranie nazwy kategorii
     $category = Group::where('Data', $dbPath)->first();

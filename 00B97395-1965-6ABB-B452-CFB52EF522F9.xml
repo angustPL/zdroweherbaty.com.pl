@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<session xmlns="http://www.soneta.pl/schema/business" business="true">
+  <Kontrahent business="false" id="id2" key="Kod=WWW"></Kontrahent>
+  <DokumentHandlowy guid="00B97395-1965-6ABB-B452-CFB52EF522F9">
+    <Definicja where="Symbol=ZOW" />
+    <Magazyn where="Symbol=WWW" />
+    <Data>2025-05-29</Data>
+    <Czas>15:53</Czas>
+    <DataOperacji>2025-05-29</DataOperacji>
+    <Kontrahent where="Kod=WWW" />
+    <Odbiorca where="Kod=WWW" />
+    <Platnosci>
+      <Platnosc class="Soneta.Kasa.Naleznosc,Soneta.Kasa">
+        <SposobZaplaty>B4413968-D8EA-4810-8DFF-7735D65A92AF</SposobZaplaty>
+        <Kwota>159.44 PLN</Kwota>
+        <TerminDni>0</TerminDni>
+      </Platnosc>
+    </Platnosci>
+    <Pozycje>
+      <Pozycja>
+        <Towar where="Kod=NM02_10" />
+        <Ilosc>1 pud</Ilosc>
+        <Cena>6.99 PLN</Cena>
+        <CenaPoRabacie>6.99 PLN</CenaPoRabacie>
+        <Wspolczynnik>1/1</Wspolczynnik>
+      </Pozycja>
+      <Pozycja>
+        <Towar where="Kod=NM04_10" />
+        <Ilosc>1 pud</Ilosc>
+        <Cena>6.99 PLN</Cena>
+        <CenaPoRabacie>6.99 PLN</CenaPoRabacie>
+        <Wspolczynnik>1/1</Wspolczynnik>
+      </Pozycja>
+      <Pozycja>
+        <Towar where="Kod=NM11_10" />
+        <Ilosc>1 pud</Ilosc>
+        <Cena>6.99 PLN</Cena>
+        <CenaPoRabacie>6.99 PLN</CenaPoRabacie>
+        <Wspolczynnik>1/1</Wspolczynnik>
+      </Pozycja>
+      <Pozycja>
+        <Towar where="Kod=NM12_10" />
+        <Ilosc>1 pud</Ilosc>
+        <Cena>6.99 PLN</Cena>
+        <CenaPoRabacie>6.99 PLN</CenaPoRabacie>
+        <Wspolczynnik>1/1</Wspolczynnik>
+      </Pozycja>
+      <Pozycja>
+        <Towar where="Kod=KOMP_CZAR" />
+        <Ilosc>1 pud</Ilosc>
+        <Cena>22.99 PLN</Cena>
+        <CenaPoRabacie>22.99 PLN</CenaPoRabacie>
+        <Wspolczynnik>1/1</Wspolczynnik>
+      </Pozycja>
+      <Pozycja>
+        <Towar where="Kod=F35_10" />
+        <Ilosc>3 pud</Ilosc>
+        <Cena>4.47 PLN</Cena>
+        <CenaPoRabacie>4.47 PLN</CenaPoRabacie>
+        <Wspolczynnik>1/1</Wspolczynnik>
+      </Pozycja>
+      <Pozycja>
+        <Towar where="Kod=F10_10" />
+        <Ilosc>5 pud</Ilosc>
+        <Cena>4.47 PLN</Cena>
+        <CenaPoRabacie>4.47 PLN</CenaPoRabacie>
+        <Wspolczynnik>1/1</Wspolczynnik>
+      </Pozycja>
+      <Pozycja>
+        <Towar where="Kod=F13_10" />
+        <Ilosc>3 pud</Ilosc>
+        <Cena>4.47 PLN</Cena>
+        <CenaPoRabacie>4.47 PLN</CenaPoRabacie>
+        <Wspolczynnik>1/1</Wspolczynnik>
+      </Pozycja>
+      <Pozycja>
+        <Towar where="Kod=F01_10" />
+        <Ilosc>5 pud</Ilosc>
+        <Cena>4.47 PLN</Cena>
+        <CenaPoRabacie>4.47 PLN</CenaPoRabacie>
+        <Wspolczynnik>1/1</Wspolczynnik>
+      </Pozycja>
+      <Pozycja>
+        <Towar where="Kod=NMJAB-ARO_10" />
+        <Ilosc>1 pud</Ilosc>
+        <Cena>6.99 PLN</Cena>
+        <CenaPoRabacie>6.99 PLN</CenaPoRabacie>
+        <Wspolczynnik>1/1</Wspolczynnik>
+      </Pozycja>
+      <Pozycja>
+        <Towar where="Kod=LADYFOCUS_5" />
+        <Ilosc>1 pud</Ilosc>
+        <Cena>14.99 PLN</Cena>
+        <CenaPoRabacie>14.99 PLN</CenaPoRabacie>
+        <Wspolczynnik>1/1</Wspolczynnik>
+      </Pozycja>
+      <Pozycja>
+        <Towar where="Kod=LADYPOSITIVE_5" />
+        <Ilosc>1 pud</Ilosc>
+        <Cena>14.99 PLN</Cena>
+        <CenaPoRabacie>14.99 PLN</CenaPoRabacie>
+        <Wspolczynnik>1/1</Wspolczynnik>
+      </Pozycja>
+      <Pozycja>
+        <Towar where="Kod=PRZES 000/003 PACZKOMAT INPOST PRZED" />
+        <Ilosc>1 szt</Ilosc>
+        <Cena>0 PLN</Cena>
+        <CenaPoRabacie>0 PLN</CenaPoRabacie>
+        <Wspolczynnik>1/1</Wspolczynnik>
+      </Pozycja>
+    </Pozycje>
+    <DaneKontrahenta>
+      <Nazwa>STOWARZYSZENIE RODZIN I PRZYJACIÓŁ OSÓB GŁĘBOKO UPOŚLEDZONYCH 'MAJA'</Nazwa>
+      <NIP>9511910156</NIP>
+      <Adres>
+        <Ulica>ul .Na Uboczu</Ulica>
+        <NrDomu>4</NrDomu>
+        <NrLokalu>45</NrLokalu>
+        <Miejscowosc>Warszawa</Miejscowosc>
+        <Poczta>Warszawa</Poczta>
+        <KodPocztowy>02791</KodPocztowy>
+      </Adres>
+    </DaneKontrahenta>
+    <DaneOdbiorcy>
+      <Nazwa>GRAŻYNA GUSTOWSKA</Nazwa>
+      <NIP />
+      <Adres>
+        <Ulica>ul .Nad Stawami</Ulica>
+        <NrDomu>6</NrDomu>
+        <NrLokalu></NrLokalu>
+        <Telefon>531111290</Telefon>
+        <Miejscowosc>BANIOCHA</Miejscowosc>
+        <Poczta>BANIOCHA</Poczta>
+        <KodPocztowy>05532</KodPocztowy>
+      </Adres>
+    </DaneOdbiorcy>
+    <features>
+       <feature name="E-mail_zamowienia">gagis@op.pl</feature>
+       <feature name="Telefon_zamowienia">531111290</feature>
+       <feature name="Uwagi">
+
+Paczkomat: BCH01M, Polna 3, 05-532 Baniocha
+
+</feature>
+    </features>
+  </DokumentHandlowy>
+</session>

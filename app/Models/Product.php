@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Cache;
 use Laravel\Scout\Searchable;
 
 class Product extends EnovaModel
@@ -112,6 +113,53 @@ class Product extends EnovaModel
     }
 
     /**
+     * Pobiera produkty z określonej grupy z cache'owaniem.
+     * Wyniki są cache'owane zgodnie z konfiguracją (domyślnie 24 godziny).
+     *
+     * @param string $groupPath Pełna ścieżka grupy w formacie Enova (np. "Grupa\Podgrupa\")
+     * @param int|null $ttl Czas życia cache w sekundach (domyślnie z konfiguracji)
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
+    public static function getCachedByGroup(string $groupPath, ?int $ttl = null)
+    {
+        $cacheKey = 'enova_products_group_' . md5($groupPath);
+        $cacheTtl = $ttl ?? config('enova.cache.ttl', 86400);
+
+        return Cache::remember($cacheKey, $cacheTtl, function () use ($groupPath) {
+            return static::with(['productNameFeature', 'price', 'group'])
+                ->whereHas('group', function ($query) use ($groupPath) {
+                    $query->where('Data', $groupPath);
+                })
+                ->get()
+                ->map(function ($product) {
+                    return $product->toDisplayArray();
+                });
+        });
+    }
+
+    /**
+     * Pobiera pojedynczy produkt z cache'owaniem.
+     * Wyniki są cache'owane zgodnie z konfiguracją (domyślnie 24 godziny).
+     *
+     * @param int $productId ID produktu
+     * @param int|null $ttl Czas życia cache w sekundach (domyślnie z konfiguracji)
+     * @return array|null
+     */
+    public static function getCachedById(int $productId, ?int $ttl = null): ?array
+    {
+        $cacheKey = 'enova_product_' . $productId;
+        $cacheTtl = $ttl ?? config('enova.cache.ttl', 86400);
+
+        return Cache::remember($cacheKey, $cacheTtl, function () use ($productId) {
+            $product = static::with(['productNameFeature', 'price', 'group'])
+                ->where('ID', $productId)
+                ->first();
+
+            return $product ? $product->toDisplayArray() : null;
+        });
+    }
+
+    /**
      * Mapuje produkt do tablicy z danymi do wyświetlenia.
      *
      * @return array
@@ -123,6 +171,7 @@ class Product extends EnovaModel
             'Nazwa' => $this->productNameFeature->Name ?? $this->Nazwa,
             'Grupa' => $this->group->clean_name ?? null,
             'Opis' => $this->Opis,
+            'HasProductMark' => (string) ($this->productMark->Data ?? '') === '1',
             'MasaNettoValue' => $this->MasaNettoValue,
             'MasaNettoSymbol' => $this->MasaNettoSymbol,
             'MasaBruttoValue' => $this->MasaBruttoValue,

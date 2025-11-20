@@ -30,7 +30,23 @@ Volt::route('/wyszukaj', 'pages.search')->name('search');
 Route::get('/koszyk', App\Livewire\Pages\Cart::class)->name('cart');
 
 // Zamówienie
-Volt::route('/zamowienie', 'pages.order')->name('order');
+Volt::route('/zamawianie', 'pages.order-create')->name('order.create');
+Volt::route('/zamowienie/{ext_order_id}', 'pages.order-info')->name('order.info');
+
+// PayU callbacks
+Route::post('/payu/notify', [App\Http\Controllers\PayuController::class, 'notify'])->name('payu.notify');
+Route::get('/payu/success', [App\Http\Controllers\PayuController::class, 'success'])->name('payu.success');
+
+// Cache management
+Route::prefix('cache')->group(function () {
+    Route::get('/', [App\Http\Controllers\CacheController::class, 'index'])->name('cache.index');
+    Route::get('/status/{type}', [App\Http\Controllers\CacheController::class, 'status'])->name('cache.status');
+    Route::post('/clear/{type}', [App\Http\Controllers\CacheController::class, 'clear'])->name('cache.clear');
+    Route::post('/clear/{type}/{param}', [App\Http\Controllers\CacheController::class, 'clear'])->name('cache.clear.param');
+    Route::post('/clear/all', function () {
+        return app(App\Http\Controllers\CacheController::class)->clear(request(), 'all');
+    })->name('cache.clear.all');
+});
 
 Route::view('dashboard', 'dashboard')
     ->middleware(['auth', 'verified'])

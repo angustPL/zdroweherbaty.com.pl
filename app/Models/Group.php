@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Cache;
 
 class Group extends EnovaModel
 {
@@ -80,33 +81,41 @@ class Group extends EnovaModel
 
     /**
      * Pobiera hierarchiczną strukturę grup.
+     * Wyniki są cache'owane zgodnie z konfiguracją (domyślnie 24 godziny).
      *
+     * @param int|null $ttl Czas życia cache w sekundach (domyślnie z konfiguracji)
      * @return array
      */
-    public static function getHierarchicalStructure(): array
+    public static function getHierarchicalStructure(?int $ttl = null): array
     {
-        $groups = self::orderBy('Data')->get();
-        $hierarchy = [];
+        $cacheKey = 'enova_groups_hierarchy';
 
-        foreach ($groups as $group) {
-            $path = $group->clean_name;
-            $parts = explode('\\', $path);
+        $cacheTtl = $ttl ?? config('enova.cache.ttl', 86400);
 
-            $current = &$hierarchy;
+        return Cache::remember($cacheKey, $cacheTtl, function () {
+            $groups = self::orderBy('Data')->get();
+            $hierarchy = [];
 
-            foreach ($parts as $part) {
-                if (!isset($current[$part])) {
-                    $current[$part] = [
-                        'name' => $part,
-                        'full_path' => implode('\\', array_slice($parts, 0, array_search($part, $parts) + 1)),
-                        'children' => []
-                    ];
+            foreach ($groups as $group) {
+                $path = $group->clean_name;
+                $parts = explode('\\', $path);
+
+                $current = &$hierarchy;
+
+                foreach ($parts as $part) {
+                    if (!isset($current[$part])) {
+                        $current[$part] = [
+                            'name' => $part,
+                            'full_path' => implode('\\', array_slice($parts, 0, array_search($part, $parts) + 1)),
+                            'children' => []
+                        ];
+                    }
+                    $current = &$current[$part]['children'];
                 }
-                $current = &$current[$part]['children'];
             }
-        }
 
-        return $hierarchy;
+            return $hierarchy;
+        });
     }
 
     /**

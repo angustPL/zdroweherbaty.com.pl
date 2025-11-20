@@ -228,7 +228,7 @@
                         Wyczyść koszyk
                     </flux:button>
 
-                    <flux:button variant="primary" href="{{ route('order') }}" class="flex-1">
+                    <flux:button variant="primary" href="{{ route('order.create') }}" class="flex-1">
                         Przejdź do zamówienia
                     </flux:button>
                 </div>

@@ -6,6 +6,7 @@ use App\Models\Group;
 state(['productGroups' => []]);
 
 mount(function () {
+    // Używa cache'owanej metody (TTL z konfiguracji, domyślnie 24h)
     $this->productGroups = Group::getHierarchicalStructure();
 });
 

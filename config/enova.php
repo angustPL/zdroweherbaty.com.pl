@@ -41,12 +41,34 @@ return [
         'parcel_locker_name' => env('ENOVA_DELIVERY_PARCEL_LOCKER_NAME', 'Paczkomaty 24/7'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Konfiguracja Cache
+    |--------------------------------------------------------------------------
+    |
+    | Ustawienia cache'owania danych z Enova.
+    | TTL (Time To Live) w sekundach - domyślnie 24 godziny (86400 sekund).
+    |
+    */
+
+    'cache' => [
+        'ttl' => env('ENOVA_CACHE_TTL', 86400), // 24 godziny w sekundach
+    ],
+
+    'orders' => [
+        'contractor' => env('ENOVA_ORDERS_CONTRACTOR', 'WWW'),
+        'symbol' => env('ENOVA_ORDERS_SYMBOL', 'ZOW'),
+        'warehouse' => env('ENOVA_ORDERS_WAREHOUSE', 'WWW'),
+        'xml_directory' => env('ENOVA_ORDERS_XML_DIRECTORY', storage_path('app/enova/orders')),
+    ],
+
     'payment' => [
         'feature_payment_method' => env('ENOVA_PAYMENT_FEATURE_PAYMENT_METHOD', 'Forma Płatności dla dostawy'),
         'methods' => [
             'domyslna' => env('ENOVA_PAYMENT_DOMYSLNA_GUID', '00000000-0003-0004-0002-000000000000'),
             'gotowka' => env('ENOVA_PAYMENT_GOTOWKA_GUID', '00000000-0003-0004-0001-000000000000'),
             'przelew' => env('ENOVA_PAYMENT_PRZELEW_GUID', '00000000-0003-0004-0002-000000000000'),
+            'przedplata' => env('ENOVA_PAYMENT_PRZEDPLATA_GUID', '43931EB3-6259-497E-8545-656187F90D3C'),
             'pobranie' => env('ENOVA_PAYMENT_POBRANIE_GUID', 'B13EDB83-341B-4FC6-AAE7-20CF19837650'),
             'payu' => env('ENOVA_PAYMENT_PAYU_GUID', 'B4413968-D8EA-4810-8DFF-7735D65A92AF'),
         ],
@@ -61,11 +83,13 @@ return [
                 'card' => env('PAYU_OPTION_CARD', 'c'),
                 'google_pay' => env('PAYU_OPTION_GOOGLE_PAY', 'ap'),
                 'apple_pay' => env('PAYU_OPTION_APPLE_PAY', 'jp'),
-                'transfer' => env('PAYU_OPTION_TRANSFER', 'przelew'),
+                'transfer' => env('PAYU_OPTION_TRANSFER', 'p'), // 'p' dla przelewu bankowego w PayU REST API
             ],
             'logo_url' => env('PAYU_LOGO_URL', 'https://www.zdroweherbaty.com.pl/img/payu.png'),
-            'continue_url' => env('PAYU_CONTINUE_URL', 'https://www.zdroweherbaty.com.pl/payu/success/'),
-            'notify_url' => env('PAYU_NOTIFY_URL', 'https://www.zdroweherbaty.com.pl/payu/notify/'),
+            // Używamy env z fallbackiem do route() - route() automatycznie używa poprawnego URL
+            // W .env można ustawić PAYU_CONTINUE_URL i PAYU_NOTIFY_URL dla pełnej kontroli
+            'continue_url' => env('PAYU_CONTINUE_URL'),
+            'notify_url' => env('PAYU_NOTIFY_URL'),
         ],
     ],
 ];

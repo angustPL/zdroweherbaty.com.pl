@@ -1,0 +1,795 @@
+<?php
+
+use function Livewire\Volt\{state, mount, layout};
+use App\Models\Order;
+use App\Models\EnovaOrder;
+use App\Models\Product;
+use App\Services\PayuService;
+use Artesaos\SEOTools\Facades\SEOTools;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
+use Carbon\Carbon;
+
+// Funkcja pomocnicza do formatowania kodu pocztowego (zawsze 5 cyfr: xx-xxx)
+// Jeśli kod ma mniej niż 5 cyfr, dodajemy 0 na początku
+if (!function_exists('formatPostalCode')) {
+    function formatPostalCode($code)
+    {
+        if (empty($code)) {
+            return '';
+        }
+        // Usuń wszystkie znaki niebędące cyframi
+        $code = preg_replace('/[^0-9]/', '', $code);
+        $length = strlen($code);
+
+        // Jeśli ma mniej niż 5 cyfr, dodaj 0 na początku
+        if ($length < 5) {
+            $code = str_pad($code, 5, '0', STR_PAD_LEFT);
+        }
+
+        // Jeśli ma więcej niż 5 cyfr, weź pierwsze 5
+        if ($length > 5) {
+            $code = substr($code, 0, 5);
+        }
+
+        // Sformatuj jako xx-xxx (zawsze 5 cyfr)
+        return substr($code, 0, 2) . '-' . substr($code, 2, 3);
+    }
+}
+
+layout('layouts.app');
+
+// SEO Meta Tags
+app('seotools')->setTitle('Szczegóły zamówienia - Zdrowe Herbaty BIFIX');
+app('seotools')->setCanonical(url('/zamowienie'));
+app('seotools')->opengraph()->setUrl(url('/zamowienie'));
+app('seotools.json-ld')->setType('WebPage')->addValue('url', url('/zamowienie'))->addValue('name', 'Szczegóły zamówienia - Zdrowe Herbaty BIFIX')->addValue('description', 'Szczegóły zamówienia w sklepie Zdrowe Herbaty BIFIX.');
+
+state([
+    'order' => null,
+    'enovaOrder' => null,
+    'extOrderId' => null,
+    'orderStatus' => null,
+    'orderNumber' => null,
+    'orderDate' => null,
+    'showPaymentSuccess' => false,
+]);
+
+mount(function ($ext_order_id) {
+    $this->extOrderId = $ext_order_id;
+    $this->showPaymentSuccess = false; // Initialize the state variable
+
+    // Sprawdź czy mamy komunikat sukcesu z sesji (z PayU success callback)
+    if (session('order_success')) {
+        $this->showPaymentSuccess = true;
+        // Usuń z sesji, aby nie pokazywać przy kolejnych odświeżeniach
+        session()->forget('order_success');
+    }
+
+    // Najpierw sprawdź czy zamówienie jest w Enova (jak w starym systemie)
+    $this->enovaOrder = EnovaOrder::byGuid($ext_order_id)->first();
+
+    if ($this->enovaOrder) {
+        // Zamówienie jest w Enova - używamy TYLKO danych z Enova (najwyższy priorytet)
+        // Status: 'Zarejestrowane w systemie' (jak w starym systemie)
+        $this->orderStatus = 'Zarejestrowane w systemie';
+        $this->orderNumber = $this->enovaOrder->NumerPelny;
+
+        // Data z Enova (Data + Czas)
+        if ($this->enovaOrder->Data) {
+            $data = Carbon::parse($this->enovaOrder->Data);
+            if ($this->enovaOrder->Czas) {
+                $timeParts = explode(':', $this->enovaOrder->Czas);
+                $data->setTime((int) ($timeParts[0] ?? 0), (int) ($timeParts[1] ?? 0));
+            }
+            $this->orderDate = $data;
+        }
+
+        // NIE pobieramy lokalnego zamówienia - Enova ma najwyższy priorytet
+        $this->order = null;
+    } else {
+        // Zamówienie nie jest jeszcze w Enova - używamy danych z lokalnej bazy
+        $this->order = Order::where('ext_order_id', $ext_order_id)->first();
+
+        if (!$this->order) {
+            abort(404, 'Zamówienie nie zostało znalezione.');
+        }
+
+        // Status z lokalnej bazy
+        $this->orderStatus = $this->order->status === 'paid' ? 'Opłacone' : ($this->order->status === 'pending' ? 'Oczekuje na płatność' : ($this->order->status === 'failed' ? 'Płatność nieudana' : $this->order->status));
+        $this->orderNumber = null; // Nie ma jeszcze numeru z Enova
+        $this->orderDate = $this->order->created_at;
+
+        // Jeśli zamówienie ma płatność PayU ze statusem "pending", sprawdź aktualny status w PayU
+        if ($this->order && $this->order->payment && $this->order->payment->isPayu() && $this->order->payment->isPending()) {
+            $payuOrderId = $this->order->payment->payu_order_id;
+            if ($payuOrderId) {
+                try {
+                    $payuService = app(PayuService::class);
+                    $payuData = $payuService->getOrderStatus($payuOrderId);
+
+                    if ($payuData) {
+                        // PayU może zwrócić różne struktury odpowiedzi
+                        $orderData = null;
+                        if (isset($payuData['orders']) && is_array($payuData['orders']) && count($payuData['orders']) > 0) {
+                            $orderData = $payuData['orders'][0];
+                        } elseif (isset($payuData['status'])) {
+                            $orderData = $payuData;
+                        }
+
+                        if ($orderData) {
+                            $status = $orderData['status'] ?? null;
+                            $statusDesc = $orderData['statusDesc'] ?? null;
+                            $localStatus = $payuService->mapPayuStatusToLocal($status);
+
+                            // Zaktualizuj płatność jeśli status się zmienił
+                            if ($localStatus !== $this->order->payment->status) {
+                                $oldStatus = $this->order->payment->status;
+                                $updateData = [
+                                    'status' => $localStatus,
+                                    'payu_data' => $payuData,
+                                ];
+
+                                if ($localStatus === 'completed') {
+                                    $updateData['paid_at'] = now();
+                                    // Jeśli status zmienił się na completed, wyświetl komunikat sukcesu
+                                    if ($oldStatus !== 'completed') {
+                                        $this->showPaymentSuccess = true;
+                                    }
+                                }
+
+                                if ($localStatus === 'failed' && $statusDesc) {
+                                    $updateData['failure_reason'] = $statusDesc;
+                                }
+
+                                $this->order->payment->update($updateData);
+
+                                // Zaktualizuj status zamówienia
+                                $orderStatus = $payuService->mapPaymentStatusToOrderStatus($localStatus);
+                                if ($orderStatus) {
+                                    $this->order->update(['status' => $orderStatus]);
+                                }
+
+                                // Odśwież dane zamówienia
+                                $this->order->refresh();
+
+                                // Zaktualizuj wyświetlany status
+                                $this->orderStatus = $this->order->status === 'paid' ? 'Opłacone' : ($this->order->status === 'pending' ? 'Oczekuje na płatność' : ($this->order->status === 'failed' ? 'Płatność nieudana' : $this->order->status));
+
+                                Log::info('PayU: Payment status updated from order-info page', [
+                                    'payment_id' => $this->order->payment->id,
+                                    'order_id' => $this->order->id,
+                                    'payu_order_id' => $payuOrderId,
+                                    'payu_status' => $status,
+                                    'local_status' => $localStatus,
+                                    'order_status' => $orderStatus,
+                                    'old_status' => $oldStatus,
+                                ]);
+                            }
+                        }
+                    }
+                } catch (\Exception $e) {
+                    // Nie przerywaj wyświetlania strony jeśli sprawdzanie statusu się nie powiodło
+                    Log::warning('PayU: Failed to check order status from order-info page', [
+                        'order_id' => $this->order->id,
+                        'payu_order_id' => $payuOrderId ?? null,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+        }
+    }
+});
+
+?>
+
+<div class="container mx-auto px-4 py-8 max-w-4xl">
+    {{-- Komunikat sukcesu --}}
+    @if ($showPaymentSuccess)
+        <div class="mb-6 bg-green-50 border border-green-200 rounded-lg p-6">
+            <div class="flex items-start">
+                <svg class="w-6 h-6 text-green-600 mr-3 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                <div class="flex-1">
+                    <h3 class="text-lg font-semibold text-green-800 mb-2">Płatność zrealizowana pomyślnie!</h3>
+                    <p class="text-green-700">Twoje zamówienie zostało opłacone i zostanie zrealizowane w najbliższym
+                        czasie.</p>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    {{-- Komunikat błędu --}}
+    @if (session('order_error') || $orderStatus === 'Płatność nieudana')
+        <div class="mb-6 bg-red-50 border border-red-200 rounded-lg p-6">
+            <div class="flex items-start">
+                <svg class="w-6 h-6 text-red-600 mr-3 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                <div class="flex-1">
+                    <h3 class="text-lg font-semibold text-red-800 mb-2">Błąd płatności</h3>
+                    <p class="text-red-700">
+                        {{ session('order_error') ?? 'Płatność nie została zrealizowana. Spróbuj ponownie.' }}</p>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    @if ($enovaOrder || $order)
+        {{-- Tytuł strony --}}
+        <div class="mb-6">
+            <h1 class="text-3xl font-bold text-gray-900">Szczegóły zamówienia</h1>
+        </div>
+
+        {{-- Nr zamówienia i data złożenia --}}
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+            <div class="grid md:grid-cols-2 gap-6">
+                <div>
+                    <h3 class="text-sm font-medium text-gray-500 mb-1">Nr zamówienia</h3>
+                    <p class="text-lg font-semibold text-gray-900">
+                        @if (!empty($orderNumber))
+                            {{ $orderNumber }}
+                        @elseif ($order)
+                            #{{ $order->id }}
+                        @else
+                            -
+                        @endif
+                    </p>
+                </div>
+                <div>
+                    <h3 class="text-sm font-medium text-gray-500 mb-1">Data złożenia</h3>
+                    <p class="text-lg font-semibold text-gray-900">
+                        {{ $orderDate ? $orderDate->format('d.m.Y H:i') : ($order ? $order->created_at->format('d.m.Y H:i') : '-') }}
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        {{-- Dane zamawiającego i faktury w jednym boksie --}}
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+            <div class="grid md:grid-cols-2 gap-6">
+                {{-- Zamawiający --}}
+                <div>
+                    <h2 class="text-xl font-semibold mb-4 pb-3 border-b">Zamawiający</h2>
+                    @if ($enovaOrder)
+                        @php
+                            $recipient = $enovaOrder->getRecipient();
+                        @endphp
+                        @if ($recipient)
+                            <p class="text-gray-700">
+                                <strong class="text-gray-900">{{ $recipient->Nazwa ?? '' }}</strong>
+                                @if ($recipient->AdresUlica)
+                                    <br>{{ $recipient->AdresUlica }} {{ $recipient->AdresNrDomu ?? '' }}
+                                    @if ($recipient->AdresNrLokalu)
+                                        / {{ $recipient->AdresNrLokalu }}
+                                    @endif
+                                @endif
+                                @if ($recipient->AdresKodPocztowy && $recipient->AdresMiejscowosc)
+                                    <br>{{ formatPostalCode($recipient->AdresKodPocztowy) }}
+                                    {{ $recipient->AdresMiejscowosc }}
+                                @endif
+                                @if ($recipient->AdresPoczta)
+                                    <br>{{ $recipient->AdresPoczta }}
+                                @endif
+                                @if ($enovaOrder->email)
+                                    <br><strong>Email:</strong> {{ $enovaOrder->email }}
+                                @endif
+                                @if ($enovaOrder->phone)
+                                    <br><strong>Telefon:</strong> {{ $enovaOrder->phone }}
+                                @endif
+                            </p>
+                        @endif
+                    @elseif ($order)
+                        <p class="text-gray-700">
+                            <strong class="text-gray-900">{{ $order->customer_full_name }}</strong>
+                            <br>{{ $order->delivery_street }} {{ $order->delivery_street_number }}
+                            @if ($order->delivery_apartment)
+                                / {{ $order->delivery_apartment }}
+                            @endif
+                            <br>{{ formatPostalCode($order->delivery_postal_code) }} {{ $order->delivery_city }}
+                            @if ($order->delivery_post_office)
+                                <br>{{ $order->delivery_post_office }}
+                            @endif
+                            <br>{{ $order->delivery_country }}
+                            <br><strong>Email:</strong> {{ $order->customer_email }}
+                            @if ($order->customer_phone)
+                                <br><strong>Telefon:</strong> {{ $order->customer_phone }}
+                            @endif
+                        </p>
+                    @endif
+                </div>
+
+                {{-- Dane do faktury (opcjonalnie) --}}
+                @if ($enovaOrder)
+                    @php
+                        $invoiceContractor = $enovaOrder->getInvoiceContractor();
+                    @endphp
+                    @if ($invoiceContractor)
+                        <div>
+                            <h2 class="text-xl font-semibold mb-4 pb-3 border-b">Dane do faktury</h2>
+                            <p class="text-gray-700">
+                                <strong class="text-gray-900">{{ $invoiceContractor->Nazwa ?? '' }}</strong>
+                                @if ($invoiceContractor->NIP)
+                                    <br><strong>NIP:</strong> {{ $invoiceContractor->NIP }}
+                                @endif
+                                @if ($invoiceContractor->AdresUlica)
+                                    <br>{{ $invoiceContractor->AdresUlica }}
+                                    {{ $invoiceContractor->AdresNrDomu ?? '' }}
+                                    @if ($invoiceContractor->AdresNrLokalu)
+                                        / {{ $invoiceContractor->AdresNrLokalu }}
+                                    @endif
+                                @endif
+                                @if ($invoiceContractor->AdresKodPocztowy && $invoiceContractor->AdresMiejscowosc)
+                                    <br>{{ formatPostalCode($invoiceContractor->AdresKodPocztowy) }}
+                                    {{ $invoiceContractor->AdresMiejscowosc }}
+                                @endif
+                                @if ($invoiceContractor->AdresPoczta)
+                                    <br>{{ $invoiceContractor->AdresPoczta }}
+                                @endif
+                            </p>
+                        </div>
+                    @endif
+                @elseif ($order && $order->invoice_required)
+                    <div>
+                        <h2 class="text-xl font-semibold mb-4 pb-3 border-b">Dane do faktury</h2>
+                        <p class="text-gray-700">
+                            <strong class="text-gray-900">{{ $order->invoice_company_name }}</strong>
+                            <br><strong>NIP:</strong> {{ $order->invoice_nip }}
+                            <br>{{ $order->invoice_street }} {{ $order->invoice_street_number }}
+                            @if ($order->invoice_apartment)
+                                / {{ $order->invoice_apartment }}
+                            @endif
+                            <br>{{ formatPostalCode($order->invoice_postal_code) }} {{ $order->invoice_city }}
+                            @if ($order->invoice_post_office)
+                                <br>{{ $order->invoice_post_office }}
+                            @endif
+                        </p>
+                    </div>
+                @endif
+            </div>
+        </div>
+
+        {{-- Płatność i dostawa w jednym boksie --}}
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+            <div class="grid md:grid-cols-2 gap-6">
+                {{-- Płatność --}}
+                <div>
+                    <h2 class="text-xl font-semibold mb-4 pb-3 border-b">Płatność</h2>
+                    @if ($enovaOrder)
+                        {{-- Dane z Enova - sposób płatności dostępny w systemie Enova --}}
+                    @elseif ($order && $order->payment)
+                        <div class="grid grid-cols-2 gap-4"
+                            style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem;">
+                            <div>
+                                <h3 class="text-sm font-medium text-gray-500 mb-1">Sposób płatności</h3>
+                                <p class="text-gray-900">
+                                    @if ($order->payment->payu_order_id)
+                                        PayU
+                                    @else
+                                        Gotówka przy odbiorze
+                                    @endif
+                                </p>
+                            </div>
+                            <div>
+                                {{-- Status płatności wyświetlamy tylko jeśli to nie gotówka --}}
+                                @if ($order->payment->payu_order_id)
+                                    <h3 class="text-sm font-medium text-gray-500 mb-1">Status płatności</h3>
+                                    <span
+                                        class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium
+                                    @if ($orderStatus === 'Opłacone') bg-green-100 text-green-800
+                                    @elseif($orderStatus === 'Zarejestrowane w systemie') bg-blue-100 text-blue-800
+                                    @elseif($orderStatus === 'Oczekuje na płatność') bg-yellow-100 text-yellow-800
+                                    @elseif($orderStatus === 'Płatność nieudana') bg-red-100 text-red-800
+                                    @else bg-gray-100 text-gray-800 @endif">
+                                        {{ $orderStatus }}
+                                    </span>
+                                @else
+                                    {{-- Dla gotówki pozostaw puste miejsce, aby zachować układ kolumn --}}
+                                    <span class="text-gray-400 text-sm">—</span>
+                                @endif
+                            </div>
+                        </div>
+                    @endif
+                </div>
+
+                {{-- Dostawa --}}
+                <div>
+                    <h2 class="text-xl font-semibold mb-4 pb-3 border-b">Dostawa</h2>
+                    <div class="space-y-2">
+                        @if ($enovaOrder)
+                            @php
+                                $deliveryPosition = null;
+                                $positions = $enovaOrder->positions;
+                                if ($positions) {
+                                    foreach ($positions as $pos) {
+                                        $productId = $pos->Towar ?? null;
+                                        $product = null;
+                                        $kod = '';
+                                        try {
+                                            $product = $productId ? Product::find($productId) : null;
+                                            if ($product) {
+                                                $kod = strtolower($product->Kod ?? '');
+                                            }
+                                        } catch (\Exception $e) {
+                                        }
+                                        $isDelivery =
+                                            !empty($kod) &&
+                                            (str_contains($kod, 'przes') || str_contains($kod, 'dostaw'));
+                                        if ($isDelivery) {
+                                            $deliveryPosition = $pos;
+                                            break;
+                                        }
+                                    }
+                                }
+                            @endphp
+                            @if ($deliveryPosition && $product)
+                                <p class="text-gray-900">
+                                    <strong>{{ $product->Nazwa ?? 'Dostawa' }}</strong>
+                                </p>
+                            @endif
+                            @if ($enovaOrder->notes)
+                                <p class="text-gray-700 mt-2">
+                                    <strong>Uwagi:</strong><br>
+                                    <span class="whitespace-pre-wrap">{{ $enovaOrder->notes }}</span>
+                                </p>
+                            @endif
+                        @elseif ($order)
+                            <p class="text-gray-900">
+                                <strong>{{ $order->delivery_name }}</strong>
+                            </p>
+                            @if ($order->parcel_locker_data)
+                                @php
+                                    $locker = $order->parcel_locker_data;
+                                @endphp
+                                <p class="text-sm text-gray-700">
+                                    <strong>{{ $locker['name'] ?? '' }}</strong>
+                                </p>
+                                @if (isset($locker['address']))
+                                    <p class="text-sm text-gray-600 mt-1">
+                                        {{ $locker['address']['line1'] ?? '' }}
+                                        @if (isset($locker['address']['line2']))
+                                            <br>{{ $locker['address']['line2'] }}
+                                        @endif
+                                    </p>
+                                @endif
+                            @endif
+                            @if ($order->notes)
+                                <p class="text-gray-700 mt-2">
+                                    <strong>Uwagi:</strong><br>
+                                    <span class="whitespace-pre-wrap">{{ $order->notes }}</span>
+                                </p>
+                            @endif
+                        @endif
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {{-- Produkty --}}
+        <div class="bg-white rounded-lg shadow-lg overflow-hidden mb-6">
+            <div class="p-6 border-b">
+                <h2 class="text-xl font-semibold">Produkty</h2>
+            </div>
+            @if ($enovaOrder)
+                @php
+                    // Użyj relacji positions() - model EnovaOrderPosition ma już prawidłową nazwę tabeli
+                    $positions = $enovaOrder->positions;
+                    $subtotal = 0;
+                    $deliveryPosition = null;
+
+                    // Oblicz subtotal (bez dostawy) i znajdź pozycję dostawy
+                    if ($positions) {
+                        foreach ($positions as $pos) {
+                            $productId = $pos->Towar ?? null;
+
+                            // Spróbuj pobrać produkt aby sprawdzić kod
+                            $product = null;
+                            $kod = '';
+                            try {
+                                $product = $productId ? Product::find($productId) : null;
+                                if ($product) {
+                                    $kod = strtolower($product->Kod ?? '');
+                                }
+                            } catch (\Exception $e) {
+                                // Ignoruj błędy
+                            }
+
+                            $isDelivery = !empty($kod) && (str_contains($kod, 'przes') || str_contains($kod, 'dostaw'));
+
+                            if ($isDelivery) {
+                                $deliveryPosition = $pos;
+                            } else {
+                                // Tylko produkty (bez dostawy) liczą się do subtotal
+                                $price = $pos->CenaValue ?? 0;
+                                $quantity = (int) ($pos->IloscValue ?? 1); // Ilość jako liczba całkowita
+                                $subtotal += $price * $quantity;
+                            }
+                        }
+                    }
+                @endphp
+                @if ($positions && $positions->count() > 0)
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th
+                                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Produkt
+                                    </th>
+                                    <th
+                                        class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Cena jednostkowa
+                                    </th>
+                                    <th
+                                        class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Ilość
+                                    </th>
+                                    <th
+                                        class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Wartość
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                @foreach ($positions as $position)
+                                    @php
+                                        // Pobierz dane z pozycji
+                                        $productId = $position->Towar ?? null;
+                                        $price = $position->CenaValue ?? 0;
+                                        $quantity = (int) ($position->IloscValue ?? 1); // Ilość jako liczba całkowita
+                                        $total = $price * $quantity;
+
+                                        // Spróbuj pobrać produkt (może nie działać jeśli relacja nie działa)
+                                        $product = null;
+                                        try {
+                                            $product = $productId ? Product::find($productId) : null;
+                                        } catch (\Exception $e) {
+                                            // Ignoruj błędy relacji
+                                        }
+
+                                        // Pobierz nazwę produktu
+                                        $productName = 'Produkt';
+                                        $productKod = '';
+                                        if ($product) {
+                                            try {
+                                                $productNameFeature = $product
+                                                    ->features()
+                                                    ->where('Name', config('enova.features.product_name'))
+                                                    ->first();
+                                                $productName =
+                                                    $productNameFeature?->Data ?? ($product->Nazwa ?? 'Produkt');
+                                                $productKod = strtolower($product->Kod ?? '');
+                                            } catch (\Exception $e) {
+                                                $productName = $product->Nazwa ?? 'Produkt';
+                                                $productKod = strtolower($product->Kod ?? '');
+                                            }
+                                        }
+
+                                        // Pobierz obraz produktu
+                                        $imagePath = null;
+                                        if ($productId) {
+                                            $imagePath = 'img/towary/' . $productId . '_200x120.jpg';
+                                        }
+
+                                        // Sprawdź czy to dostawa (po kodzie produktu)
+                                        $isDelivery =
+                                            !empty($productKod) &&
+                                            (str_contains($productKod, 'przes') || str_contains($productKod, 'dostaw'));
+                                    @endphp
+                                    @if (!$isDelivery)
+                                        <tr>
+                                            {{-- Produkt --}}
+                                            <td class="px-6 py-4">
+                                                <div class="flex items-center">
+                                                    <div class="flex-shrink-0 h-16 w-16">
+                                                        <img class="h-16 w-16 rounded object-cover"
+                                                            src="{{ $imagePath && Storage::disk('public')->exists($imagePath) ? Storage::disk('public')->url($imagePath) : asset('img/towary/placeholder.jpg') }}"
+                                                            alt="{{ $productName }}">
+                                                    </div>
+                                                    <div class="ml-4">
+                                                        <div class="text-sm font-medium text-gray-900">
+                                                            @if ($product)
+                                                                <a href="{{ route('product', [$product->ID, Str::slug($productName)]) }}"
+                                                                    class="hover:text-primary">{{ $productName }}</a>
+                                                            @else
+                                                                {{ $productName }}
+                                                            @endif
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </td>
+
+                                            {{-- Cena jednostkowa --}}
+                                            <td class="px-6 py-4 text-right text-sm whitespace-nowrap">
+                                                {{ number_format($price, 2, ',', '.') }} zł
+                                            </td>
+
+                                            {{-- Ilość --}}
+                                            <td class="px-6 py-4 text-center whitespace-nowrap">
+                                                <span class="font-medium text-md">{{ (int) $quantity }}</span>
+                                            </td>
+
+                                            {{-- Wartość --}}
+                                            <td class="px-6 py-4 text-right text-md whitespace-nowrap font-medium">
+                                                {{ number_format($total, 2, ',', '.') }} zł
+                                            </td>
+                                        </tr>
+                                    @endif
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                    {{-- Podsumowanie produktów --}}
+                    <div class="p-6 border-t bg-gray-50">
+                        <div class="flex justify-between text-sm text-gray-600">
+                            <span>Wartość produktów:</span>
+                            <span class="font-medium">{{ number_format($subtotal ?? 0, 2, ',', '.') }}
+                                zł</span>
+                        </div>
+                    </div>
+                @else
+                    <div class="p-6 text-center text-gray-500">
+                        <p>Brak pozycji w zamówieniu.</p>
+                    </div>
+                @endif
+            @elseif ($order && $order->items)
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th
+                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Produkt
+                                </th>
+                                <th
+                                    class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Cena jednostkowa
+                                </th>
+                                <th
+                                    class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Ilość
+                                </th>
+                                <th
+                                    class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Wartość
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            @foreach ($order->items as $productId => $item)
+                                <tr>
+                                    {{-- Produkt --}}
+                                    <td class="px-6 py-4">
+                                        <div class="flex items-center">
+                                            <div class="flex-shrink-0 h-16 w-16">
+                                                <img class="h-16 w-16 rounded object-cover"
+                                                    src="{{ Storage::disk('public')->exists('img/towary/' . ($item['image'] ?? $productId . '_200x120.jpg')) ? Storage::disk('public')->url('img/towary/' . ($item['image'] ?? $productId . '_200x120.jpg')) : asset('img/towary/placeholder.jpg') }}"
+                                                    alt="{{ $item['name'] ?? 'Produkt' }}">
+                                            </div>
+                                            <div class="ml-4">
+                                                <div class="text-sm font-medium text-gray-900">
+                                                    @if (isset($item['id']))
+                                                        <a href="{{ route('product', [$item['id'], Str::slug($item['name'] ?? 'produkt')]) }}"
+                                                            class="hover:text-primary">{{ $item['name'] ?? 'Produkt' }}</a>
+                                                    @else
+                                                        {{ $item['name'] ?? 'Produkt' }}
+                                                    @endif
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+
+                                    {{-- Cena jednostkowa --}}
+                                    <td class="px-6 py-4 text-right text-sm whitespace-nowrap">
+                                        {{ number_format($item['price'] ?? 0, 2, ',', '.') }} zł
+                                    </td>
+
+                                    {{-- Ilość --}}
+                                    <td class="px-6 py-4 text-center whitespace-nowrap">
+                                        <span class="font-medium text-md">{{ (int) ($item['quantity'] ?? 1) }}</span>
+                                    </td>
+
+                                    {{-- Wartość --}}
+                                    <td class="px-6 py-4 text-right text-md whitespace-nowrap font-medium">
+                                        {{ number_format(($item['price'] ?? 0) * ($item['quantity'] ?? 1), 2, ',', '.') }}
+                                        zł
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+                {{-- Podsumowanie produktów --}}
+                <div class="p-6 border-t bg-gray-50">
+                    <div class="flex justify-between text-sm text-gray-600">
+                        <span>Wartość produktów:</span>
+                        <span class="font-medium">{{ number_format($order->subtotal, 2, ',', '.') }} zł</span>
+                    </div>
+                </div>
+            @else
+                <div class="p-6 text-center text-gray-500">
+                    <p>Dane produktów dostępne w systemie Enova.</p>
+                </div>
+            @endif
+
+            {{-- Podsumowanie dostawy i razem --}}
+            @if ($enovaOrder)
+                @php
+                    // Użyj SumaBrutto z Enova lub obliczony subtotal (już bez dostawy)
+                    $sumaBrutto = $enovaOrder->SumaBrutto ?? ($subtotal ?? 0);
+
+                    // Znajdź pozycję dostawy
+                    $deliveryPosition = null;
+                    $positions = $enovaOrder->positions;
+                    if ($positions) {
+                        foreach ($positions as $pos) {
+                            $productId = $pos->Towar ?? null;
+                            $product = null;
+                            $kod = '';
+                            try {
+                                $product = $productId ? Product::find($productId) : null;
+                                if ($product) {
+                                    $kod = strtolower($product->Kod ?? '');
+                                }
+                            } catch (\Exception $e) {
+                            }
+                            $isDelivery = !empty($kod) && (str_contains($kod, 'przes') || str_contains($kod, 'dostaw'));
+                            if ($isDelivery) {
+                                $deliveryPosition = $pos;
+                                break;
+                            }
+                        }
+                    }
+
+                    // Oblicz koszt dostawy
+                    $deliveryCost = 0;
+                    if ($deliveryPosition) {
+                        $deliveryCost =
+                            ($deliveryPosition->CenaValue ?? 0) * (int) ($deliveryPosition->IloscValue ?? 1);
+                    }
+
+                    $total = $sumaBrutto + $deliveryCost;
+                @endphp
+                <div class="p-6 border-t bg-gray-50">
+                    <h2 class="text-xl font-semibold mb-4 pb-3">Podsumowanie</h2>
+                    <div class="space-y-2">
+                        @if ($deliveryCost > 0)
+                            <div class="flex justify-between text-sm text-gray-600">
+                                <span>Dostawa:</span>
+                                <span>{{ number_format($deliveryCost, 2, ',', '.') }} zł</span>
+                            </div>
+                        @endif
+                        <div class="flex justify-between text-lg font-semibold text-gray-900 pt-2 border-t">
+                            <span>Razem:</span>
+                            <span>{{ number_format($total, 2, ',', '.') }} zł</span>
+                        </div>
+                    </div>
+                </div>
+            @elseif ($order)
+                <div class="p-6 border-t bg-gray-50">
+                    <h2 class="text-xl font-semibold mb-4 pb-3">Podsumowanie</h2>
+                    <div class="space-y-2">
+                        @if ($order->delivery_cost > 0)
+                            <div class="flex justify-between text-sm text-gray-600">
+                                <span>Dostawa ({{ $order->delivery_name }}):</span>
+                                <span>{{ number_format($order->delivery_cost, 2, ',', '.') }} zł</span>
+                            </div>
+                        @endif
+                        <div class="flex justify-between text-lg font-semibold text-gray-900 pt-2 border-t">
+                            <span>Razem:</span>
+                            <span>{{ number_format($order->total, 2, ',', '.') }} zł</span>
+                        </div>
+                    </div>
+                </div>
+            @endif
+        </div>
+    @else
+        <div class="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+            <p class="text-red-800">Nie znaleziono zamówienia o podanym numerze.</p>
+        </div>
+    @endif
+</div>

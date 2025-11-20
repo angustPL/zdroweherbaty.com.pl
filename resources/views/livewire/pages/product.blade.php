@@ -24,13 +24,11 @@ state(['product' => null, 'productId' => null]);
 mount(function ($id, $name = null) {
     $this->productId = $id;
 
-    // Załaduj produkt z bazy danych
-    $product = Product::with(['productNameFeature', 'price', 'group'])
-        ->where('ID', $this->productId)
-        ->first();
+    // Załaduj produkt z cache'owaniem (TTL z konfiguracji, domyślnie 24h)
+    $productData = Product::getCachedById($this->productId);
 
-    if ($product) {
-        $this->product = $product->toDisplayArray();
+    if ($productData) {
+        $this->product = $productData;
 
         // Aktualizacja SEO Meta Tags z danymi produktu
         SEOTools::setTitle($this->product['Nazwa'] . ' - Zdrowe Herbaty BIFIX');
@@ -85,7 +83,7 @@ mount(function ($id, $name = null) {
 
         // Jeśli nazwa jest nieprawidłowa lub brak nazwy, przekieruj na prawidłowy URL
         if ($name !== $correctSlug) {
-            return redirect()->route('towar', [$id, $correctSlug]);
+            return redirect()->route('product', [$id, $correctSlug]);
         }
     }
 
@@ -119,6 +117,9 @@ mount(function ($id, $name = null) {
         </h1>
         <p class="text-gray-600">{{ $product['Grupa'] ?? 'Kategoria' }}</p>
     </div>
+
+    {{-- Debug danych produktu --}}
+    {{-- @php(dd($product)) --}}
 
     @if ($product)
         <div class="bg-white rounded-lg shadow p-6 mb-12">

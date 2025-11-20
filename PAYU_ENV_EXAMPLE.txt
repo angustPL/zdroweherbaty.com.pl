@@ -1,0 +1,39 @@
+# PayU Sandbox Configuration
+PAYU_SANDBOX=true
+
+# ID punktu płatności (POS ID)
+PAYU_POS_ID=472738
+
+# Klucz MD5 (Key) - NIE JEST POTRZEBNY dla REST API
+# Używany tylko w Classic API, w REST API używamy OAuth
+# Możesz zostawić puste lub ustawić dowolną wartość
+PAYU_KEY=
+
+# Drugi klucz MD5 (Key2) - do weryfikacji sygnatury w notify_url
+PAYU_KEY2=97476607a7bbb26f2e29bba09814555e
+
+# OAuth Client Secret (POS Auth Key) - do autoryzacji OAuth w REST API
+PAYU_POS_AUTH_KEY=1025060e5e7ab43a653f561c46f82bd3
+
+# URL formularza płatności (dla sandbox)
+PAYU_URL=https://secure.snd.payu.com/paygw/UTF/NewPayment
+
+# Opcje płatności PayU (domyślne wartości)
+PAYU_OPTION_BLIK=blik
+PAYU_OPTION_CARD=c
+PAYU_OPTION_GOOGLE_PAY=ap
+PAYU_OPTION_APPLE_PAY=jp
+PAYU_OPTION_TRANSFER=przelew
+
+# URL logo PayU
+PAYU_LOGO_URL=https://www.zdroweherbaty.com.pl/img/payu.png
+
+# Callback URLs (dostosuj do swojej domeny)
+# Dla środowiska produkcyjnego:
+PAYU_CONTINUE_URL=https://beta.zdroweherbaty.com.pl/payu/success/
+PAYU_NOTIFY_URL=https://beta.zdroweherbaty.com.pl/payu/notify/
+
+# Dla środowiska deweloperskiego z fwd.host (dla domen .test):
+# PAYU_CONTINUE_URL=https://fwd.host/http://zdroweherbaty.com.pl.test/payu/success
+# PAYU_NOTIFY_URL=https://fwd.host/http://zdroweherbaty.com.pl.test/payu/notify
+

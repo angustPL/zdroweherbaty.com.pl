@@ -1,0 +1,203 @@
+<?php $this->headTitle('Szczegóły zamówienia') ?>
+<?php $this->placeholder('title')->set('Szczegóły zamówienia') ?>
+
+<?php if (!$this->zamowienie) : ?>
+Nie znaleziono zamówienia.
+<?php else : ?>
+<?php // Zend_Debug::dump($this->zamowienie); exit; ?>
+<div>
+
+            <table class="table table-sm table-borderless w-auto">
+                <tr>
+                  <th class="text-right">data wpłynięcia:</th>
+                  <td><?= $this->zamowienie['Data']->toString(Zend_Date::DATE_LONG . ', ' . Zend_Date::TIME_SHORT) ?></td>
+                </tr>
+                <tr>
+                  <th class="text-right">status:</th>
+                    <td><?= $this->zamowienie['Status'] ?></td>
+                </tr>
+                
+                <?php if ($this->payu) : ?>
+                <tr>
+                  <td colspan="2">
+                        <form action="<?= Zend_Registry::get('Zend_Config')->payu->url ?>" method="POST" id="payform">
+
+                            <?php foreach ($this->payu as $key => $value) : ?>
+                            <input type="hidden" name="<?= $key ?>" value="<?= $value ?>">
+                            <?php endforeach ?>
+
+                            <input type="submit" value="Zapłać teraz on-line" class="btn btn-large btn-block btn-success">
+                        </form>
+                    </td>
+                </tr>
+                <?php endif ?>
+                
+            </table>
+  
+            <?php if (!empty($this->zamowienie['NumerPelny'])) : ?>
+            <h2 class="mb-5">Nr zamówienia: <?= $this->zamowienie['NumerPelny'] ?></h2>
+            <?php else : ?>
+            <p>Nr zamówienia nie został jeszcze wygenerowany.<br>
+                Prosimy sprawdzić później.</p>
+            <?php endif ?>
+  
+<div class="row">
+    <?php if (!empty($this->klient)) : ?>
+    <div class="col-md-6">
+            <h3>Dane klienta</h3>
+            <table class="table table-sm table-borderless">
+                <tbody>
+                    <tr>
+                        <th class="text-right">imię i nazwisko:</th>
+                        <td>
+                            <?= $this->klient['ImieNazwisko'] ?>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th class="text-right">adres:</th>
+                        <td>
+                            <?= $this->klient['AdresUlica'] ?> 
+                            <?= $this->klient['AdresNrDomu'] ?> 
+                            <?= (!empty($this->klient['AdresNrLokalu'])?'/':'') ?>
+                            <?= $this->klient['AdresNrLokalu'] ?>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th class="text-right text-nowrap">kod poczta:</th>
+                        <td>
+                          <?= substr($this->klient['AdresKodPocztowy'], 0, 2) ?>-<?= substr($this->klient['AdresKodPocztowy'], -3, 3) ?>
+                            <?= $this->klient['AdresPoczta'] ?>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th class="text-right">telefon:</th>
+                        <td>
+                            <?= $this->klient['AdresTelefon'] ?>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th class="text-right">e-mail:</th>
+                        <td>
+                            <?= $this->klient['Email'] ?>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+    </div>
+    <?php endif ?>
+
+    <?php if ($this->faktura) : ?>
+    <div class="col-md-6">
+      <h3>Dane do faktury</h3>
+      <table class="table table-sm table-borderless">
+        <tbody>
+          <tr>
+            <th class="text-right">nazwa:</th>
+            <td><?= $this->faktura['Nazwa'] ?></td>
+          </tr>
+          <tr>
+            <th class="text-right">NIP:</th>
+            <td><?= $this->faktura['NIP'] ?></td>
+          </tr>
+          <tr>
+            <th class="text-right">adres:</th>
+            <td>
+              <?= $this->faktura['AdresUlica'] ?> 
+              <?= $this->faktura['AdresNrDomu'] ?> 
+              <?= (!empty($this->faktura['AdresNrLokalu']))?'/'.$this->faktura['AdresNrLokalu']:'' ?>
+            </td>
+          </tr>
+          <tr>
+            <th class="text-right text-nowrap">kod poczta:</th>
+            <td>
+              <?= substr($this->faktura['AdresKodPocztowy'], 0, 2) ?>-<?= substr($this->faktura['AdresKodPocztowy'], -3, 3) ?> 
+              <?= $this->faktura['AdresPoczta'] ?>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+<?php endif ?>
+    
+</div>
+<h3>Zamówione towary</h3>
+  <table class="table">
+        <thead>
+          <tr>
+            <th></th>
+            <th style="text-align: left">Nazwa</th>
+            <th>cena</th>
+            <th>ilość</th>
+            <th nowrap="nowrap">suma netto</th>
+            <th nowrap="nowrap">suma brutto</th>
+          </tr>
+        </thead>
+        <?php $lp = 0; ?>
+        
+        <?php foreach ($this->towary as $towar) : ?>
+        <?php $lp ++; ?>
+        <tr>
+          <td align="right" style="border-bottom: 1px solid #CCC"><?= $lp ?>.</td>
+          <td>
+            <?php $nazwa = ($towar['NazwaWWW']===NULL) ? $towar['Nazwa'] : $towar['NazwaWWW'] ?>
+            
+            <?php if (empty($towar['Grupa'])) : ?>
+              <?= $nazwa ?>
+            <?php else : ?>
+            <a href="<?= $this->url(array('controller' => 'towary', 'action' => 'towar', 'id' => $towar['Towar']), 'towar', true) ?>">
+              <?= $nazwa ?>
+            </a>
+            <?php endif ?>
+            
+          </td>
+          <td nowrap="nowrap" align="right" style="border-bottom: 1px solid #CCC">
+            <?= $this->Currency($towar['CenaValue']) ?>
+          </td>
+          <td nowrap="nowrap" align="right" style="border-bottom: 1px solid #CCC;">
+            <?= $towar['IloscValue'] ?> <?= $towar['IloscSymbol'] ?>
+          </td>
+          <td nowrap="nowrap" align="right" style="border-bottom: 1px solid #CCC">
+            <?= $this->Currency($towar['SumaNetto']) ?>
+          </td>
+          <td nowrap="nowrap" align="right" style="border-bottom: 1px solid #CCC;">
+            <?= $this->Currency($towar['SumaBrutto']) ?>
+          </td>
+        </tr>
+        <?php endforeach; ?>
+        <tfoot>
+          <tr class="h4 text-right">
+              <td colspan="5">Razem do zapłaty:</td>
+              <td class="text-primary">
+                <?= $this->Currency($this->zamowienie['SumaBrutto']) ?>
+            </td>
+          </tr>
+        </tfoot>
+    </table>
+    <?php if (!empty($this->zamowienie['Uwagi'])) : ?>
+  <div>
+    <p>
+      <b>Uwagi:</b><br />
+      <?= $this->zamowienie['Uwagi'] ?>
+    </p>
+  </div>
+    <?php endif ?>
+
+<?php // if ($this->platnosc->isZaplacone()) : ?>
+  <b>Dane do przelewu</b>:
+  
+        <?php if (!empty($this->zamowienie['NumerPelny'])) : ?>
+        <p>BiFIX Wojciech Piasecki Sp.j.<br>
+            Górki Małe, ul. Dworska 33<br>
+            95-080 Tuszyn</p>
+        <p>Bank Millennium<br>
+            25 1160 2202 0000 0003 2057 7012<br />
+            Tytułem: <span style="font-size: 1.2em; font-weight: bold">zamówienie nr <?= $this->zamowienie['NumerPelny'] ?></span></p>
+        <?php else : ?>
+        <p>Dane do przelewu nie zostały jeszcze wygenerowane.<br>
+            Prosimy sprawdzić później.</p>
+        <?php endif ?>
+    <?php endif ?>
+        
+</div>
+<?php // endif ?>
+<?php // Zend_Debug::dump($this->towary); ?>
