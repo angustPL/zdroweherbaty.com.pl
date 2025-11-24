@@ -162,6 +162,7 @@ class CacheController extends Controller
 
     /**
      * Czyści cache produktów w określonej grupie.
+     * Automatycznie czyści również cache strony głównej (HP), ponieważ produkty mogą być wyświetlane na HP.
      *
      * @param string $groupPath Ścieżka grupy
      */
@@ -169,10 +170,14 @@ class CacheController extends Controller
     {
         $cacheKey = 'enova_products_group_' . md5($groupPath);
         Cache::forget($cacheKey);
+        
+        // Automatycznie wyczyść cache strony głównej (HP)
+        $this->clearHomePageCache();
     }
 
     /**
      * Czyści cache pojedynczego produktu.
+     * Automatycznie czyści również cache strony głównej (HP), ponieważ produkty są wyświetlane na HP.
      *
      * @param int $productId ID produktu
      */
@@ -180,6 +185,9 @@ class CacheController extends Controller
     {
         $cacheKey = 'enova_product_' . $productId;
         Cache::forget($cacheKey);
+        
+        // Automatycznie wyczyść cache strony głównej (HP)
+        $this->clearHomePageCache();
     }
 
     /**
@@ -197,9 +205,19 @@ class CacheController extends Controller
             // Dla innych driverów (Redis, Memcached) możemy użyć tagów lub pattern matching
             // Na razie wyczyśćmy najważniejsze klucze ręcznie
             $this->clearGroupsCache();
+            $this->clearHomePageCache();
             // Uwaga: nie możemy łatwo wyczyścić wszystkich kluczy z patternem bez iteracji
             // W produkcji warto użyć Redis z tagami lub pattern matching
         }
+    }
+
+    /**
+     * Czyści cache strony głównej (HP).
+     * Cache HP zawiera wszystkie produkty wyświetlane na stronie głównej.
+     */
+    private function clearHomePageCache(): void
+    {
+        Cache::forget('enova_products_all');
     }
 
     /**

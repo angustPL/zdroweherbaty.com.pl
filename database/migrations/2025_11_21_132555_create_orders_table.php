@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\OrderStatus;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -19,7 +20,8 @@ return new class extends Migration
             $table->string('ext_order_id', 36)->unique()->nullable();
 
             // ===== STATUS =====
-            $table->string('status')->default('pending'); // pending, processing, completed, cancelled
+            // Używamy wartości z enum OrderStatus: pending, submitted, processing, completed, cancelled
+            $table->string('status')->default(OrderStatus::SUBMITTED->value);
 
             // ===== DANE KLIENTA =====
             $table->string('customer_first_name');
@@ -58,6 +60,7 @@ return new class extends Migration
             // ===== KWOTY =====
             $table->decimal('subtotal', 10, 2); // Suma produktów
             $table->decimal('delivery_cost', 10, 2)->default(0);
+            $table->boolean('is_free_delivery')->default(false); // Flaga czy dostawa jest darmowa
             $table->decimal('total', 10, 2); // Całkowita kwota
             $table->string('currency', 3)->default('PLN');
 

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\PaymentStatus;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -42,6 +43,7 @@ class Payment extends Model
     protected $casts = [
         'amount' => 'decimal:2',
         'termin_dni' => 'integer',
+        'status' => PaymentStatus::class,
         'payu_data' => 'array',
         'paid_at' => 'datetime',
         'created_at' => 'datetime',
@@ -77,7 +79,7 @@ class Payment extends Model
      */
     public function isCompleted(): bool
     {
-        return $this->status === 'completed';
+        return $this->status === PaymentStatus::COMPLETED;
     }
 
     /**
@@ -85,7 +87,7 @@ class Payment extends Model
      */
     public function isPending(): bool
     {
-        return $this->status === 'pending' || $this->status === 'waiting_for_confirmation';
+        return $this->status === PaymentStatus::PENDING || $this->status === PaymentStatus::WAITING_FOR_CONFIRMATION;
     }
 
     /**
@@ -93,6 +95,6 @@ class Payment extends Model
      */
     public function isFailed(): bool
     {
-        return $this->status === 'failed';
+        return $this->status === PaymentStatus::FAILED;
     }
 }

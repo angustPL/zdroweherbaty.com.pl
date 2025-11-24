@@ -59,4 +59,21 @@ class SimilarProducts extends Component
     {
         return view('livewire.components.similar-products');
     }
+
+    /**
+     * Sprawdza czy są dostępne podobne produkty.
+     * 
+     * @param int $productId ID produktu
+     * @param string $productName Nazwa produktu
+     * @return bool
+     */
+    public static function hasSimilarProducts(int $productId, string $productName): bool
+    {
+        $component = new self();
+        $component->productId = $productId;
+        $component->productName = $productName;
+        $component->loadSimilarProducts();
+        
+        return !empty($component->similarProducts) && count($component->similarProducts) > 0;
+    }
 }

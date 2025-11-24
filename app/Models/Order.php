@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Enums\OrderStatus;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -66,6 +68,7 @@ class Order extends Model
         // Kwoty
         'subtotal',
         'delivery_cost',
+        'is_free_delivery',
         'total',
         'currency',
 
@@ -81,6 +84,7 @@ class Order extends Model
      */
     protected $casts = [
         'invoice_required' => 'boolean',
+        'is_free_delivery' => 'boolean',
         'items' => 'array',
         'parcel_locker_data' => 'array',
         'delivery_price' => 'decimal:2',
@@ -91,6 +95,33 @@ class Order extends Model
         'updated_at' => 'datetime',
         'deleted_at' => 'datetime',
     ];
+
+    /**
+     * Mapuje status z obsługą starych wartości "paid".
+     * Obsługuje kompatybilność wsteczną z wartościami "paid".
+     */
+    protected function status(): Attribute
+    {
+        return Attribute::make(
+            get: function ($value) {
+                // Mapuj stare wartości na nowe enum
+                return match ($value) {
+                    'paid' => OrderStatus::PROCESSING, // "paid" to stara wartość, mapujemy na PROCESSING
+                    default => OrderStatus::tryFrom($value) ?? OrderStatus::PENDING, // Używamy tryFrom() aby uniknąć wyjątków
+                };
+            },
+            set: function ($value) {
+                if ($value instanceof OrderStatus) {
+                    return $value->value;
+                }
+                // Mapuj stare wartości przy zapisie
+                return match ($value) {
+                    'paid' => OrderStatus::PROCESSING->value,
+                    default => $value,
+                };
+            }
+        );
+    }
 
     /**
      * Relacja z płatnościami.

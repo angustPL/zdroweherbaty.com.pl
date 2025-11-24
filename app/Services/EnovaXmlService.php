@@ -7,6 +7,7 @@ use App\Models\Product;
 use App\Models\Delivery;
 use DOMDocument;
 use DOMElement;
+use Illuminate\Support\Facades\Log;
 
 class EnovaXmlService
 {
@@ -347,5 +348,147 @@ class EnovaXmlService
     public function getXmlContent(Order $order): string
     {
         return $this->generateXml($order);
+    }
+
+    /**
+     * Wysyła XML do Enova przez FTP lub kopiuje do katalogu.
+     *
+     * @param Order $order
+     * @param string $localPath Ścieżka do lokalnego pliku XML
+     * @return bool True jeśli wysłano pomyślnie
+     */
+    public function sendXml(Order $order, string $localPath): bool
+    {
+        $ftpHost = config('enova.orders.ftp.host');
+
+        if (!empty($ftpHost)) {
+            // Wysyłka przez FTP
+            return $this->sendXmlViaFtp($order, $localPath);
+        } else {
+            // Kopia do katalogu docelowego
+            return $this->copyXmlToDirectory($order, $localPath);
+        }
+    }
+
+    /**
+     * Wysyła XML przez FTP.
+     *
+     * @param Order $order
+     * @param string $localPath
+     * @return bool
+     */
+    protected function sendXmlViaFtp(Order $order, string $localPath): bool
+    {
+        try {
+            $ftpHost = config('enova.orders.ftp.host');
+            $ftpUser = config('enova.orders.ftp.user');
+            $ftpPass = config('enova.orders.ftp.pass');
+            $ftpPath = config('enova.orders.ftp.path', '/');
+
+            if (empty($ftpHost) || empty($ftpUser) || empty($ftpPass)) {
+                \Log::warning('Brak konfiguracji FTP dla wysyłki XML', [
+                    'order_id' => $order->id,
+                    'ext_order_id' => $order->ext_order_id,
+                ]);
+                return false;
+            }
+
+            $connId = ftp_connect($ftpHost);
+            if (!$connId) {
+                \Log::error('Nie można połączyć się z serwerem FTP', [
+                    'order_id' => $order->id,
+                    'ftp_host' => $ftpHost,
+                ]);
+                return false;
+            }
+
+            if (!ftp_login($connId, $ftpUser, $ftpPass)) {
+                \Log::error('Błąd logowania do FTP', [
+                    'order_id' => $order->id,
+                    'ftp_user' => $ftpUser,
+                ]);
+                ftp_close($connId);
+                return false;
+            }
+
+            // Ustaw tryb pasywny jeśli wymagane
+            ftp_pasv($connId, config('enova.orders.ftp.passive', true));
+
+            $remoteFilename = $order->ext_order_id . '.xml';
+            $remotePath = rtrim($ftpPath, '/') . '/' . $remoteFilename;
+
+            $result = ftp_put($connId, $remotePath, $localPath, FTP_ASCII);
+            ftp_close($connId);
+
+            if (!$result) {
+                \Log::error('Błąd wysyłki pliku XML przez FTP', [
+                    'order_id' => $order->id,
+                    'local_path' => $localPath,
+                    'remote_path' => $remotePath,
+                ]);
+                return false;
+            }
+
+            \Log::info('XML wysłany przez FTP', [
+                'order_id' => $order->id,
+                'ext_order_id' => $order->ext_order_id,
+                'remote_path' => $remotePath,
+            ]);
+
+            return true;
+        } catch (\Exception $e) {
+            \Log::error('Wyjątek podczas wysyłki XML przez FTP: ' . $e->getMessage(), [
+                'order_id' => $order->id,
+                'ext_order_id' => $order->ext_order_id,
+                'exception' => $e,
+            ]);
+            return false;
+        }
+    }
+
+    /**
+     * Kopiuje XML do katalogu docelowego.
+     *
+     * @param Order $order
+     * @param string $localPath
+     * @return bool
+     */
+    protected function copyXmlToDirectory(Order $order, string $localPath): bool
+    {
+        try {
+            $destinationDir = config('enova.orders.xml_destination', storage_path('app/enova/orders/sent'));
+
+            if (!is_dir($destinationDir)) {
+                mkdir($destinationDir, 0755, true);
+            }
+
+            $filename = $order->ext_order_id . '.xml';
+            $destinationPath = rtrim($destinationDir, '/') . '/' . $filename;
+
+            $result = copy($localPath, $destinationPath);
+
+            if ($result) {
+                \Log::info('XML skopiowany do katalogu docelowego', [
+                    'order_id' => $order->id,
+                    'ext_order_id' => $order->ext_order_id,
+                    'destination_path' => $destinationPath,
+                ]);
+            } else {
+                \Log::error('Błąd kopiowania XML do katalogu docelowego', [
+                    'order_id' => $order->id,
+                    'local_path' => $localPath,
+                    'destination_path' => $destinationPath,
+                ]);
+            }
+
+            return $result;
+        } catch (\Exception $e) {
+            \Log::error('Wyjątek podczas kopiowania XML: ' . $e->getMessage(), [
+                'order_id' => $order->id,
+                'ext_order_id' => $order->ext_order_id,
+                'exception' => $e,
+            ]);
+            return false;
+        }
     }
 }

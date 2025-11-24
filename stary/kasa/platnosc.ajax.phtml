@@ -1,0 +1,70 @@
+<?php if ($this->dostawa) : ?>
+<legend>Sposób płatności</legend>
+<div class="errors platnosc_error"></div>
+<table class="w-100">
+    <tbody>
+        <tr>
+            <td>
+
+            <?php foreach ($this->opcje as $opcja) : ?>
+                <div class="form-check my-2">
+                    <input class="form-check-input" type="radio" name="platnosc" id="platnosc<?= $opcja['value'] ?>" value="<?= $opcja['value'] ?>"<?= ($opcja['value'] == $this->platnoscCheck['ID']) ? ' checked' : '' ?>>
+                    <label class="form-check-label w-100" for="platnosc<?= $opcja['value'] ?>">
+                        <?= $opcja['name'] ?>
+
+                        <?php if ($opcja['brandImageUrl']) : ?>
+                        <span class="ml-5 float-right">
+                            <img class="" src="<?= $opcja['brandImageUrl'] ?>" height="18">
+                        </span>
+                        <?php endif ?>
+
+                    </label>
+                </div>
+            <?php endforeach ?>
+
+            </td>
+        </tr>
+    </tbody>
+</table>
+
+<?php endif ?>
+
+<script type="text/javascript">
+var scrollToPlatnosc = () => {
+    $('html, body').animate({
+        scrollTop: $("#platnosc-container").offset().top - $('.navbar').outerHeight()
+    }, 500);
+}
+var setPlatnosc = function(val_platnosc) {
+    var data = null;
+    if (val_platnosc) {
+        data = {'platnosc': val_platnosc};
+    }
+    $.ajax({
+        type: 'POST',
+        url: '<?= $this->url(array(
+            'controller'=>'kasa',
+            'action'=>'platnosc',
+            'format'=>'html'), 'default', true) ?>',
+        data: data,
+        success: function(data) {
+            $('#platnosc-container').html(data);
+        },
+        error: function(error) {
+            alert('Nie udało się zapisać wyboru');
+            console.log(error);
+        }
+    });
+}
+var platnoscValidate = (data) => {
+    var validate = true;
+    if (!$('input[name=platnosc]:checked').val()) {
+        $('.platnosc_error').text('Proszę wybrać sposób płatności');
+        validate = false;
+    } else $('.platnosc_error').empty();
+    return validate;
+}
+$('input[name=platnosc]').change(function() {
+    setPlatnosc($(this).val());
+});
+</script>

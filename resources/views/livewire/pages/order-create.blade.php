@@ -1,6 +1,6 @@
 <?php
 
-use function Livewire\Volt\{state, mount, layout};
+use function Livewire\Volt\{state, mount, layout, action};
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use App\Services\CartService;
@@ -9,6 +9,9 @@ use App\Services\EnovaXmlService;
 use App\Models\Delivery;
 use App\Models\Order;
 use App\Models\Payment;
+use App\Enums\OrderStatus;
+use App\Enums\PaymentStatus;
+use App\Events\OrderCreated;
 use Artesaos\SEOTools\Facades\SEOTools;
 use Artesaos\SEOTools\Facades\JsonLd;
 
@@ -54,10 +57,16 @@ state([
     'selectedPayuOption' => null,
     'notes' => '',
     'parcelLockerData' => null,
+    'currentStep' => 1, // Aktualny krok walidacji: 1=dane, 2=dostawa, 3=płatność
+    'stepErrors' => [
+        'step1' => [],
+        'step2' => [],
+        'step3' => [],
+    ],
 ]);
 
-// Reguły walidacji
-$rules = [
+// Reguły walidacji - KROK 1: Dane zamawiającego + faktura
+$rulesStep1 = [
     'customerData.first_name' => 'required|string|max:255',
     'customerData.last_name' => 'required|string|max:255',
     'customerData.email' => 'required|email|max:255',
@@ -76,7 +85,15 @@ $rules = [
     'invoiceData.city' => 'nullable|string|max:255',
     'invoiceData.postal_code' => 'required_if:customerData.invoice_required,true|string|max:10',
     'invoiceData.post_office' => 'required_if:customerData.invoice_required,true|string|max:255',
+];
+
+// Reguły walidacji - KROK 2: Wybór dostawy
+$rulesStep2 = [
     'selectedDelivery' => 'required|integer',
+];
+
+// Reguły walidacji - KROK 3: Wybór płatności
+$rulesStep3 = [
     'selectedPayment' => 'required|string',
 ];
 
@@ -98,7 +115,96 @@ $messages = [
     'invoiceData.post_office.required_if' => 'Poczta jest wymagana dla faktury.',
     'selectedDelivery.required' => 'Wybierz opcję dostawy.',
     'selectedPayment.required' => 'Wybierz sposób płatności.',
+    'parcel_locker' => 'Wybierz paczkomat dla dostawy do paczkomatu.',
 ];
+
+// Funkcje walidacji dla każdego kroku
+$validateStep1 = action(function () use ($rulesStep1, $messages) {
+    $this->stepErrors['step1'] = [];
+    try {
+        $this->validate($rulesStep1, $messages);
+        return true;
+    } catch (\Illuminate\Validation\ValidationException $e) {
+        $this->stepErrors['step1'] = $e->errors();
+        $this->currentStep = 1;
+
+        // Sprawdź czy są tylko błędy faktury - jeśli tak, przewiń do sekcji faktury
+        $hasCustomerErrors = false;
+        $hasInvoiceErrors = false;
+        foreach ($e->errors() as $field => $messages) {
+            if (str_starts_with($field, 'invoiceData.')) {
+                $hasInvoiceErrors = true;
+            } else {
+                $hasCustomerErrors = true;
+            }
+        }
+
+        // Jeśli są tylko błędy faktury, przewiń do sekcji faktury
+        if ($hasInvoiceErrors && !$hasCustomerErrors) {
+            $this->dispatch('scroll-to-invoice');
+        } else {
+            // W przeciwnym razie przewiń do góry sekcji
+            $this->dispatch('scroll-to-step', step: 1);
+        }
+
+        return false;
+    }
+});
+
+$validateStep2 = action(function () use ($rulesStep2, $messages) {
+    $this->stepErrors['step2'] = [];
+    try {
+        $this->validate($rulesStep2, $messages);
+
+        // Walidacja paczkomatu - jeśli wybrano dostawę do paczkomatu, sprawdź czy wskazano paczkomat
+        // Sprawdzamy przez nazwę dostawy (jak w starym systemie - stripos na nazwie)
+        if ($this->selectedDelivery) {
+            $selectedDeliveryOption = collect($this->deliveryOptions)->firstWhere('id', (int) $this->selectedDelivery);
+
+            if ($selectedDeliveryOption) {
+                // Sprawdź czy nazwa dostawy zawiera frazę paczkomatu (jak w starym systemie)
+                $deliveryName = strtolower($selectedDeliveryOption['name'] ?? '');
+                $parcelLockerName = strtolower(config('enova.delivery.parcel_locker_name', 'Paczkomaty 24/7'));
+                $isParcelLocker = str_contains($deliveryName, $parcelLockerName);
+
+                if ($isParcelLocker) {
+                    // Sprawdź czy są dane paczkomatu w cookie (główne źródło prawdy)
+                    $cookieData = request()->cookie('selectedParcelLocker');
+                    if (empty($cookieData)) {
+                        // Sprawdź też w parcelLockerData (na wypadek gdyby było ustawione przez Livewire)
+                        $parcelLockerData = $this->parcelLockerData;
+                        if (empty($parcelLockerData)) {
+                            $this->stepErrors['step2']['parcel_locker'] = ['Wybierz paczkomat dla dostawy do paczkomatu.'];
+                            $this->currentStep = 2;
+                            $this->dispatch('scroll-to-step', step: 2);
+                            return false;
+                        }
+                    }
+                }
+            }
+        }
+
+        return true;
+    } catch (\Illuminate\Validation\ValidationException $e) {
+        $this->stepErrors['step2'] = $e->errors();
+        $this->currentStep = 2;
+        $this->dispatch('scroll-to-step', step: 2);
+        return false;
+    }
+});
+
+$validateStep3 = action(function () use ($rulesStep3, $messages) {
+    $this->stepErrors['step3'] = [];
+    try {
+        $this->validate($rulesStep3, $messages);
+        return true;
+    } catch (\Illuminate\Validation\ValidationException $e) {
+        $this->stepErrors['step3'] = $e->errors();
+        $this->currentStep = 3;
+        $this->dispatch('scroll-to-step', step: 3);
+        return false;
+    }
+});
 
 mount(function () {
     $this->loadCart();
@@ -340,16 +446,20 @@ $saveOrder = function ($extOrderId, $paymentMethodGuid, $payuOrderId, $component
         $notes = $component->notes;
     }
 
-    // Pobierz dane paczkomatu jeśli są dostępne
+    // Pobierz dane paczkomatu tylko jeśli wybrano dostawę do paczkomatu (sprawdzamy nazwę dostawy jak w starym sklepie)
     $parcelLockerData = null;
-    if (!empty($component->parcelLockerData)) {
+    $deliveryName = $selectedDeliveryOption['name'] ?? '';
+    $parcelLockerName = config('enova.delivery.parcel_locker_name', 'Paczkomaty 24/7');
+    $isParcelLocker = stripos($deliveryName, $parcelLockerName) !== false;
+
+    if ($isParcelLocker && !empty($component->parcelLockerData)) {
         $parcelLockerData = is_string($component->parcelLockerData) ? json_decode($component->parcelLockerData, true) : $component->parcelLockerData;
     }
 
-    // Zapisz zamówienie
+    // Zapisz zamówienie (płatność to osobna operacja, można ją ponowić)
     $order = Order::create([
         'ext_order_id' => $extOrderId,
-        'status' => 'pending',
+        'status' => OrderStatus::SUBMITTED->value, // Złożone, oczekuje na synchronizację z Enova
         'customer_first_name' => $component->customerData['first_name'],
         'customer_last_name' => $component->customerData['last_name'],
         'customer_email' => $component->customerData['email'],
@@ -376,13 +486,14 @@ $saveOrder = function ($extOrderId, $paymentMethodGuid, $payuOrderId, $component
         'items' => $component->cart['items'] ?? [],
         'subtotal' => $subtotal,
         'delivery_cost' => $deliveryPrice,
+        'is_free_delivery' => $selectedDeliveryOption['is_free'] ?? false,
         'total' => $total,
         'currency' => 'PLN',
         'notes' => $notes,
         'parcel_locker_data' => $parcelLockerData,
     ]);
 
-    // Zapisz płatność
+    // Zapisz płatność (osobna operacja - można ją ponowić w przypadku niepowodzenia)
     $payment = Payment::create([
         'order_id' => $order->id,
         'payment_method' => $component->selectedPayment,
@@ -390,35 +501,31 @@ $saveOrder = function ($extOrderId, $paymentMethodGuid, $payuOrderId, $component
         'payu_order_id' => $payuOrderId,
         'payu_option' => $component->selectedPayuOption,
         'ext_order_id' => $extOrderId,
-        'status' => $payuOrderId ? 'pending' : 'pending',
+        'status' => PaymentStatus::PENDING->value,
         'amount' => $total,
         'currency' => 'PLN',
     ]);
 
-    // Generuj XML i zapisz do pliku
-    try {
-        $xmlService = app(EnovaXmlService::class);
-        $xmlDirectory = config('enova.orders.xml_directory', storage_path('app/enova/orders'));
-        $xmlService->saveToFile($order, $xmlDirectory);
-    } catch (\Exception $e) {
-        // Loguj błąd, ale nie przerywaj procesu
-        \Log::error('Błąd generowania XML dla zamówienia: ' . $e->getMessage(), [
-            'order_id' => $order->id,
-            'ext_order_id' => $extOrderId,
-        ]);
-    }
+    // Wywołaj event - XML zostanie wygenerowany przez listener
+    event(new OrderCreated($order));
 
     return $order;
 };
 
-$submitOrder = function () use ($rules, $messages, $generateGuid, $saveOrder) {
+$submitOrder = function () use ($validateStep1, $validateStep2, $validateStep3, $generateGuid, $saveOrder) {
     \Log::info('submitOrder wywołane');
-    try {
-        $this->validate($rules, $messages);
-    } catch (\Illuminate\Validation\ValidationException $e) {
-        // Przewiń do formularza w przypadku błędów walidacji
-        $this->dispatch('scroll-to-form');
-        throw $e;
+
+    // Walidacja w 3 krokach - zatrzymujemy się przy pierwszym błędzie
+    if (!$validateStep1()) {
+        return; // Błąd w kroku 1 - zatrzymujemy walidację
+    }
+
+    if (!$validateStep2()) {
+        return; // Błąd w kroku 2 - zatrzymujemy walidację
+    }
+
+    if (!$validateStep3()) {
+        return; // Błąd w kroku 3 - zatrzymujemy walidację
     }
 
     // Sprawdź czy wybrano PayU
@@ -580,11 +687,21 @@ $submitOrder = function () use ($rules, $messages, $generateGuid, $saveOrder) {
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {{-- Formularz zamówienia --}}
             <div class="lg:col-span-2 space-y-8">
-                {{-- Dane klienta --}}
-                <div class="bg-white rounded-lg shadow p-6">
-
-                    {{-- Ogólny komunikat błędów walidacji --}}
-                    @if ($errors->any())
+                {{-- KROK 1: Dane klienta --}}
+                <div class="bg-white rounded-lg shadow p-6" id="step-1">
+                    {{-- Alert błędów dla kroku 1 - tylko błędy zamawiającego --}}
+                    @php
+                        // Filtruj błędy - pokazuj tylko błędy zamawiającego (nie faktury)
+                        $customerErrors = [];
+                        if (!empty($stepErrors['step1'])) {
+                            foreach ($stepErrors['step1'] as $field => $messages) {
+                                if (!str_starts_with($field, 'invoiceData.')) {
+                                    $customerErrors[$field] = $messages;
+                                }
+                            }
+                        }
+                    @endphp
+                    @if (!empty($customerErrors))
                         <div class="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
                             <div class="flex items-start">
                                 <svg class="w-5 h-5 text-red-600 mt-0.5 mr-2 flex-shrink-0" fill="currentColor"
@@ -593,15 +710,22 @@ $submitOrder = function () use ($rules, $messages, $generateGuid, $saveOrder) {
                                         d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
                                         clip-rule="evenodd" />
                                 </svg>
-                                <div>
-                                    <p class="text-sm font-medium text-red-800">Proszę uzupełnić wszystkie wymagane pola
-                                        formularza.</p>
+                                <div class="flex-1">
+                                    <p class="text-sm font-medium text-red-800 mb-2">Proszę uzupełnić wszystkie wymagane
+                                        pola w danych zamawiającego.</p>
+                                    <ul class="list-disc list-inside text-sm text-red-700 space-y-1">
+                                        @foreach ($customerErrors as $field => $messages)
+                                            @foreach ($messages as $message)
+                                                <li>{{ $message }}</li>
+                                            @endforeach
+                                        @endforeach
+                                    </ul>
                                 </div>
                             </div>
                         </div>
                     @endif
 
-                    <form wire:submit.prevent="submitOrder" id="order-form" class="space-y-4">
+                    <div class="space-y-4">
                         {{-- Dane zamawiającego --}}
                         <div class="flex items-center justify-between mb-4">
                             <h2 class="text-xl font-semibold">Dane zamawiającego</h2>
@@ -700,7 +824,7 @@ $submitOrder = function () use ($rules, $messages, $generateGuid, $saveOrder) {
                         </div>
 
                         {{-- Faktura VAT --}}
-                        <div class="border-t pt-4" x-data x-init="$wire.$watch('customerData.invoice_required', value => { if (!value) { $wire.clearInvoiceData(); } })">
+                        <div class="border-t pt-4" id="invoice-section" x-data x-init="$wire.$watch('customerData.invoice_required', value => { if (!value) { $wire.clearInvoiceData(); } })">
                             <label class="flex items-center cursor-pointer">
                                 <input type="checkbox" wire:model.live="customerData.invoice_required"
                                     id="invoice_required"
@@ -732,6 +856,42 @@ $submitOrder = function () use ($rules, $messages, $generateGuid, $saveOrder) {
                                         Użyj zapamiętanych danych
                                     </button>
                                 </div>
+
+                                {{-- Alert błędów dla faktury (tylko błędy związane z fakturą) --}}
+                                @php
+                                    $invoiceErrors = [];
+                                    if (!empty($stepErrors['step1'])) {
+                                        foreach ($stepErrors['step1'] as $field => $messages) {
+                                            if (str_starts_with($field, 'invoiceData.')) {
+                                                $invoiceErrors[$field] = $messages;
+                                            }
+                                        }
+                                    }
+                                @endphp
+                                @if (!empty($invoiceErrors))
+                                    <div id="invoice-alert"
+                                        class="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                                        <div class="flex items-start">
+                                            <svg class="w-5 h-5 text-red-600 mt-0.5 mr-2 flex-shrink-0"
+                                                fill="currentColor" viewBox="0 0 20 20">
+                                                <path fill-rule="evenodd"
+                                                    d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                                                    clip-rule="evenodd" />
+                                            </svg>
+                                            <div class="flex-1">
+                                                <p class="text-sm font-medium text-red-800 mb-2">Proszę uzupełnić
+                                                    wszystkie wymagane pola w danych do faktury.</p>
+                                                <ul class="list-disc list-inside text-sm text-red-700 space-y-1">
+                                                    @foreach ($invoiceErrors as $field => $messages)
+                                                        @foreach ($messages as $message)
+                                                            <li>{{ $message }}</li>
+                                                        @endforeach
+                                                    @endforeach
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    </div>
+                                @endif
                                 <div>
                                     <flux:field>
                                         <flux:label>Nazwa firmy *</flux:label>
@@ -794,12 +954,31 @@ $submitOrder = function () use ($rules, $messages, $generateGuid, $saveOrder) {
                                 </div>
                             </div>
                         </div>
-
-                    </form>
+                    </div>
                 </div>
 
-                {{-- Wybór dostawy --}}
-                <div class="bg-white rounded-lg shadow p-6">
+                {{-- KROK 2: Wybór dostawy --}}
+                <div class="bg-white rounded-lg shadow p-6" id="step-2">
+                    {{-- Alert błędów dla kroku 2 --}}
+                    @if (!empty($stepErrors['step2']))
+                        <div class="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                            <div class="flex items-start">
+                                <svg class="w-5 h-5 text-red-600 mt-0.5 mr-2 flex-shrink-0" fill="currentColor"
+                                    viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd"
+                                        d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                                        clip-rule="evenodd" />
+                                </svg>
+                                <div>
+                                    @foreach ($stepErrors['step2'] as $field => $errors)
+                                        @foreach ($errors as $error)
+                                            <p class="text-sm font-medium text-red-800">{{ $error }}</p>
+                                        @endforeach
+                                    @endforeach
+                                </div>
+                            </div>
+                        </div>
+                    @endif
                     <h2 class="text-xl font-semibold mb-4">Wybór dostawy</h2>
 
                     @php
@@ -902,8 +1081,24 @@ $submitOrder = function () use ($rules, $messages, $generateGuid, $saveOrder) {
 
                 </div>
 
-                {{-- Wybór płatności --}}
-                <div class="bg-white rounded-lg shadow p-6">
+                {{-- KROK 3: Wybór płatności --}}
+                <div class="bg-white rounded-lg shadow p-6" id="step-3">
+                    {{-- Alert błędów dla kroku 3 --}}
+                    @if (!empty($stepErrors['step3']))
+                        <div class="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                            <div class="flex items-start">
+                                <svg class="w-5 h-5 text-red-600 mt-0.5 mr-2 flex-shrink-0" fill="currentColor"
+                                    viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd"
+                                        d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                                        clip-rule="evenodd" />
+                                </svg>
+                                <div>
+                                    <p class="text-sm font-medium text-red-800">Proszę wybrać sposób płatności.</p>
+                                </div>
+                            </div>
+                        </div>
+                    @endif
                     <h2 class="text-xl font-semibold mb-4">Wybór płatności</h2>
 
                     @if (empty($selectedDelivery))
@@ -1012,6 +1207,83 @@ $submitOrder = function () use ($rules, $messages, $generateGuid, $saveOrder) {
     <script src="//geowidget.easypack24.net/js/sdk-for-javascript.js"></script>
 
     <script>
+        // Przewijanie do sekcji z błędami
+        document.addEventListener('livewire:init', () => {
+            Livewire.on('scroll-to-step', (data) => {
+                // Livewire 3 może przekazać dane w różny sposób
+                const step = data?.step || data?.[0]?.step || (Array.isArray(data) ? data[0] : null);
+                if (!step) return;
+
+                const element = document.getElementById(`step-${step}`);
+                if (element) {
+                    // Przewiń do sekcji z offsetem uwzględniającym floating header
+                    // Dla kroku 1 (dane zamawiającego) przewijamy do alertu na górze
+                    // Dla kroku 2 i 3 przewijamy do alertu na górze sekcji
+                    const offset = 80; // Offset dla floating header (zmniejszony)
+                    const elementPosition = element.getBoundingClientRect().top;
+                    const offsetPosition = elementPosition + window.pageYOffset - offset;
+
+                    window.scrollTo({
+                        top: Math.max(0,
+                            offsetPosition), // Upewnij się, że nie przewijamy powyżej góry strony
+                        behavior: 'smooth'
+                    });
+
+                    // Dodaj lekkie podświetlenie sekcji z błędem
+                    element.classList.add('ring-2', 'ring-red-500', 'ring-opacity-50');
+                    setTimeout(() => {
+                        element.classList.remove('ring-2', 'ring-red-500', 'ring-opacity-50');
+                    }, 2000);
+                }
+            });
+
+            // Przewijanie do sekcji faktury (gdy są tylko błędy faktury)
+            Livewire.on('scroll-to-invoice', () => {
+                // Najpierw sprawdź czy sekcja faktury jest widoczna (checkbox zaznaczony)
+                const invoiceSection = document.getElementById('invoice-section');
+                if (!invoiceSection) return;
+
+                // Sprawdź czy sekcja faktury jest widoczna (Alpine.js x-show)
+                const isVisible = invoiceSection.offsetParent !== null;
+                if (!isVisible) {
+                    // Jeśli sekcja nie jest widoczna, zaznacz checkbox i poczekaj na animację
+                    const checkbox = document.getElementById('invoice_required');
+                    if (checkbox && !checkbox.checked) {
+                        checkbox.click();
+                        // Poczekaj na animację Alpine.js (300ms) przed przewinięciem
+                        setTimeout(() => {
+                            scrollToInvoiceAlert();
+                        }, 350);
+                    } else {
+                        scrollToInvoiceAlert();
+                    }
+                } else {
+                    scrollToInvoiceAlert();
+                }
+
+                function scrollToInvoiceAlert() {
+                    const alertElement = document.getElementById('invoice-alert');
+                    if (alertElement) {
+                        const offset = 80; // Offset dla floating header
+                        const elementPosition = alertElement.getBoundingClientRect().top;
+                        const offsetPosition = elementPosition + window.pageYOffset - offset;
+
+                        window.scrollTo({
+                            top: Math.max(0, offsetPosition),
+                            behavior: 'smooth'
+                        });
+
+                        // Dodaj lekkie podświetlenie alertu faktury
+                        alertElement.classList.add('ring-2', 'ring-red-500', 'ring-opacity-50');
+                        setTimeout(() => {
+                            alertElement.classList.remove('ring-2', 'ring-red-500',
+                                'ring-opacity-50');
+                        }, 2000);
+                    }
+                }
+            });
+        });
+
         window.easyPackAsyncInit = function() {
             easyPack.init({
                 defaultLocale: 'pl',
@@ -1139,26 +1411,71 @@ $submitOrder = function () use ($rules, $messages, $generateGuid, $saveOrder) {
             });
         }
 
-        // Funkcja do ustawiania danych paczkomatu przed submitem
+        // Funkcja do ustawiania danych paczkomatu przed submitem (jak w starym sklepie - sprawdzamy nazwę dostawy)
         function setParcelLockerData(event) {
-            const saved = getCookie('selectedParcelLocker');
+            const input = document.getElementById('parcelLockerDataInput');
+            if (!input) {
+                return;
+            }
 
+            // Sprawdź czy wybrana dostawa to paczkomat - sprawdzamy nazwę dostawy (jak w starym sklepie)
+            const selectedDeliveryId = @js($selectedDelivery ?? null);
+            if (!selectedDeliveryId) {
+                input.value = '';
+                input.dispatchEvent(new Event('input', {
+                    bubbles: true
+                }));
+                return;
+            }
+
+            const deliveryOptions = @js($deliveryOptions ?? []);
+            const selectedDeliveryOption = deliveryOptions.find(opt => opt.id === selectedDeliveryId);
+            if (!selectedDeliveryOption) {
+                input.value = '';
+                input.dispatchEvent(new Event('input', {
+                    bubbles: true
+                }));
+                return;
+            }
+
+            const deliveryName = selectedDeliveryOption.name || '';
+            const parcelLockerName = @js(config('enova.delivery.parcel_locker_name', 'Paczkomaty 24/7'));
+            const isParcelLocker = deliveryName.toLowerCase().includes(parcelLockerName.toLowerCase());
+
+            // Jeśli to nie paczkomat, wyczyść dane
+            if (!isParcelLocker) {
+                input.value = '';
+                input.dispatchEvent(new Event('input', {
+                    bubbles: true
+                }));
+                return;
+            }
+
+            // Jeśli to paczkomat, wczytaj dane z cookies (jak w starym sklepie - zawsze czytamy z cookies jeśli istnieje)
+            const saved = getCookie('selectedParcelLocker');
             if (saved) {
                 try {
                     const locker = JSON.parse(saved);
                     // Ustaw wartość bezpośrednio w ukrytym polu - Livewire automatycznie zsynchronizuje
-                    const input = document.getElementById('parcelLockerDataInput');
-                    if (input) {
-                        input.value = JSON.stringify(locker);
-                        // Wywołaj event input, aby Livewire zsynchronizował wartość
-                        input.dispatchEvent(new Event('input', {
-                            bubbles: true
-                        }));
-                    }
+                    input.value = JSON.stringify(locker);
+                    // Wywołaj event input, aby Livewire zsynchronizował wartość
+                    input.dispatchEvent(new Event('input', {
+                        bubbles: true
+                    }));
                 } catch (e) {
                     // Błąd parsowania - nie ustawiamy danych
                     console.error('Błąd parsowania danych paczkomatu:', e);
+                    input.value = '';
+                    input.dispatchEvent(new Event('input', {
+                        bubbles: true
+                    }));
                 }
+            } else {
+                // Brak zapisanych danych - wyczyść pole
+                input.value = '';
+                input.dispatchEvent(new Event('input', {
+                    bubbles: true
+                }));
             }
         }
 

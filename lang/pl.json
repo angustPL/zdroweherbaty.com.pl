@@ -94,5 +94,21 @@
     "View Recovery Codes": "View Recovery Codes",
     "When you enable two-factor authentication, you will be prompted for a secure pin during login. This pin can be retrieved from a TOTP-supported application on your phone.": "When you enable two-factor authentication, you will be prompted for a secure pin during login. This pin can be retrieved from a TOTP-supported application on your phone.",
     "With two-factor authentication enabled, you will be prompted for a secure, random pin during login, which you can retrieve from the TOTP-supported application on your phone.": "With two-factor authentication enabled, you will be prompted for a secure, random pin during login, which you can retrieve from the TOTP-supported application on your phone.",
-    "Your email address is unverified.": "Twój adres e-mail nie został zweryfikowany."
+    "Your email address is unverified.": "Twój adres e-mail nie został zweryfikowany.",
+    "Oczekuje": "Oczekuje",
+    "Złożone": "Złożone",
+    "W realizacji": "W realizacji",
+    "Zrealizowane": "Zrealizowane",
+    "Anulowane": "Anulowane",
+    "Oczekuje na płatność": "Oczekuje na płatność",
+    "Oczekuje na potwierdzenie": "Oczekuje na potwierdzenie",
+    "Opłacone": "Opłacone",
+    "Nieudane": "Nieudane",
+    "Płatność zrealizowana pomyślnie!": "Płatność zrealizowana pomyślnie!",
+    "Twoje zamówienie zostało opłacone i zostanie zrealizowane w najbliższym czasie.": "Twoje zamówienie zostało opłacone i zostanie zrealizowane w najbliższym czasie.",
+    "Płatność nieudana": "Płatność nieudana",
+    "Sposób płatności": "Sposób płatności",
+    "Status płatności": "Status płatności",
+    "Gotówka przy odbiorze": "Gotówka przy odbiorze",
+    "Numer zostanie przypisany po rejestracji w systemie": "Numer zostanie przypisany po rejestracji w systemie"
 }

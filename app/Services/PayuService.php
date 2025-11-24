@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Enums\OrderStatus;
+use App\Enums\PaymentStatus;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -248,33 +250,33 @@ class PayuService
     }
 
     /**
-     * Mapuje status PayU na status lokalny.
+     * Mapuje status PayU na status lokalny (Enum).
      *
      * @param string|null $payuStatus
-     * @return string
+     * @return PaymentStatus
      */
-    public function mapPayuStatusToLocal(?string $payuStatus): string
+    public function mapPayuStatusToLocal(?string $payuStatus): PaymentStatus
     {
         return match ($payuStatus) {
-            'COMPLETED' => 'completed',
-            'PENDING' => 'pending',
-            'WAITING_FOR_CONFIRMATION' => 'waiting_for_confirmation',
-            'CANCELED', 'REJECTED' => 'failed',
-            default => 'pending',
+            'COMPLETED' => PaymentStatus::COMPLETED,
+            'PENDING' => PaymentStatus::PENDING,
+            'WAITING_FOR_CONFIRMATION' => PaymentStatus::WAITING_FOR_CONFIRMATION,
+            'CANCELED', 'REJECTED' => PaymentStatus::FAILED,
+            default => PaymentStatus::PENDING,
         };
     }
 
     /**
-     * Mapuje status płatności na status zamówienia.
+     * Mapuje status płatności na status zamówienia (Enum).
      *
-     * @param string $paymentStatus
-     * @return string|null
+     * @param PaymentStatus $paymentStatus
+     * @return OrderStatus|null
      */
-    public function mapPaymentStatusToOrderStatus(string $paymentStatus): ?string
+    public function mapPaymentStatusToOrderStatus(PaymentStatus $paymentStatus): ?OrderStatus
     {
         return match ($paymentStatus) {
-            'completed' => 'paid', // Zamówienie opłacone
-            'failed', 'cancelled' => 'pending', // Płatność nieudana - zamówienie pozostaje w oczekiwaniu
+            PaymentStatus::COMPLETED => OrderStatus::COMPLETED, // Zamówienie opłacone - oznaczone jako zrealizowane
+            PaymentStatus::FAILED => OrderStatus::PENDING, // Płatność nieudana - zamówienie pozostaje w oczekiwaniu
             default => null, // Nie zmieniaj statusu zamówienia dla innych statusów (pending, waiting_for_confirmation)
         };
     }

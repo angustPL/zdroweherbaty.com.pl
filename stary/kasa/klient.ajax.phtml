@@ -1,0 +1,66 @@
+<?php echo $this->form ?>
+
+<script type="text/javascript">
+var daneFaktura = $('#dane-faktura').html();
+$('#dane-faktura').empty();
+var czyFaktura = function() {
+    if ($('#czy_faktura').is(':checked')) {
+        $('#dane-faktura').html(daneFaktura).slideDown();
+    } else {
+        $('#dane-faktura').slideUp('slow',function(){$('#dane-faktura').empty()});
+    }
+}
+czyFaktura();
+$('#czy_faktura').change(function(){czyFaktura()});
+var scrollToKlient = () => {
+    $('html, body').animate({
+        scrollTop: $("#klient-container").offset().top - $('.navbar').outerHeight()
+    }, 500);
+}
+var setKlient = function(data) {
+    $.ajax({
+        type: 'POST',
+        url: '<?= $this->url(array(
+            'controller'=>'kasa',
+            'action'=>'klient',
+            'format'=>'html'), 'default', true) ?>',
+        data: data,
+        success: function(data) {
+            $('#klient-container').html(data);
+            // document.getElementById("form-klient").scrollIntoView();
+        },
+        error: function(error) {
+            alert('Nie udało się zapisać danych');
+            console.log(error);
+        }
+    });
+}
+var klientValidate = (data) => {
+    var validate;
+    $.ajax({
+        type: 'POST',
+        url: '<?= $this->url(array(
+            'controller'=>'kasa',
+            'action'=>'klient-validate',
+            'format'=>'json'), 'default', true) ?>',
+        data: data,
+        async: false,
+        success: function(response) {
+            data = $.parseJSON(response);
+            if (data['status'] == 'invalid') {
+                scrollToKlient();
+                validate = false;
+            } else {
+                validate = true;
+            }
+        },
+        error: function(error) {
+            alert('Nie udało się zapisać danych');
+            console.log(error);
+        }
+    }).done(() => {
+        setKlient($('#form-klient').serialize());
+    });
+    return validate;
+}
+</script>

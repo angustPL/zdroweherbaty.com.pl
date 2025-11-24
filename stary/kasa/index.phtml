@@ -1,0 +1,104 @@
+<?php $this->headTitle('Kasa') ?>
+<?php $this->placeholder('title')->set('Kasa') ?>
+
+<?php $this->inlineScript()->captureStart() ?>
+$('#subform-faktura button:first').click(() => {
+    $('#subform-kontrahent input').each(function(i) {
+        var $name = $(this).attr('name');
+        $('#subform-faktura input[id="F' + $name + '"]').val($(this).val());
+    });
+}).next().click(() => {
+    $('#subform-faktura input').val('');
+});
+showRegulamin = () => {
+    $('#dialog-regulamin').dialog('open');
+};
+statusFaktura = () => {
+    if ($('#subform-dokument :checked').val() == 'faktura') {
+        $('#subform-faktura:hidden').slideDown();
+    } else {
+        $('#subform-faktura:visible').slideUp().find('.errors').remove();
+    }
+};
+$('#subform-dokument input').change(statusFaktura);
+statusFaktura();
+<?php $this->inlineScript()->captureEnd() ?>
+
+<div class="row">
+  <div class="offset-md-2 col-md-8">
+    <div class="row">
+      <div class="col-12" id="klient-container">
+        <?= $this->action('klient', 'kasa') ?>
+      </div>
+    </div>
+    <div class="row mt-5">
+      <div class="col-12" id="dostawa-container">
+        <?= $this->action('dostawa', 'kasa') ?>
+      </div>
+    </div>
+    <div class="row mt-5">
+      <div class="col-12" id="platnosc-container">
+        <?= $this->action('platnosc', 'kasa') ?>
+      </div>
+    </div>
+    <div class="row mt-5">
+      <div class="col-12" id="podsumowanie-container">
+        <?= $this->action('podsumowanie', 'kasa') ?>
+      </div>
+    </div>
+    <div class="row mt-5">
+      <div class="col-12">
+        <form id="form" method="post" action="<?= $this->url([
+          'controller' => 'kasa',
+          'action' => 'finalizacja'
+        ], 'default') ?>"><?php /*
+          <div class="form-check my-2">
+            <input class="form-check-input" type="checkbox" name="regulamin" id="regulamin" value="1">
+            <label class="form-check-label w-100" for="platnoscprzelew">
+              Akceptuję <a href="#">Regulamin</a>
+            </label>
+          </div> */ ?>
+          <button class="btn btn-lg btn-primary btn-block" type="submit">Zamawiam</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+<?php $this->inlineScript()->captureStart() ?>
+dataLayer.push({
+  event: 'checkout',
+  currencyCode: 'PLN',
+  produktyWartosc: <?= $this->koszyk->bruttoPoRabacie ?>,
+  ecommerce: {
+    currencyCode: 'PLN',
+    checkout: {
+      actionField: {
+        revenue: <?= $this->koszyk->bruttoPoRabacie ?>
+      }
+    }
+  }
+});
+<?php $this->inlineScript()->captureEnd() ?>
+
+<script>
+$('button[type=submit]').click((e) => {
+  $(this).prop('disabled', true);
+    var isValid = true;
+    if (!klientValidate($('#form-klient').serialize())) {
+      isValid = false;
+    }
+    if (!dostawaValidate()) {
+      if (isValid) scrollToDostawa();
+      isValid = false;
+    }
+    if (!platnoscValidate()) {
+      if (isValid) scrollToPlatnosc();
+      isValid = false;
+    }
+
+    if (!isValid) e.preventDefault();
+
+    $(this).removeProp('disabled');
+    console.log(isValid);
+});
+</script>

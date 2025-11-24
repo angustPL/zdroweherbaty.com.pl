@@ -31,7 +31,9 @@ Route::get('/koszyk', App\Livewire\Pages\Cart::class)->name('cart');
 
 // Zamówienie
 Volt::route('/zamawianie', 'pages.order-create')->name('order.create');
-Volt::route('/zamowienie/{ext_order_id}', 'pages.order-info')->name('order.info');
+Volt::route('/zamowienie/{ext_order_id}', 'pages.order-info')
+    ->middleware([\App\Http\Middleware\SetOrderNotFoundStatus::class])
+    ->name('order.info');
 
 // PayU callbacks
 Route::post('/payu/notify', [App\Http\Controllers\PayuController::class, 'notify'])->name('payu.notify');

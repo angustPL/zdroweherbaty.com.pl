@@ -46,7 +46,12 @@
                     });
                 }
             ">
-            <img src="{{ Storage::disk('public')->exists('img/towary/' . $productId . '_200x120.jpg') ? Storage::disk('public')->url('img/towary/' . $productId . '_200x120.jpg') : asset('img/towary/placeholder.jpg') }}"
+            @php
+                // Fallback: jeśli flaga nie jest ustawiona lub jest false, sprawdź plik bezpośrednio (dla kompatybilności wstecznej)
+                // Używamy isset() aby sprawdzić czy właściwość istnieje, jeśli nie - sprawdzamy plik
+                $imageExists = isset($hasImageSmall) ? $hasImageSmall : Storage::disk('public')->exists('img/towary/' . $productId . '_200x120.jpg');
+            @endphp
+            <img src="{{ $imageExists ? Storage::disk('public')->url('img/towary/' . $productId . '_200x120.jpg') : asset('img/towary/placeholder.jpg') }}"
                 alt="{{ $productName }}"
                 class="w-auto {{ $variant === 'compact' ? 'max-h-[80px]' : 'max-h-[120px] ?>' }} mx-auto my-[80px]">
         </a>

@@ -242,7 +242,7 @@ class PayuController extends Controller
                 ]);
 
                 // Jeśli płatność nie powiodła się, zapisz informację o błędzie
-                if ($payment->status === 'failed' && $payment->failure_reason) {
+                if ($payment->status === \App\Enums\PaymentStatus::FAILED && $payment->failure_reason) {
                     Log::warning('PayU notify: Payment failed', [
                         'order_id' => $payment->order->id,
                         'ext_order_id' => $payment->order->ext_order_id,
@@ -294,22 +294,22 @@ class PayuController extends Controller
         $status = $orderData['status'] ?? null;
         $statusDesc = $orderData['statusDesc'] ?? null;
 
-        // Mapuj status PayU na status lokalny
+        // Mapuj status PayU na status lokalny (Enum)
         $localStatus = $this->payuService->mapPayuStatusToLocal($status);
 
         // Przygotuj dane do aktualizacji
         $updateData = [
-            'status' => $localStatus,
+            'status' => $localStatus->value,
             'payu_data' => $payuData, // Zapisz pełną odpowiedź z PayU
         ];
 
         // Jeśli płatność zakończona sukcesem, ustaw paid_at
-        if ($localStatus === 'completed') {
+        if ($localStatus === \App\Enums\PaymentStatus::COMPLETED) {
             $updateData['paid_at'] = now();
         }
 
         // Jeśli płatność nie powiodła się, zapisz przyczynę
-        if ($localStatus === 'failed' && $statusDesc) {
+        if ($localStatus === \App\Enums\PaymentStatus::FAILED && $statusDesc) {
             $updateData['failure_reason'] = $statusDesc;
         }
 
@@ -320,7 +320,7 @@ class PayuController extends Controller
         $orderStatus = $this->payuService->mapPaymentStatusToOrderStatus($localStatus);
         if ($orderStatus) {
             $payment->order->update([
-                'status' => $orderStatus,
+                'status' => $orderStatus->value,
             ]);
         }
 
@@ -329,8 +329,8 @@ class PayuController extends Controller
             'order_id' => $payment->order->id,
             'payu_order_id' => $orderId,
             'payu_status' => $status,
-            'local_status' => $localStatus,
-            'order_status' => $orderStatus,
+            'local_status' => $localStatus->value,
+            'order_status' => $orderStatus?->value,
         ]);
     }
 }

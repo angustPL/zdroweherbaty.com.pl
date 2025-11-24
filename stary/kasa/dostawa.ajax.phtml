@@ -1,0 +1,145 @@
+<?php if ($this->jsRedirectUrl) : ?>
+  window.location.replace('<?= $this->jsRedirectUrl ?>');
+<?php endif ?>
+
+<legend>Sposób dostawy</legend>
+<div class="errors dostawa_error"></div>
+<table class="w-100">
+    <tbody>
+    <tr>
+        <td>
+        
+        <?php foreach ($this->dostawa as $id => $row) : ?>
+            <div class="form-check my-2">
+                <input class="form-check-input" type="radio" name="dostawa" id="dostawa<?= $id ?>" value="<?= $id ?>"<?= ($id == $this->dostawaCheck['ID']) ? ' checked' : '' ?>>
+                <label class="form-check-label w-100" for="dostawa<?= $id ?>">
+                    <?= $row['Nazwa'] ?> 
+                    <small class="ml-5 float-right">
+                        <?= (!$this->bezplatnaDostawa) ? $this->Currency($row['BruttoValue']) : $this->Currency(0) ?>
+                    </small>
+                
+                <?php if (stripos($row['Nazwa'], Zend_Registry::get('Zend_Config')->enova->zamowienia->dostawa->paczkomat->nazwa) !== false) : ?>
+                    <br><small>Przewidywany czas dostawy: <strong>1 dzień roboczy</strong></small>
+                    
+                    <?php if ($id == $this->dostawaCheck['ID']) : ?>
+                    <?php 
+                    
+                    $paczkomat = '';
+                    if ($this->paczkomat) {
+                        $paczkomat = '<strong>' . $this->paczkomat->name . '</strong><br>'
+                                    . $this->paczkomat->address->line1 . '<br>'
+                                    . $this->paczkomat->address->line2;
+                        $paczkomat_name = $this->paczkomat->name;
+                    }
+                    
+                    ?>
+                    <div id="danePaczkomatu" class="my-2"><?= $paczkomat ?></div>
+                    <input type="hidden" id="paczkomat_name" name="paczkomat_name" value="<?= $paczkomat_name ?>">
+                    <button type="button" class="btn btn-warning btn-sm my-1" onclick="openModal(); return false;"><?= ($this->paczkomat) ? 'Zmień' : 'Wybierz' ?> paczkomat</button>
+                    <div id="easypack-map"></div>
+                    <script type="text/javascript">
+                    window.easyPackAsyncInit = function () {
+                        easyPack.init({
+                            defaultLocale: 'pl',
+                            mapType: 'osm',
+                            searchType: 'osm',
+                            map: {
+                                googleKey: 'AIzaSyDyxnUZuehaTUYAU8FEEie7N0KGk1XMn6c'
+                            },
+                            points: {
+                                types: ['parcel_locker']
+                            },
+                            map: {
+                                initialTypes: ['parcel_locker']
+                            }
+                        });
+    //                      var map = easyPack.mapWidget('easypack-map', function(point) {
+    //                        if (point.name) {
+    //                          $('#paczkomat_name').val(point.name);
+    //                          var csv = '"' + point.name + '"|"' + point.address.line1 + '"|"' + point.address.line2 + '"';
+    //                          $('#danePaczkomatu').html('<strong>' + point.name + '</strong><br>' + point.address.line1 + '<br>' + point.address.line2);
+    //                          $('.dostawa_error').text('');
+    //                          $.cookie("paczkomat", JSON.stringify(point), {expires: 1});
+    //                          $.cookie("paczkomat_csv", csv, {expires: 1});
+    //                          console.log(point);
+    //                          $("#form-koszykAdd").submit();
+    //                        } else {
+    //                          $('.dostawa_error').text('Brak danych paczkomatu');
+    //                        }
+    //                        console.log(point);
+    //                      });
+                        };
+                        function openModal() {
+                            easyPack.modalMap(function(point, modal) {
+                                modal.closeModal();
+                                if (point.name) {
+                                    $('#paczkomat_name').val(point.name);
+                                    var csv = '"' + point.name + '"|"' + point.address.line1 + '"|"' + point.address.line2 + '"';
+                                    $('#danePaczkomatu').html('<strong>' + point.name + '</strong><br>' + point.address.line1 + '<br>' + point.address.line2);
+                                    $('.dostawa_error').text('');
+                                    $.cookie("paczkomat", JSON.stringify(point), {expires: 1});
+                                    $.cookie("paczkomat_csv", csv, {expires: 1});
+                                    console.log(point);
+                                    if (point.name != '<?= $this->paczkomat->name ?>') {
+                                        $("#form-koszykAdd").submit();
+                                    }
+                                } else {
+                                    $('.dostawa_error').text('Brak danych paczkomatu');
+                                }
+                            }, { width: 500 });
+                        };
+                    </script>
+                <?php endif ?>
+                
+            <?php endif ?>
+                
+                </label>
+            </div>
+            <?php endforeach ?>
+            
+        </td>
+    </tr>
+    </tbody>
+</table>
+
+<script type="text/javascript">
+var scrollToDostawa = () => {
+    $('html, body').animate({
+        scrollTop: $("#dostawa-container").offset().top - $('.navbar').outerHeight()
+    }, 500);
+}
+var setDostawa = (val_dostawa) => {
+    $.ajax({
+        type: 'POST',
+        url: '<?= $this->url(array(
+            'controller'=>'kasa',
+            'action'=>'dostawa',
+            'format'=>'html'), 'default', true) ?>',
+        data: {'dostawa': val_dostawa},
+        success: function(data) {
+            $('#dostawa-container').html(data);
+        },
+        error: function(error) {
+            alert('Nie udało się zapisać wyboru');
+            console.log(error);
+        }
+    }).done(() => {
+        setPlatnosc();
+        getPodsumowanie();
+    });
+}
+var dostawaValidate = (data) => {
+    var validate = true;
+    if (!$('input[name=dostawa]:checked').val()) {
+        $('.dostawa_error').text('Proszę wybrać sposób dostawy');
+        validate = false;
+    } else if ($('#paczkomat_name').length && !$('#paczkomat_name').val()) {
+        $('.dostawa_error').text('Proszę wybrać paczkomat');
+        validate = false;
+    } else $('.dostawa_error').empty();
+    return validate;
+}
+$('input[name=dostawa]').change(function() {
+    setDostawa($(this).val());
+});
+</script>

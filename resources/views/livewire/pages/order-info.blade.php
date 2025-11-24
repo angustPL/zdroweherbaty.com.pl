@@ -51,9 +51,12 @@ state([
     'enovaOrder' => null,
     'extOrderId' => null,
     'orderStatus' => null,
+    'paymentStatus' => null, // Status płatności (osobno od statusu zamówienia)
     'orderNumber' => null,
     'orderDate' => null,
     'showPaymentSuccess' => false,
+    'notFound' => false, // Flaga czy zamówienie nie zostało znalezione
+    'recommendedProducts' => [], // Rekomendowane produkty do wyświetlenia gdy zamówienie nie znalezione
 ]);
 
 mount(function ($ext_order_id) {
@@ -93,11 +96,36 @@ mount(function ($ext_order_id) {
         $this->order = Order::where('ext_order_id', $ext_order_id)->first();
 
         if (!$this->order) {
-            abort(404, 'Zamówienie nie zostało znalezione.');
+            // Zamówienie nie znalezione - ustawiamy flagę i zwracamy 404, ale wyświetlamy komunikat na stronie
+            $this->notFound = true;
+            // Ustawiamy kod odpowiedzi HTTP na 404 przez session, aby middleware mógł to odczytać
+            session(['order_not_found_404' => true]);
+            
+            // Pobierz kilka losowych produktów do rekomendacji
+            try {
+                $this->recommendedProducts = Product::with(['productNameFeature', 'price', 'group'])
+                    ->inRandomOrder()
+                    ->take(6)
+                    ->get()
+                    ->map(function ($product) {
+                        return $product->toDisplayArray();
+                    })
+                    ->toArray();
+            } catch (\Exception $e) {
+                // W przypadku błędu, zostaw puste produkty
+                $this->recommendedProducts = [];
+                Log::warning('Nie udało się pobrać rekomendowanych produktów: ' . $e->getMessage());
+            }
+            
+            return; // Przerwij dalsze wykonywanie, jeśli zamówienie nie zostało znalezione
         }
 
-        // Status z lokalnej bazy
-        $this->orderStatus = $this->order->status === 'paid' ? 'Opłacone' : ($this->order->status === 'pending' ? 'Oczekuje na płatność' : ($this->order->status === 'failed' ? 'Płatność nieudana' : $this->order->status));
+        // Status z lokalnej bazy - używamy label() z enum dla polskich nazw
+        $this->orderStatus = $this->order->status->label();
+        // Status płatności - używamy label() z enum PaymentStatus
+        if ($this->order->payment) {
+            $this->paymentStatus = $this->order->payment->status->label();
+        }
         $this->orderNumber = null; // Nie ma jeszcze numeru z Enova
         $this->orderDate = $this->order->created_at;
 
@@ -127,19 +155,19 @@ mount(function ($ext_order_id) {
                             if ($localStatus !== $this->order->payment->status) {
                                 $oldStatus = $this->order->payment->status;
                                 $updateData = [
-                                    'status' => $localStatus,
+                                    'status' => $localStatus->value,
                                     'payu_data' => $payuData,
                                 ];
 
-                                if ($localStatus === 'completed') {
+                                if ($localStatus === \App\Enums\PaymentStatus::COMPLETED) {
                                     $updateData['paid_at'] = now();
                                     // Jeśli status zmienił się na completed, wyświetl komunikat sukcesu
-                                    if ($oldStatus !== 'completed') {
+                                    if ($oldStatus !== \App\Enums\PaymentStatus::COMPLETED) {
                                         $this->showPaymentSuccess = true;
                                     }
                                 }
 
-                                if ($localStatus === 'failed' && $statusDesc) {
+                                if ($localStatus === \App\Enums\PaymentStatus::FAILED && $statusDesc) {
                                     $updateData['failure_reason'] = $statusDesc;
                                 }
 
@@ -148,14 +176,17 @@ mount(function ($ext_order_id) {
                                 // Zaktualizuj status zamówienia
                                 $orderStatus = $payuService->mapPaymentStatusToOrderStatus($localStatus);
                                 if ($orderStatus) {
-                                    $this->order->update(['status' => $orderStatus]);
+                                    $this->order->update(['status' => $orderStatus->value]);
                                 }
 
                                 // Odśwież dane zamówienia
                                 $this->order->refresh();
 
-                                // Zaktualizuj wyświetlany status
-                                $this->orderStatus = $this->order->status === 'paid' ? 'Opłacone' : ($this->order->status === 'pending' ? 'Oczekuje na płatność' : ($this->order->status === 'failed' ? 'Płatność nieudana' : $this->order->status));
+                                // Zaktualizuj wyświetlany status - używamy label() z enum dla polskich nazw
+                                $this->orderStatus = $this->order->status->label();
+                                // Zaktualizuj status płatności
+                                $this->order->payment->refresh();
+                                $this->paymentStatus = $this->order->payment->status->label();
 
                                 Log::info('PayU: Payment status updated from order-info page', [
                                     'payment_id' => $this->order->payment->id,
@@ -194,16 +225,15 @@ mount(function ($ext_order_id) {
                         d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                 </svg>
                 <div class="flex-1">
-                    <h3 class="text-lg font-semibold text-green-800 mb-2">Płatność zrealizowana pomyślnie!</h3>
-                    <p class="text-green-700">Twoje zamówienie zostało opłacone i zostanie zrealizowane w najbliższym
-                        czasie.</p>
+                    <h3 class="text-lg font-semibold text-green-800 mb-2">{{ __('Płatność zrealizowana pomyślnie!') }}</h3>
+                    <p class="text-green-700">{{ __('Twoje zamówienie zostało opłacone i zostanie zrealizowane w najbliższym czasie.') }}</p>
                 </div>
             </div>
         </div>
     @endif
 
     {{-- Komunikat błędu --}}
-    @if (session('order_error') || $orderStatus === 'Płatność nieudana')
+    @if (session('order_error') || $orderStatus === __('Płatność nieudana'))
         <div class="mb-6 bg-red-50 border border-red-200 rounded-lg p-6">
             <div class="flex items-start">
                 <svg class="w-6 h-6 text-red-600 mr-3 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -219,7 +249,44 @@ mount(function ($ext_order_id) {
         </div>
     @endif
 
-    @if ($enovaOrder || $order)
+    @if ($notFound)
+        {{-- Komunikat o braku zamówienia z kodem 404 --}}
+        <div class="bg-red-50 border border-red-200 rounded-lg p-6 text-center mb-8">
+            <svg class="mx-auto h-12 w-12 text-red-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+            </svg>
+            <h2 class="text-xl font-semibold text-red-800 mb-2">Nie znaleziono zamówienia</h2>
+            <p class="text-red-700 mb-4">Zamówienie o podanym numerze nie zostało znalezione w systemie.</p>
+            <p class="text-sm text-red-600 mb-6">Sprawdź czy numer zamówienia został wprowadzony poprawnie.</p>
+            
+            {{-- Przycisk do strony głównej --}}
+            <a href="{{ route('home') }}" 
+               class="inline-flex items-center px-6 py-3 bg-primary hover:bg-primary/90 text-white font-semibold rounded-lg transition-colors duration-200">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
+                </svg>
+                Przejdź do strony głównej
+            </a>
+        </div>
+        
+        {{-- Rekomendowane produkty --}}
+        @if (!empty($recommendedProducts))
+            <div class="mb-8">
+                <h2 class="text-2xl font-bold text-gray-900 mb-6">Polecane produkty</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    @foreach ($recommendedProducts as $product)
+                        <livewire:components.product-card 
+                            :product-id="$product['ID']" 
+                            :product-name="$product['Nazwa']" 
+                            :product-price="$product['BruttoValue']"
+                            :product-group="$product['Grupa']" 
+                            :product-weight="$product['MasaBruttoValue']" 
+                            variant="default" />
+                    @endforeach
+                </div>
+            </div>
+        @endif
+    @elseif ($enovaOrder || $order)
         {{-- Tytuł strony --}}
         <div class="mb-6">
             <h1 class="text-3xl font-bold text-gray-900">Szczegóły zamówienia</h1>
@@ -234,7 +301,7 @@ mount(function ($ext_order_id) {
                         @if (!empty($orderNumber))
                             {{ $orderNumber }}
                         @elseif ($order)
-                            #{{ $order->id }}
+                            <span class="text-gray-500 italic">{{ __('Numer zostanie przypisany po rejestracji w systemie') }}</span>
                         @else
                             -
                         @endif
@@ -365,27 +432,27 @@ mount(function ($ext_order_id) {
                         <div class="grid grid-cols-2 gap-4"
                             style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem;">
                             <div>
-                                <h3 class="text-sm font-medium text-gray-500 mb-1">Sposób płatności</h3>
+                                <h3 class="text-sm font-medium text-gray-500 mb-1">{{ __('Sposób płatności') }}</h3>
                                 <p class="text-gray-900">
                                     @if ($order->payment->payu_order_id)
                                         PayU
                                     @else
-                                        Gotówka przy odbiorze
+                                        {{ __('Gotówka przy odbiorze') }}
                                     @endif
                                 </p>
                             </div>
                             <div>
                                 {{-- Status płatności wyświetlamy tylko jeśli to nie gotówka --}}
                                 @if ($order->payment->payu_order_id)
-                                    <h3 class="text-sm font-medium text-gray-500 mb-1">Status płatności</h3>
+                                    <h3 class="text-sm font-medium text-gray-500 mb-1">{{ __('Status płatności') }}</h3>
                                     <span
                                         class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium
-                                    @if ($orderStatus === 'Opłacone') bg-green-100 text-green-800
-                                    @elseif($orderStatus === 'Zarejestrowane w systemie') bg-blue-100 text-blue-800
-                                    @elseif($orderStatus === 'Oczekuje na płatność') bg-yellow-100 text-yellow-800
-                                    @elseif($orderStatus === 'Płatność nieudana') bg-red-100 text-red-800
+                                    @if ($paymentStatus === __('Opłacone')) bg-green-100 text-green-800
+                                    @elseif($paymentStatus === __('Oczekuje na potwierdzenie')) bg-blue-100 text-blue-800
+                                    @elseif($paymentStatus === __('Oczekuje na płatność')) bg-yellow-100 text-yellow-800
+                                    @elseif($paymentStatus === __('Nieudane')) bg-red-100 text-red-800
                                     @else bg-gray-100 text-gray-800 @endif">
-                                        {{ $orderStatus }}
+                                        {{ $paymentStatus ?? 'Oczekuje na płatność' }}
                                     </span>
                                 @else
                                     {{-- Dla gotówki pozostaw puste miejsce, aby zachować układ kolumn --}}
@@ -623,12 +690,80 @@ mount(function ($ext_order_id) {
                             </tbody>
                         </table>
                     </div>
-                    {{-- Podsumowanie produktów --}}
+                    {{-- Koszt dostawy dla Enova --}}
+                    @php
+                        // Znajdź pozycję dostawy
+                        $deliveryPosition = null;
+                        if ($positions) {
+                            foreach ($positions as $pos) {
+                                $productId = $pos->Towar ?? null;
+                                $product = null;
+                                $kod = '';
+                                try {
+                                    $product = $productId ? Product::find($productId) : null;
+                                    if ($product) {
+                                        $kod = strtolower($product->Kod ?? '');
+                                    }
+                                } catch (\Exception $e) {
+                                }
+                                $isDelivery = !empty($kod) && (str_contains($kod, 'przes') || str_contains($kod, 'dostaw'));
+                                if ($isDelivery) {
+                                    $deliveryPosition = $pos;
+                                    break;
+                                }
+                            }
+                        }
+                        // Oblicz koszt dostawy
+                        $deliveryCost = 0;
+                        $deliveryPrice = 0;
+                        $deliveryName = 'Dostawa';
+                        if ($deliveryPosition) {
+                            $deliveryPrice = $deliveryPosition->CenaValue ?? 0;
+                            $deliveryCost = $deliveryPrice * (int) ($deliveryPosition->IloscValue ?? 1);
+                            // Spróbuj pobrać nazwę produktu dostawy
+                            if ($productId = $deliveryPosition->Towar ?? null) {
+                                try {
+                                    $deliveryProduct = Product::find($productId);
+                                    if ($deliveryProduct) {
+                                        $deliveryNameFeature = $deliveryProduct->features()->where('Name', config('enova.features.product_name'))->first();
+                                        if ($deliveryNameFeature) {
+                                            $deliveryName = $deliveryNameFeature->Wartosc ?? 'Dostawa';
+                                        }
+                                    }
+                                } catch (\Exception $e) {
+                                }
+                            }
+                        }
+                        // Oblicz razem
+                        $sumaBrutto = $enovaOrder->SumaBrutto ?? ($subtotal ?? 0);
+                        $total = $sumaBrutto + $deliveryCost;
+                        // Sprawdź czy jest dostawa (jeśli nie ma deliveryPosition, to odbiór osobisty)
+                        $hasDelivery = $deliveryPosition !== null;
+                    @endphp
+                    {{-- Podsumowanie produktów - tylko jeśli jest dostawa (nie odbiór osobisty) --}}
+                    @if ($hasDelivery)
+                        <div class="p-6 border-t bg-gray-50">
+                            <div class="flex justify-between text-sm text-gray-600 font-semibold">
+                                <span>Wartość produktów:</span>
+                                <span>{{ number_format($subtotal ?? 0, 2, ',', '.') }}
+                                    zł</span>
+                            </div>
+                        </div>
+                    @endif
+                    {{-- Koszt dostawy - pokazuj jeśli jest dostawa (nawet jeśli darmowa) --}}
+                    @if ($hasDelivery)
+                        <div class="p-6 border-t bg-white">
+                            <div class="flex justify-between text-sm text-gray-600">
+                                <span>Dostawa ({{ $deliveryName }}):</span>
+                                <span class="font-medium">{{ number_format($deliveryCost, 2, ',', '.') }} zł</span>
+                            </div>
+                        </div>
+                    @endif
+                    {{-- Razem --}}
                     <div class="p-6 border-t bg-gray-50">
-                        <div class="flex justify-between text-sm text-gray-600">
-                            <span>Wartość produktów:</span>
-                            <span class="font-medium">{{ number_format($subtotal ?? 0, 2, ',', '.') }}
-                                zł</span>
+                        <div class="flex justify-between text-lg font-semibold text-gray-900">
+                            <span>Razem:</span>
+                            <span>{{ number_format($total, 2, ',', '.') }} zł</span>
                         </div>
                     </div>
                 @else
@@ -703,11 +838,33 @@ mount(function ($ext_order_id) {
                         </tbody>
                     </table>
                 </div>
-                {{-- Podsumowanie produktów --}}
+                @php
+                    // Sprawdź czy jest dostawa (jeśli nie ma delivery_name, to odbiór osobisty)
+                    $hasDelivery = !empty($order->delivery_name);
+                @endphp
+                {{-- Podsumowanie produktów - tylko jeśli jest dostawa (nie odbiór osobisty) --}}
+                @if ($hasDelivery)
+                    <div class="p-6 border-t bg-gray-50">
+                        <div class="flex justify-between text-sm text-gray-600 font-semibold">
+                            <span>Wartość produktów:</span>
+                            <span>{{ number_format($order->subtotal, 2, ',', '.') }} zł</span>
+                        </div>
+                    </div>
+                @endif
+                {{-- Koszt dostawy - pokazuj jeśli jest dostawa (nawet jeśli darmowa) --}}
+                @if ($hasDelivery)
+                    <div class="p-6 border-t bg-white">
+                        <div class="flex justify-between text-sm text-gray-600">
+                            <span>Dostawa ({{ $order->delivery_name }}):</span>
+                            <span class="font-medium">{{ number_format($order->delivery_cost ?? 0, 2, ',', '.') }} zł</span>
+                        </div>
+                    </div>
+                @endif
+                {{-- Razem --}}
                 <div class="p-6 border-t bg-gray-50">
-                    <div class="flex justify-between text-sm text-gray-600">
-                        <span>Wartość produktów:</span>
-                        <span class="font-medium">{{ number_format($order->subtotal, 2, ',', '.') }} zł</span>
+                    <div class="flex justify-between text-lg font-semibold text-gray-900">
+                        <span>Razem:</span>
+                        <span>{{ number_format($order->total, 2, ',', '.') }} zł</span>
                     </div>
                 </div>
             @else
@@ -716,80 +873,6 @@ mount(function ($ext_order_id) {
                 </div>
             @endif
 
-            {{-- Podsumowanie dostawy i razem --}}
-            @if ($enovaOrder)
-                @php
-                    // Użyj SumaBrutto z Enova lub obliczony subtotal (już bez dostawy)
-                    $sumaBrutto = $enovaOrder->SumaBrutto ?? ($subtotal ?? 0);
-
-                    // Znajdź pozycję dostawy
-                    $deliveryPosition = null;
-                    $positions = $enovaOrder->positions;
-                    if ($positions) {
-                        foreach ($positions as $pos) {
-                            $productId = $pos->Towar ?? null;
-                            $product = null;
-                            $kod = '';
-                            try {
-                                $product = $productId ? Product::find($productId) : null;
-                                if ($product) {
-                                    $kod = strtolower($product->Kod ?? '');
-                                }
-                            } catch (\Exception $e) {
-                            }
-                            $isDelivery = !empty($kod) && (str_contains($kod, 'przes') || str_contains($kod, 'dostaw'));
-                            if ($isDelivery) {
-                                $deliveryPosition = $pos;
-                                break;
-                            }
-                        }
-                    }
-
-                    // Oblicz koszt dostawy
-                    $deliveryCost = 0;
-                    if ($deliveryPosition) {
-                        $deliveryCost =
-                            ($deliveryPosition->CenaValue ?? 0) * (int) ($deliveryPosition->IloscValue ?? 1);
-                    }
-
-                    $total = $sumaBrutto + $deliveryCost;
-                @endphp
-                <div class="p-6 border-t bg-gray-50">
-                    <h2 class="text-xl font-semibold mb-4 pb-3">Podsumowanie</h2>
-                    <div class="space-y-2">
-                        @if ($deliveryCost > 0)
-                            <div class="flex justify-between text-sm text-gray-600">
-                                <span>Dostawa:</span>
-                                <span>{{ number_format($deliveryCost, 2, ',', '.') }} zł</span>
-                            </div>
-                        @endif
-                        <div class="flex justify-between text-lg font-semibold text-gray-900 pt-2 border-t">
-                            <span>Razem:</span>
-                            <span>{{ number_format($total, 2, ',', '.') }} zł</span>
-                        </div>
-                    </div>
-                </div>
-            @elseif ($order)
-                <div class="p-6 border-t bg-gray-50">
-                    <h2 class="text-xl font-semibold mb-4 pb-3">Podsumowanie</h2>
-                    <div class="space-y-2">
-                        @if ($order->delivery_cost > 0)
-                            <div class="flex justify-between text-sm text-gray-600">
-                                <span>Dostawa ({{ $order->delivery_name }}):</span>
-                                <span>{{ number_format($order->delivery_cost, 2, ',', '.') }} zł</span>
-                            </div>
-                        @endif
-                        <div class="flex justify-between text-lg font-semibold text-gray-900 pt-2 border-t">
-                            <span>Razem:</span>
-                            <span>{{ number_format($order->total, 2, ',', '.') }} zł</span>
-                        </div>
-                    </div>
-                </div>
-            @endif
-        </div>
-    @else
-        <div class="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
-            <p class="text-red-800">Nie znaleziono zamówienia o podanym numerze.</p>
         </div>
     @endif
 </div>

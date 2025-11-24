@@ -11,6 +11,7 @@ class ProductCard extends Component
     public $productPrice;
     public $productGroup;
     public $productWeight;
+    public $hasImageSmall = false;
     public $variant = 'default'; // 'default', 'featured', 'compact'
     public $showAddToCart = true;
     public $showPrice = true;
@@ -22,6 +23,7 @@ class ProductCard extends Component
         $productPrice,
         $productGroup = null,
         $productWeight = 0,
+        $hasImageSmall = false,
         $variant = 'default',
         $showAddToCart = true,
         $showPrice = true,
@@ -32,6 +34,7 @@ class ProductCard extends Component
         $this->productPrice = $productPrice;
         $this->productGroup = $productGroup;
         $this->productWeight = $productWeight;
+        $this->hasImageSmall = $hasImageSmall;
         $this->variant = $variant;
         $this->showAddToCart = $showAddToCart;
         $this->showPrice = $showPrice;

@@ -9,12 +9,8 @@ layout('layouts.app');
 state(['products' => []]);
 
 mount(function () {
-    // Pobieranie produktów z nazwą i ceną
-    $this->products = Product::with(['productNameFeature', 'price', 'group'])
-        ->get()
-        ->map(function ($product) {
-            return $product->toDisplayArray();
-        });
+    // Pobieranie produktów z cache'owaniem (TTL z konfiguracji, domyślnie 24h)
+    $this->products = Product::getCachedAll();
 
     // GTM page type
     try {
@@ -26,6 +22,13 @@ mount(function () {
 
 ?>
 
+@push('header-banner')
+    {{-- Banner z obrazem tła - pełna szerokość tuż pod headerem --}}
+    <div class="w-full h-[250px] md:h-[350px] lg:h-[450px] bg-cover bg-center bg-no-repeat"
+        style="background-image: url('{{ asset('img/bifix-hp-bg.jpg') }}');">
+    </div>
+@endpush
+
 <div class="py-6">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="text-center mb-12">
@@ -33,15 +36,14 @@ mount(function () {
                 Zdrowe herbaty BIFIX
             </h1>
             <p class="text-lg text-gray-600">
-                {{ $products->count() }} produktów
+                {{ count($products) }} produktów
             </p>
         </div>
-
-        @if ($products->count() > 0)
+        @if (count($products) > 0)
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 @foreach ($products as $product)
                     <livewire:components.product-card :product-id="$product['ID']" :product-name="$product['Nazwa']" :product-price="$product['BruttoValue']"
-                        :product-group="$product['Grupa']" :product-weight="$product['MasaBruttoValue']" variant="default" />
+                        :product-group="$product['Grupa']" :product-weight="$product['MasaBruttoValue']" :has-image-small="$product['HasImageSmall'] ?? false" variant="default" />
                 @endforeach
             </div>
         @else

@@ -1,0 +1,120 @@
+<legend>Podsumowanie</legend>
+<div class="table-responsive">
+  <table class="table table-sm mb-1">
+      <thead class="small">
+          <tr>
+              <th>Nazwa</th>
+              <th class="text-right">Cena</th>
+              <th class="text-center">Ilość</th>
+              <th class="text-right">Suma</th>
+          </tr>
+      </thead>
+      <?php foreach ($this->towary as $towar) : ?>
+      <?php 
+
+          if ($towar['PrzecenaBruttoValue']) {
+              $brutto = $towar['PrzecenaBruttoValue'];
+              $netto = $towar['PrzecenaNettoValue'];
+          } else {
+              $brutto = $towar['BruttoValue'];
+              $netto = $towar['NettoValue'];
+          }
+          $suma = $brutto * $this->koszyk->ilosc($towar['ID']);
+          $lp ++;
+          $wagaRazem += $towar['MasaNettoValue'] * $this->koszyk->ilosc($towar['ID']);
+          $sumaRazem += $suma;
+
+      ?>
+      <?php $filterSanitize = new Mhujer_Filter_Sanitize() ?>
+      <?php $nazwaSanitize = $filterSanitize->filter($towar['Nazwa']) ?>
+      <tr>
+        <td><a href="<?= $this->url(array(
+                      'controller' => 'towary', 
+                      'action' => 'towar', 
+                      'id' => $towar['ID'], 
+                      'nazwa' => $nazwaSanitize), 'towar', true) ?>">
+              <?= $towar['Nazwa'] ?>
+            </a>
+        </td>
+        <td class="text-right">
+          <?= $this->Currency($brutto) ?>
+            <?php if ($towar['PrzecenaBruttoValue']) : ?>
+                <br><s class="small text-muted text-nowrap"><?= $this->Currency($towar['BruttoValue']) ?></s>
+            <?php endif ?>
+        </td>
+        <td class="text-center"><?= $this->koszyk->ilosc($towar['ID']) ?></td>
+        <td class="text-right text-nowrap font-weight-bold"><?= $this->Currency($suma) ?></td>
+      </tr>
+      <?php endforeach; ?>
+
+      <?php if (!empty($this->dostawa)) : ?>
+      <tr>
+          <td>
+            Dostawa
+          </td>
+          <td class="text-right text-nowrap font-weight-bold" colspan="3">
+                <?php if ($this->bezplatnaDostawa) : ?>
+                    <?= $this->Currency(0) ?>
+
+                <?php else : ?>
+                    <?= $this->Currency($this->dostawa['BruttoValue']) ?>
+                    <?php $sumaRazem += $this->dostawa['BruttoValue'] ?>
+
+                <?php endif ?>
+          </td>
+      </tr>
+
+      <?php elseif (!$this->bezplatnaDostawa) : ?>
+      <tr>
+          <td>
+            Dostawa
+          </td>
+          <td class="text-right text-nowrap font-weight-bold" colspan="3">
+              <?= $this->Currency(0) ?>
+          </td>
+      </tr>
+
+      <?php else : ?>
+      <tr id="koszyk-dostawa">
+          <td>
+            Dostawa
+          </td>
+          <td class="text-right font-weight-bold" colspan="3">-</td>
+          <td></td>
+      </tr>
+      <?php endif ?>
+
+      <tfoot class="h5">
+          <tr>
+              <td colspan="3">Razem do zapłaty:</td>
+              <td class="text-right font-weight-bold"><?= $this->Currency($sumaRazem) ?></td>
+          </tr>
+      </tfoot>
+  </table>
+</div>
+<?php if ($this->kodRabatowy) : ?>
+<p>Użyty kod rabatowy: <strong><?= $this->kodRabatowy ?></strong> (-<?= $this->kodRabat ?>%)</p>
+<?php endif ?>
+<div>
+    <a class="btn btn-outline-secondary btn-block" href="<?= $this->url([], 'koszyk', true) ?>">edytuj Koszyk</a>
+</div>
+
+<script type="text/javascript">
+var getPodsumowanie = (val_dostawa) => {
+    $.ajax({
+        type: 'POST',
+        url: '<?= $this->url(array(
+            'controller'=>'kasa',
+            'action'=>'podsumowanie',
+            'format'=>'html'), 'default', true) ?>',
+        data: null,
+        success: function(data) {
+            $('#podsumowanie-container').html(data);
+        },
+        error: function(error) {
+            alert('Nie udało się zapisać wyboru');
+            console.log(error);
+        }
+    });
+}
+</script>

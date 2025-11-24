@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Scout\Searchable;
 
 class Product extends EnovaModel
@@ -126,7 +128,7 @@ class Product extends EnovaModel
         $cacheTtl = $ttl ?? config('enova.cache.ttl', 86400);
 
         return Cache::remember($cacheKey, $cacheTtl, function () use ($groupPath) {
-            return static::with(['productNameFeature', 'price', 'group'])
+            return static::with(['productNameFeature', 'price', 'group', 'productMark'])
                 ->whereHas('group', function ($query) use ($groupPath) {
                     $query->where('Data', $groupPath);
                 })
@@ -151,11 +153,33 @@ class Product extends EnovaModel
         $cacheTtl = $ttl ?? config('enova.cache.ttl', 86400);
 
         return Cache::remember($cacheKey, $cacheTtl, function () use ($productId) {
-            $product = static::with(['productNameFeature', 'price', 'group'])
+            $product = static::with(['productNameFeature', 'price', 'group', 'productMark'])
                 ->where('ID', $productId)
                 ->first();
 
             return $product ? $product->toDisplayArray() : null;
+        });
+    }
+
+    /**
+     * Pobiera wszystkie produkty z cache'owaniem.
+     * Wyniki są cache'owane zgodnie z konfiguracją (domyślnie 24 godziny).
+     *
+     * @param int|null $ttl Czas życia cache w sekundach (domyślnie z konfiguracji)
+     * @return array
+     */
+    public static function getCachedAll(?int $ttl = null): array
+    {
+        $cacheKey = 'enova_products_all';
+        $cacheTtl = $ttl ?? config('enova.cache.ttl', 86400);
+
+        return Cache::remember($cacheKey, $cacheTtl, function () {
+            return static::with(['productNameFeature', 'price', 'group', 'productMark'])
+                ->get()
+                ->map(function ($product) {
+                    return $product->toDisplayArray();
+                })
+                ->toArray();
         });
     }
 
@@ -166,6 +190,10 @@ class Product extends EnovaModel
      */
     public function toDisplayArray()
     {
+        // Sprawdź istnienie obrazów raz i zapisz w cache, aby uniknąć wielokrotnych sprawdzeń plików
+        $imageSmall = 'img/towary/' . $this->ID . '_200x120.jpg';
+        $imageLarge = 'img/towary/' . $this->ID . '_800x600.jpg';
+
         return [
             'ID' => $this->ID,
             'Nazwa' => $this->productNameFeature->Name ?? $this->Nazwa,
@@ -183,6 +211,10 @@ class Product extends EnovaModel
             'StandardowaIloscValue' => $this->price->StandardowaIloscValue,
             'Jednostka' => $this->price->Jednostka,
             'StandardowaIloscSymbol' => $this->price->StandardowaIloscSymbol,
+            'HasImageSmall' => Storage::disk('public')->exists($imageSmall),
+            'HasImageLarge' => Storage::disk('public')->exists($imageLarge),
+            'ImageSmallPath' => $imageSmall,
+            'ImageLargePath' => $imageLarge,
         ];
     }
 

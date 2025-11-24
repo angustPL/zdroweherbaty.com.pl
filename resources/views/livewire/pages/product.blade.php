@@ -156,10 +156,12 @@ mount(function ($id, $name = null) {
         </div>
 
         {{-- Podobne produkty --}}
-        <div class="mt-12">
-            <h2 class="text-2xl font-bold text-gray-900 mb-2">Podobne produkty</h2>
-            <livewire:components.similar-products :product-id="$product['ID']" :product-name="$product['Nazwa']" />
-        </div>
+        @if (\App\Livewire\Components\SimilarProducts::hasSimilarProducts($product['ID'], $product['Nazwa']))
+            <div class="mt-12">
+                <h2 class="text-2xl font-bold text-gray-900 mb-2">Podobne produkty</h2>
+                <livewire:components.similar-products :product-id="$product['ID']" :product-name="$product['Nazwa']" />
+            </div>
+        @endif
     @else
         <div class="text-center py-12">
             <p class="text-gray-500 text-lg">Produkt nie został znaleziony</p>

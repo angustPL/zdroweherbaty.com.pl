@@ -113,4 +113,19 @@ return [
         'name' => env('MAIL_FROM_NAME', 'Example'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Global "Reply To" Address
+    |--------------------------------------------------------------------------
+    |
+    | You may wish for all emails sent by your application to have a default
+    | reply-to address. This can be overridden in individual Mailable classes.
+    |
+    */
+
+    'reply_to' => [
+        'address' => env('MAIL_REPLY_TO_ADDRESS', config('enova.orders.email.address', 'sklep@bifix.pl')),
+        'name' => env('MAIL_REPLY_TO_NAME', config('enova.orders.email.name', 'Sklep Bifix')),
+    ],
+
 ];

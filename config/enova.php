@@ -60,6 +60,18 @@ return [
         'symbol' => env('ENOVA_ORDERS_SYMBOL', 'ZOW'),
         'warehouse' => env('ENOVA_ORDERS_WAREHOUSE', 'WWW'),
         'xml_directory' => env('ENOVA_ORDERS_XML_DIRECTORY', storage_path('app/enova/orders')),
+        'xml_destination' => env('ENOVA_ORDERS_XML_DESTINATION', storage_path('app/enova/orders/sent')),
+        'email' => [
+            'address' => env('ENOVA_ORDERS_EMAIL_ADDRESS', 'sklep@bifix.pl'),
+            'name' => env('ENOVA_ORDERS_EMAIL_NAME', 'Sklep Bifix'),
+        ],
+        'ftp' => [
+            'host' => env('ENOVA_ORDERS_FTP_HOST', ''),
+            'user' => env('ENOVA_ORDERS_FTP_USER', ''),
+            'pass' => env('ENOVA_ORDERS_FTP_PASS', ''),
+            'path' => env('ENOVA_ORDERS_FTP_PATH', '/'),
+            'passive' => env('ENOVA_ORDERS_FTP_PASSIVE', true),
+        ],
     ],
 
     'payment' => [

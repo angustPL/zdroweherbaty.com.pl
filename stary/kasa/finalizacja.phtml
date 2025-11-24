@@ -1,0 +1,74 @@
+<?php $this->headTitle('Zamówienie zostało zapisane') ?>
+<?php $this->placeholder('title')->set('Zamówienie zostało przyjęte') ?>
+
+<?php if (!empty($this->zamowienie)) : ?>
+
+  <?php if (empty($this->redirectUrl)) : ?>
+    <p>
+        Dziękujemy za złożenie zamówienia.<br>
+        Szczegóły zostały przesłane na adres e-mail podany przy składaniu zamówienia.
+    </p>
+
+  <?php else : ?>
+    <p>
+      Przekierowuje do operatora płatności.
+    </p>
+    <a href="<?= $this->redirectUrl ?>" id="linkPayu" class="btn btn-success d-none">Przejdź do płatności</a>
+  <?php endif ?>
+
+<?php endif ?>
+
+<?php /*
+<?php if ($this->payu) : ?>
+<p>
+    <form action="<?= Zend_Registry::get('Zend_Config')->payu->url ?>" method="POST" id="payform">
+
+        <?php foreach ($this->payu as $key => $value) : ?>
+        <input type="hidden" name="<?= $key ?>" value="<?= $value ?>">
+        <?php endforeach ?>
+
+        <input type="submit" value="Zapłać teraz on-line" class="btn btn-large btn-success">
+    </form>
+</p>
+<?php endif ?>
+*/ ?>
+
+<?php if (!empty($this->zamowienie)) : ?>
+<?php $this->headScript()->captureStart() ?>
+<?php /* dataLayer.push({ ecommerce: null }); */ ?>
+dataLayer.push({
+  event: 'purchase',
+<?php /*  currencyCode: 'PLN',
+  produktyWartosc: <?= $this->zamowienie['SumaBrutto'] - $this->dostawa['CenaValue'] ?>,
+  zamowienieId: '<?= $this->zamowienie['Guid'] ?>',
+  transaction_id: '<?= $this->zamowienie['Guid'] ?>',
+  value: <?= $this->zamowienie['SumaBrutto'] - $this->dostawa['CenaValue'] ?>,
+  shipping: <?= $this->dostawa['CenaValue'] ?>,
+  currency: 'PLN',
+  items: <?= json_encode($this->ga4_towary) ?>, */ ?>
+  ecommerce: {
+    transaction_id: '<?= $this->zamowienie['Guid'] ?>',
+    value: <?= $this->zamowienie['SumaBrutto'] - $this->dostawa['CenaValue'] ?>,
+    shipping: <?= $this->dostawa['CenaValue'] ?>,
+    currency: 'PLN',
+    items: <?= json_encode($this->ga4_towary) ?>,
+    currencyCode: 'PLN',
+    purchase: {
+      actionField: {
+        id: '<?= $this->zamowienie['Guid'] ?>',
+        revenue: <?= $this->zamowienie['SumaBrutto'] - $this->dostawa['CenaValue'] ?>,
+        shipping: <?= $this->dostawa['CenaValue'] ?>
+      },
+      products: <?= json_encode($this->ga_towary) ?>
+    }
+  }
+});
+
+<?php if (!empty($this->redirectUrl)) : ?>
+  setTimeout(function(){window.location.replace('<?= $this->redirectUrl ?>')}, 1000);
+  $('#linkPayu').show();
+<?php endif ?>
+
+<?php $this->headScript()->captureEnd() ?>
+
+<?php endif;

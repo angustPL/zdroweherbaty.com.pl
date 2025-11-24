@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\PaymentStatus;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -23,14 +24,15 @@ return new class extends Migration
 
             // ===== PAYU =====
             $table->string('payu_order_id')->nullable()->unique(); // ID zamówienia w PayU
-            $table->string('payu_option')->nullable(); // Opcja PayU (blik, c, ap, jp, przelew)
+            $table->string('payu_option')->nullable(); // Opcja PayU (blik, c, ap, jp, p)
             $table->json('payu_data')->nullable(); // Pełna odpowiedź z PayU
 
             // ===== IDENTYFIKATORY =====
             $table->string('ext_order_id', 36)->nullable(); // GUID zamówienia (dla szybkiego wyszukiwania)
 
             // ===== STATUS I KWOTY =====
-            $table->string('status')->default('pending'); // pending, completed, failed, waiting_for_confirmation
+            // Używamy wartości z enum PaymentStatus: pending, waiting_for_confirmation, completed, failed
+            $table->string('status')->default(PaymentStatus::PENDING->value);
             $table->decimal('amount', 10, 2);
             $table->string('currency', 3)->default('PLN');
 

@@ -17,6 +17,14 @@ mount(function () {
         class="lg:hidden border-e border-zinc-200 bg-white dark:border-zinc-700 dark:bg-white z-30 w-full sidebar-wrap-text">
         <flux:sidebar.toggle class="lg:hidden" icon="x-mark" />
 
+        <!-- Pole wyszukiwania produktów - na górze jak na desktopie -->
+        <div class="px-4 pb-2 mb-2">
+            <form method="GET" action="{{ route('search') }}">
+                <flux:input name="q" icon="magnifying-glass" placeholder="Wyszukaj produkty" minlength="2"
+                    autocomplete="off" />
+            </form>
+        </div>
+
         <flux:navlist variant="outline">
             <flux:navlist.group heading="Menu" class="grid">
                 <flux:navlist.item icon="home" :href="route('home')" :current="request()->routeIs('home')">
@@ -34,8 +42,6 @@ mount(function () {
             </flux:navlist.group>
         </flux:navlist>
 
-        <flux:spacer />
-
         <flux:navlist variant="outline">
             <flux:navlist.group heading="Kategorie">
                 @include('livewire.components.sidebar-group', [
@@ -44,9 +50,6 @@ mount(function () {
                 ])
             </flux:navlist.group>
         </flux:navlist>
-
-        <flux:spacer />
-
 
     </flux:sidebar>
 </div>

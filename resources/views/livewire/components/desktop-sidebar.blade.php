@@ -3,27 +3,22 @@
 use function Livewire\Volt\{state, mount, computed};
 use App\Models\Group;
 
-state(['productGroups' => [], 'searchQuery' => '']);
+state(['productGroups' => []]);
 
 mount(function () {
     // Używa cache'owanej metody (TTL z konfiguracji, domyślnie 24h)
     $this->productGroups = Group::getHierarchicalStructure();
 });
 
-// Przekierowanie do strony wyszukiwarki po wpisaniu 2+ znaków
-$searchProducts = function () {
-    if (strlen($this->searchQuery) >= 2) {
-        return redirect()->route('search', ['query' => $this->searchQuery]);
-    }
-};
-
 ?>
 
 <div class="bg-white sidebar-wrap-text">
     <!-- Pole wyszukiwania produktów -->
     <div class="mb-4">
-        <flux:input wire:model.live.debounce.500ms="searchQuery" wire:change="searchProducts" icon="magnifying-glass"
-            placeholder="Wyszukaj produkty" clearable />
+        <form method="GET" action="{{ route('search') }}">
+            <flux:input name="q" icon="magnifying-glass" placeholder="Wyszukaj produkty" minlength="2"
+                autocomplete="off" />
+        </form>
     </div>
 
     <!-- Lista grup produktów -->

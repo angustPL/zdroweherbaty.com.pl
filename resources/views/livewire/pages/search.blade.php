@@ -2,31 +2,64 @@
 
 use function Livewire\Volt\{state, mount, computed, layout};
 use App\Models\Product;
+use Artesaos\SEOTools\Facades\SEOTools;
+use Artesaos\SEOTools\Facades\JsonLd;
 
 layout('layouts.app');
 
 // SEO Meta Tags - canonical URL jest automatycznie ustawiany z konfiguracji
+app('seotools')->setCanonical(url()->current());
 
 // Open Graph - URL jest automatycznie ustawiany z konfiguracji
 
-// Schema.org JSON-LD - wszystkie dane są automatycznie ustawiane z konfiguracji
+// Schema.org JSON-LD - ustawiamy typ przed mount()
+JsonLd::setType('WebSite');
 
 state(['query' => '']);
 state(['perPage' => 12]);
 state(['currentPage' => 1]);
 
 mount(function () {
+    // Pobierz query z URL (używamy 'q' zamiast 'query')
+    $this->query = request()->get('q', '');
+
+    // SEO Meta Tags
+    SEOTools::setTitle('Wyszukiwanie produktów - Zdrowe Herbaty BIFIX');
+    SEOTools::setDescription('Wyszukaj herbaty BIFIX. Znajdź herbaty zielone, czarne, owocowe i ziołowe dla całej rodziny.');
+
+    // Canonical URL
+    SEOTools::setCanonical(route('search'));
+
+    // Open Graph
+    SEOTools::opengraph()->setTitle('Wyszukiwanie produktów - Zdrowe Herbaty BIFIX');
+    SEOTools::opengraph()->setDescription('Wyszukaj herbaty BIFIX. Znajdź herbaty zielone, czarne, owocowe i ziołowe dla całej rodziny.');
+    SEOTools::opengraph()->setType('website');
+    SEOTools::opengraph()->setSiteName('Zdrowe Herbaty BIFIX');
+
+    // Twitter Cards
+    SEOTools::twitter()->setType('summary_large_image');
+    SEOTools::twitter()->setTitle('Wyszukiwanie produktów - Zdrowe Herbaty BIFIX');
+    SEOTools::twitter()->setDescription('Wyszukaj herbaty BIFIX. Znajdź herbaty zielone, czarne, owocowe i ziołowe dla całej rodziny.');
+
+    // Schema.org JSON-LD - WebSite z SearchAction
+    JsonLd::setType('WebSite')
+        ->addValue('name', 'Zdrowe Herbaty BIFIX')
+        ->addValue('description', 'Wyszukaj herbaty BIFIX. Znajdź herbaty zielone, czarne, owocowe i ziołowe dla całej rodziny.')
+        ->addValue('potentialAction', [
+            '@type' => 'SearchAction',
+            'target' => [
+                '@type' => 'EntryPoint',
+                'urlTemplate' => route('search') . '?q={search_term_string}',
+            ],
+            'query-input' => 'required name=search_term_string',
+        ]);
+
     // GTM page type
     try {
         app('googletagmanager')->set('pageType', 'search');
     } catch (\Exception $e) {
         // Silent fail - GTM event not critical for functionality
     }
-});
-
-// Pobierz query z URL
-$query = computed(function () {
-    return request()->get('query', '');
 });
 
 // Wyszukiwanie produktów
@@ -57,17 +90,15 @@ $updatedQuery = function () {
     <!-- Nagłówek -->
     <div class="mb-8">
         <h1 class="text-3xl font-bold text-center text-gray-900 mb-4">
-            @if ($this->query)
-                Wyniki wyszukiwania dla: "{{ $this->query }}"
-            @else
-                Wyszukiwanie produktów
-            @endif
+            Wyniki wyszukiwania
         </h1>
 
         <!-- Pole wyszukiwania -->
         <div class="max-w-md mx-auto">
-            <flux:input wire:model.live.debounce.500ms="query" icon="magnifying-glass" placeholder="Wyszukaj produkty..."
-                clearable />
+            <form method="GET" action="{{ route('search') }}">
+                <flux:input name="q" :value="$query" icon="magnifying-glass"
+                    placeholder="Wyszukaj produkty..." minlength="2" autocomplete="off" />
+            </form>
         </div>
     </div>
 
@@ -83,7 +114,8 @@ $updatedQuery = function () {
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 @foreach ($this->products as $product)
                     <livewire:components.product-card :product-id="$product['ID']" :product-name="$product['Nazwa']" :product-price="$product['BruttoValue']"
-                        :product-group="$product['Grupa']" :product-weight="$product['MasaBruttoValue']" variant="default" :wire:key="$product['ID']" />
+                        :product-group="$product['Grupa']" :product-weight="$product['MasaBruttoValue']" :has-image-small="$product['HasImageSmall'] ?? false" variant="default"
+                        :wire:key="$product['ID']" />
                 @endforeach
             </div>
         @else

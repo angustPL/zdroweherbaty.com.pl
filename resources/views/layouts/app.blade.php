@@ -94,6 +94,9 @@
         <!-- Mobile Sidebar -->
         <livewire:components.sidebar-with-groups />
 
+        <!-- Dynamic Header Banner -->
+        @stack('header-banner')
+
         <!-- Main Content -->
         <main>
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
