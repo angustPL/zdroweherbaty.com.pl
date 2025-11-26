@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 
 class Group extends EnovaModel
 {
@@ -81,6 +82,8 @@ class Group extends EnovaModel
 
     /**
      * Pobiera hierarchiczną strukturę grup.
+     * Tylko grupy, które mają przynajmniej jeden produkt spełniający wszystkie warunki
+     * (ma grupę, ma product_mark=1, nie jest zablokowany).
      * Wyniki są cache'owane zgodnie z konfiguracją (domyślnie 24 godziny).
      *
      * @param int|null $ttl Czas życia cache w sekundach (domyślnie z konfiguracji)
@@ -88,16 +91,48 @@ class Group extends EnovaModel
      */
     public static function getHierarchicalStructure(?int $ttl = null): array
     {
-        $cacheKey = 'enova_groups_hierarchy';
+        $cacheKey = 'enova_groups_hierarchy_with_products';
 
         $cacheTtl = $ttl ?? config('enova.cache.ttl', 86400);
 
         return Cache::remember($cacheKey, $cacheTtl, function () {
-            $groups = self::orderBy('Data')->get();
+            $prefix = config('enova.features.product_group_prefix');
+            $productGroupName = config('enova.features.product_group');
+            $productMark = config('enova.features.product_mark');
+
+            // Pobierz tylko grupy, które mają przynajmniej jeden produkt spełniający wszystkie warunki
+            // (ma grupę, ma product_mark=1, nie jest zablokowany)
+            // Group to Feature, gdzie Name = 'www_grupa', Data = ścieżka grupy, Parent = ID produktu
+            // Musimy sprawdzić, czy istnieją produkty (Towary) które:
+            // 1. Mają Feature z Name='www_grupa' i Data=ścieżka grupy (czyli są w tej grupie)
+            // 2. Mają Blokada=0 (nie są zablokowane)
+            // 3. Mają Feature z Name=product_mark i Data='1' (są oznaczone jako dostępne w sklepie)
+
+            $groupsWithProducts = self::select('Features.Data')
+                ->where('Features.Data', 'like', $prefix . '%')
+                ->where('Features.Name', $productGroupName)
+                ->whereExists(function ($query) use ($productMark) {
+                    $query->select(DB::raw(1))
+                        ->from('Towary')
+                        ->whereColumn('Towary.ID', 'Features.Parent')
+                        ->where('Towary.Blokada', 0) // notBlocked
+                        ->whereExists(function ($subQuery) use ($productMark) {
+                            $subQuery->select(DB::raw(1))
+                                ->from('Features as F2')
+                                ->whereColumn('F2.Parent', 'Towary.ID')
+                                ->where('F2.Name', $productMark)
+                                ->where('F2.Data', '1'); // hasProductMark
+                        });
+                })
+                ->distinct()
+                ->orderBy('Features.Data')
+                ->get();
+
             $hierarchy = [];
 
-            foreach ($groups as $group) {
-                $path = $group->clean_name;
+            foreach ($groupsWithProducts as $group) {
+                $path = Str::after($group->Data, $prefix);
+                $path = rtrim($path, '\\');
                 $parts = explode('\\', $path);
 
                 $current = &$hierarchy;
@@ -116,6 +151,17 @@ class Group extends EnovaModel
 
             return $hierarchy;
         });
+    }
+
+    /**
+     * Relacja do produktów przypisanych do tej grupy.
+     * Grupa to Feature, gdzie Parent = ID produktu, Name = 'www_grupa', Data = ścieżka grupy.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
+    public function product()
+    {
+        return $this->belongsTo(Product::class, 'Parent', 'ID');
     }
 
     /**

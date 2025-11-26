@@ -4,7 +4,6 @@ namespace App\Services;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cookie;
-use Illuminate\Support\Facades\Log;
 
 class CartService
 {
@@ -18,8 +17,6 @@ class CartService
     {
         $cartData = Cookie::get(self::CART_COOKIE_NAME);
 
-        Log::info('Getting cart from cookie:', ['data' => $cartData]);
-
         if (!$cartData) {
             return $this->getEmptyCart();
         }
@@ -31,7 +28,6 @@ class CartService
             return $this->getEmptyCart();
         }
 
-        Log::info('Cart loaded:', $cart);
         return $cart;
     }
 
@@ -106,10 +102,8 @@ class CartService
      */
     public function clearCart(): array
     {
-        Log::info('Clearing cart...');
         $emptyCart = $this->getEmptyCart();
         $this->saveCart($emptyCart);
-        Log::info('Cart cleared:', $emptyCart);
         return $emptyCart;
     }
 

@@ -14,6 +14,210 @@ class PayuController extends Controller
     ) {}
 
     /**
+     * Ponów płatność PayU dla istniejącego zamówienia
+     */
+    public function retry(string $ext_order_id)
+    {
+        $order = \App\Models\Order::where('ext_order_id', $ext_order_id)->first();
+
+        if (!$order || !$order->payment) {
+            return redirect()->route('order.info', ['ext_order_id' => $ext_order_id])
+                ->with('order_error', 'Nie można ponowić płatności - brak danych zamówienia.');
+        }
+
+        $payment = $order->payment;
+
+        // Sprawdź czy płatność jest PayU
+        if (!$payment->isPayu()) {
+            return redirect()->route('order.info', ['ext_order_id' => $ext_order_id])
+                ->with('order_error', 'Ponowienie płatności dostępne tylko dla płatności PayU.');
+        }
+
+        // Sprawdź czy płatność nie jest już zrealizowana
+        if ($payment->isCompleted()) {
+            return redirect()->route('order.info', ['ext_order_id' => $ext_order_id])
+                ->with('order_error', 'Płatność została już zrealizowana.');
+        }
+
+        // Jeśli mamy payu_order_id, sprawdź czy można użyć istniejącego zamówienia
+        if ($payment->payu_order_id) {
+            $existingOrderStatus = $this->payuService->getOrderStatus($payment->payu_order_id);
+
+            if ($existingOrderStatus) {
+                // Sprawdź strukturę odpowiedzi PayU
+                $orderData = null;
+                if (isset($existingOrderStatus['orders']) && is_array($existingOrderStatus['orders']) && count($existingOrderStatus['orders']) > 0) {
+                    $orderData = $existingOrderStatus['orders'][0];
+                } elseif (isset($existingOrderStatus['status'])) {
+                    $orderData = $existingOrderStatus;
+                }
+
+                if ($orderData) {
+                    $status = $orderData['status'] ?? null;
+
+                    // Jeśli zamówienie jest pending i ma redirectUri, użyj go
+                    if ($status === 'PENDING' && isset($orderData['redirectUri'])) {
+                        Log::info('PayU retry: Using existing order redirectUri', [
+                            'payu_order_id' => $payment->payu_order_id,
+                            'redirectUri' => $orderData['redirectUri'],
+                        ]);
+
+                        return redirect($orderData['redirectUri']);
+                    }
+
+                    // Jeśli zamówienie jest COMPLETED, nie można ponowić
+                    if ($status === 'COMPLETED') {
+                        // Zaktualizuj status w bazie
+                        $payment->update([
+                            'status' => \App\Enums\PaymentStatus::COMPLETED->value,
+                        ]);
+
+                        return redirect()->route('order.info', ['ext_order_id' => $ext_order_id])
+                            ->with('order_error', 'Płatność została już zrealizowana.');
+                    }
+                }
+            }
+        }
+
+        try {
+            // Przygotuj dane klienta dla PayU
+            $buyer = [
+                'email' => $order->customer_email,
+                'phone' => $order->customer_phone ?? '',
+                'firstName' => $order->customer_first_name,
+                'lastName' => $order->customer_last_name,
+                'language' => 'pl',
+            ];
+
+            // Przygotuj adres dostawy
+            $deliveryAddress = [
+                'street' => $order->delivery_street . ' ' . $order->delivery_street_number,
+                'postalCode' => $order->delivery_postal_code,
+                'city' => $order->delivery_city ?? $order->delivery_post_office,
+                'countryCode' => 'PL',
+            ];
+
+            if (!empty($order->delivery_apartment)) {
+                $deliveryAddress['street'] .= '/' . $order->delivery_apartment;
+            }
+
+            $buyer['delivery'] = $deliveryAddress;
+
+            // Przygotuj produkty dla PayU z danych zamówienia
+            $products = [];
+            foreach ($order->items ?? [] as $item) {
+                $products[] = [
+                    'name' => $item['name'] ?? 'Produkt',
+                    'unitPrice' => (int) round(($item['price'] ?? 0) * 100), // w groszach
+                    'quantity' => $item['quantity'] ?? 1,
+                ];
+            }
+
+            // Dodaj koszt dostawy jako produkt (jeśli nie jest darmowa)
+            if ($order->delivery_cost > 0) {
+                $products[] = [
+                    'name' => 'Dostawa: ' . ($order->delivery_name ?? 'Dostawa'),
+                    'unitPrice' => (int) round($order->delivery_cost * 100),
+                    'quantity' => 1,
+                ];
+            }
+
+            // Przygotuj dane zamówienia
+            // Dla ponowienia płatności musimy użyć unikalnego extOrderId (PayU nie pozwala na duplikaty)
+            // Dodajemy timestamp aby był unikalny
+            $uniqueExtOrderId = $order->ext_order_id . '-retry-' . time();
+
+            $orderData = [
+                'description' => 'Zamówienie ze sklepu Zdrowe Herbaty BIFIX',
+                'currency' => 'PLN',
+                'total_amount' => $order->total,
+                'ext_order_id' => $uniqueExtOrderId, // Unikalny extOrderId dla ponowienia
+                'buyer' => $buyer,
+                'products' => $products,
+            ];
+
+            Log::info('PayU retry: Creating new order with unique extOrderId', [
+                'original_ext_order_id' => $order->ext_order_id,
+                'unique_ext_order_id' => $uniqueExtOrderId,
+                'payment_id' => $payment->id,
+            ]);
+
+            // Utwórz nowe zamówienie w PayU
+            $payuOrder = $this->payuService->createOrder($orderData, $payment->payu_option);
+
+            if ($payuOrder && isset($payuOrder['redirectUri'])) {
+                // Zaktualizuj payu_order_id w płatności
+                $payment->update([
+                    'payu_order_id' => $payuOrder['orderId'] ?? $payment->payu_order_id,
+                    'status' => \App\Enums\PaymentStatus::PENDING->value,
+                ]);
+
+                // Przekieruj do PayU
+                return redirect($payuOrder['redirectUri']);
+            } else {
+                // Jeśli nie udało się utworzyć zamówienia, sprawdź szczegóły błędu
+                $errorMessage = 'Wystąpił błąd podczas tworzenia płatności. Spróbuj ponownie.';
+
+                if ($payuOrder && isset($payuOrder['error'])) {
+                    Log::error('PayU retry: Failed to create order', [
+                        'error' => $payuOrder['error'],
+                        'orderId' => $payuOrder['orderId'] ?? null,
+                        'ext_order_id' => $ext_order_id,
+                    ]);
+
+                    // Jeśli to ORDER_NOT_UNIQUE, sprawdź status istniejącego zamówienia
+                    if ($payuOrder['error'] === 'ORDER_NOT_UNIQUE' && isset($payuOrder['orderId'])) {
+                        $existingOrderId = $payuOrder['orderId'];
+                        $existingOrderStatus = $this->payuService->getOrderStatus($existingOrderId);
+
+                        if ($existingOrderStatus) {
+                            $statusData = null;
+                            if (isset($existingOrderStatus['orders']) && is_array($existingOrderStatus['orders']) && count($existingOrderStatus['orders']) > 0) {
+                                $statusData = $existingOrderStatus['orders'][0];
+                            } elseif (isset($existingOrderStatus['status'])) {
+                                $statusData = $existingOrderStatus;
+                            }
+
+                            if ($statusData && isset($statusData['status'])) {
+                                $status = $statusData['status'];
+
+                                if ($status === 'COMPLETED') {
+                                    // Zamówienie jest już zrealizowane
+                                    $payment->update([
+                                        'payu_order_id' => $existingOrderId,
+                                        'status' => \App\Enums\PaymentStatus::COMPLETED->value,
+                                    ]);
+
+                                    return redirect()->route('order.info', ['ext_order_id' => $ext_order_id])
+                                        ->with('order_error', 'Płatność została już zrealizowana.');
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Log::error('PayU retry: Failed to create order', [
+                    'payuOrder' => $payuOrder,
+                    'ext_order_id' => $ext_order_id,
+                    'payment_id' => $payment->id,
+                ]);
+
+                return redirect()->route('order.info', ['ext_order_id' => $ext_order_id])
+                    ->with('order_error', $errorMessage);
+            }
+        } catch (\Exception $e) {
+            Log::error('PayU retry payment error', [
+                'order_id' => $order->id,
+                'payment_id' => $payment->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return redirect()->route('order.info', ['ext_order_id' => $ext_order_id])
+                ->with('order_error', 'Wystąpił błąd podczas ponawiania płatności: ' . $e->getMessage());
+        }
+    }
+
+    /**
      * Obsługuje powrót użytkownika po płatności (continue_url)
      */
     public function success(Request $request)
@@ -47,13 +251,35 @@ class PayuController extends Controller
         }
 
         // Jeśli nie znaleziono, spróbuj po extOrderId
+        // Uwaga: extOrderId może zawierać '-retry-' dla ponowionych płatności
         if (!$payment && $extOrderId) {
+            // Najpierw spróbuj znaleźć dokładnie po extOrderId
             $payment = \App\Models\Payment::where('ext_order_id', $extOrderId)->first();
             if ($payment) {
                 Log::info('PayU success: Found payment by extOrderId', [
                     'extOrderId' => $extOrderId,
                     'payment_id' => $payment->id,
                 ]);
+            }
+
+            // Jeśli nie znaleziono i extOrderId zawiera '-retry-', spróbuj znaleźć oryginalne zamówienie
+            if (!$payment && strpos($extOrderId, '-retry-') !== false) {
+                $originalExtOrderId = explode('-retry-', $extOrderId)[0];
+                Log::info('PayU success: extOrderId contains -retry-, trying original', [
+                    'extOrderId' => $extOrderId,
+                    'originalExtOrderId' => $originalExtOrderId,
+                ]);
+
+                $order = \App\Models\Order::where('ext_order_id', $originalExtOrderId)->first();
+                if ($order && $order->payment) {
+                    $payment = $order->payment;
+                    Log::info('PayU success: Found payment via order by original extOrderId', [
+                        'extOrderId' => $extOrderId,
+                        'originalExtOrderId' => $originalExtOrderId,
+                        'order_id' => $order->id,
+                        'payment_id' => $payment->id,
+                    ]);
+                }
             }
         }
 

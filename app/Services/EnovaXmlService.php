@@ -248,8 +248,33 @@ class EnovaXmlService
         $this->addFeature($dom, $features, 'E-mail_zamowienia', $order->customer_email);
         $this->addFeature($dom, $features, 'Telefon_zamowienia', $this->formatPhone($order->customer_phone ?? ''));
 
-        // Uwagi - dodaj informacje o paczkomacie jeśli są w notes
+        // Uwagi - dodaj informacje o paczkomacie jeśli są dostępne
         $uwagi = $order->notes ?? '';
+        
+        // Jeśli są dane paczkomatu, dodaj je do uwag (jak w starym systemie)
+        if (!empty($order->parcel_locker_data)) {
+            $locker = is_string($order->parcel_locker_data) 
+                ? json_decode($order->parcel_locker_data, true) 
+                : $order->parcel_locker_data;
+            
+            if (is_array($locker) && !empty($locker['name'])) {
+                $paczkomatInfo = 'Paczkomat: '
+                    . ($locker['name'] ?? '')
+                    . ', '
+                    . ($locker['address']['line1'] ?? '')
+                    . ', '
+                    . ($locker['address']['line2'] ?? '')
+                    . "\n\n";
+                
+                // Dodaj informacje o paczkomacie na początku uwag (jeśli są uwagi od klienta)
+                if (!empty($uwagi)) {
+                    $uwagi = $paczkomatInfo . $uwagi;
+                } else {
+                    $uwagi = $paczkomatInfo;
+                }
+            }
+        }
+        
         $this->addFeature($dom, $features, 'Uwagi', $uwagi);
     }
 

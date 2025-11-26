@@ -3,6 +3,7 @@
 namespace App\Mail;
 
 use App\Models\Order;
+use App\Models\EnovaOrder;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
@@ -19,7 +20,15 @@ class OrderConfirmationMail extends Mailable
      */
     public function __construct(
         public Order $order
-    ) {}
+    ) {
+        // Ustaw orderNumber (NumerPelny z Enova jeśli dostępny, w przeciwnym razie ext_order_id)
+        $enovaOrder = EnovaOrder::byGuid($order->ext_order_id)->first();
+        if ($enovaOrder && !empty($enovaOrder->NumerPelny)) {
+            $order->orderNumber = $enovaOrder->NumerPelny;
+        } else {
+            $order->orderNumber = $order->ext_order_id;
+        }
+    }
 
     /**
      * Get the message envelope.

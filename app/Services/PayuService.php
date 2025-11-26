@@ -118,6 +118,12 @@ class PayuService
             $continueUrl = request()->getSchemeAndHttpHost() . '/payu/success';
         }
 
+        // Dodaj extOrderId do continueUrl jako parametr, aby PayU go przekazał z powrotem
+        if (isset($orderData['ext_order_id'])) {
+            $separator = strpos($continueUrl, '?') !== false ? '&' : '?';
+            $continueUrl .= $separator . 'extOrderId=' . urlencode($orderData['ext_order_id']);
+        }
+
         $notifyUrl = config('enova.payment.payu.notify_url');
         if (empty($notifyUrl)) {
             $notifyUrl = request()->getSchemeAndHttpHost() . '/payu/notify';
@@ -204,6 +210,23 @@ class PayuService
                     'url' => "{$this->baseUrl}/api/v2_1/orders",
                     'access_token_length' => strlen($accessToken ?? ''),
                 ]);
+            }
+
+            // Sprawdź czy błąd to ORDER_NOT_UNIQUE - wtedy PayU zwraca orderId istniejącego zamówienia
+            if ($status === 400 && $data && isset($data['status']['codeLiteral']) && $data['status']['codeLiteral'] === 'ORDER_NOT_UNIQUE') {
+                $existingOrderId = $data['orderId'] ?? null;
+                if ($existingOrderId) {
+                    Log::info('PayU: Order with extOrderId already exists, returning existing orderId', [
+                        'orderId' => $existingOrderId,
+                        'extOrderId' => $orderData['ext_order_id'] ?? null,
+                    ]);
+                    // Zwróć dane z orderId, aby kontroler mógł pobrać status i redirectUri
+                    return [
+                        'orderId' => $existingOrderId,
+                        'error' => 'ORDER_NOT_UNIQUE',
+                        'extOrderId' => $orderData['ext_order_id'] ?? null,
+                    ];
+                }
             }
 
             Log::error('PayU create order error', [

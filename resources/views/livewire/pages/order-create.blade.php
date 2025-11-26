@@ -168,16 +168,52 @@ $validateStep2 = action(function () use ($rulesStep2, $messages) {
                 $isParcelLocker = str_contains($deliveryName, $parcelLockerName);
 
                 if ($isParcelLocker) {
-                    // Sprawdź czy są dane paczkomatu w cookie (główne źródło prawdy)
-                    $cookieData = request()->cookie('selectedParcelLocker');
-                    if (empty($cookieData)) {
-                        // Sprawdź też w parcelLockerData (na wypadek gdyby było ustawione przez Livewire)
-                        $parcelLockerData = $this->parcelLockerData;
-                        if (empty($parcelLockerData)) {
+                    // Sprawdź czy są dane paczkomatu (parcelLockerData jest ustawiane automatycznie z cookies w updatedSelectedDelivery)
+                    // W starym systemie sprawdzano ukryte pole paczkomat_name - tutaj sprawdzamy parcelLockerData i paczkomat_name
+                    // parcelLockerData może być stringiem JSON (z wire:model) lub tablicą (z updatedSelectedDelivery)
+                    $parcelLockerData = $this->parcelLockerData;
+
+                    // Jeśli to string JSON, zdekoduj
+                    if (is_string($parcelLockerData)) {
+                        $parcelLockerData = json_decode($parcelLockerData, true);
+                    }
+
+                    // Sprawdź czy dane są poprawne
+                    $hasValidData = !empty($parcelLockerData) && is_array($parcelLockerData) && !empty($parcelLockerData['name']);
+
+                    // Sprawdź też ukryte pole paczkomat_name (jak w starym systemie - linia 136-137 w dostawa.ajax.phtml)
+                    $paczkomatName = request()->input('paczkomat_name');
+                    if (empty($hasValidData) && !empty($paczkomatName)) {
+                        $hasValidData = true;
+                    }
+
+                    if (!$hasValidData) {
+                        // Sprawdź też bezpośrednio cookie jako backup (główne źródło prawdy)
+                        $cookieData = request()->cookie('selectedParcelLocker');
+                        if (empty($cookieData)) {
                             $this->stepErrors['step2']['parcel_locker'] = ['Wybierz paczkomat dla dostawy do paczkomatu.'];
                             $this->currentStep = 2;
                             $this->dispatch('scroll-to-step', step: 2);
                             return false;
+                        } else {
+                            // Cookie istnieje, ale parcelLockerData nie jest ustawione - spróbuj ustawić teraz
+                            try {
+                                $parcelLocker = json_decode($cookieData, true);
+                                if (json_last_error() === JSON_ERROR_NONE && !empty($parcelLocker['name'])) {
+                                    $this->parcelLockerData = $parcelLocker;
+                                    // Dane są teraz dostępne, kontynuuj walidację
+                                } else {
+                                    $this->stepErrors['step2']['parcel_locker'] = ['Wybierz paczkomat dla dostawy do paczkomatu.'];
+                                    $this->currentStep = 2;
+                                    $this->dispatch('scroll-to-step', step: 2);
+                                    return false;
+                                }
+                            } catch (\Exception $e) {
+                                $this->stepErrors['step2']['parcel_locker'] = ['Wybierz paczkomat dla dostawy do paczkomatu.'];
+                                $this->currentStep = 2;
+                                $this->dispatch('scroll-to-step', step: 2);
+                                return false;
+                            }
                         }
                     }
                 }
@@ -384,6 +420,7 @@ $updatedSelectedDelivery = function ($value) use ($resolvePaymentDefinition) {
         $this->selectedPayment = null;
         $this->selectedPaymentGuid = null;
         $this->selectedPayuOption = null;
+        $this->parcelLockerData = null;
 
         return;
     }
@@ -395,8 +432,43 @@ $updatedSelectedDelivery = function ($value) use ($resolvePaymentDefinition) {
         $this->selectedPayment = null;
         $this->selectedPaymentGuid = null;
         $this->selectedPayuOption = null;
+        $this->parcelLockerData = null;
 
         return;
+    }
+
+    // Sprawdź czy to paczkomat i automatycznie załaduj dane z cookies (jak w starym systemie)
+    $deliveryName = strtolower($delivery['name'] ?? '');
+    $parcelLockerName = strtolower(config('enova.delivery.parcel_locker_name', 'Paczkomaty 24/7'));
+    $isParcelLocker = str_contains($deliveryName, $parcelLockerName);
+
+    if ($isParcelLocker) {
+        // Pobierz dane paczkomatu z cookies (jak w starym systemie - zawsze ładujemy jeśli istnieje)
+        // W starym systemie: if ($paczkomat = $_COOKIE['paczkomat']) $this->view->assign('paczkomat', json_decode($paczkomat));
+        $cookieData = request()->cookie('selectedParcelLocker');
+        if (!empty($cookieData)) {
+            try {
+                // Cookie jest zapisywane jako JSON string (JSON.stringify w JavaScript)
+                $parcelLocker = json_decode($cookieData, true);
+                if (json_last_error() === JSON_ERROR_NONE && !empty($parcelLocker['name'])) {
+                    // Ustaw parcelLockerData jako tablicę - będzie dostępne dla walidatora i formularza (jak ukryte pole w starym systemie)
+                    $this->parcelLockerData = $parcelLocker;
+                } else {
+                    $this->parcelLockerData = null;
+                }
+            } catch (\Exception $e) {
+                $this->parcelLockerData = null;
+            }
+        } else {
+            // Brak cookie - sprawdź czy może być już ustawione w parcelLockerData (z wire:model)
+            // Jeśli nie, wyczyść
+            if (empty($this->parcelLockerData)) {
+                $this->parcelLockerData = null;
+            }
+        }
+    } else {
+        // To nie paczkomat - wyczyść dane
+        $this->parcelLockerData = null;
     }
 
     $options = $resolvePaymentDefinition($delivery);
@@ -454,6 +526,24 @@ $saveOrder = function ($extOrderId, $paymentMethodGuid, $payuOrderId, $component
 
     if ($isParcelLocker && !empty($component->parcelLockerData)) {
         $parcelLockerData = is_string($component->parcelLockerData) ? json_decode($component->parcelLockerData, true) : $component->parcelLockerData;
+        
+        // Dodaj dane paczkomatu do uwag (jak w starym systemie) - format zgodny z Enova
+        if (is_array($parcelLockerData) && !empty($parcelLockerData['name'])) {
+            $paczkomatInfo = 'Paczkomat: '
+                . ($parcelLockerData['name'] ?? '')
+                . ', '
+                . ($parcelLockerData['address']['line1'] ?? '')
+                . ', '
+                . ($parcelLockerData['address']['line2'] ?? '')
+                . "\n\n";
+            
+            // Dodaj informacje o paczkomacie na początku uwag (jeśli są uwagi od klienta)
+            if (!empty($notes)) {
+                $notes = $paczkomatInfo . $notes;
+            } else {
+                $notes = $paczkomatInfo;
+            }
+        }
     }
 
     // Zapisz zamówienie (płatność to osobna operacja, można ją ponowić)
@@ -1046,7 +1136,35 @@ $submitOrder = function () use ($validateStep1, $validateStep2, $validateStep3, 
                                                     @if ($selectedDelivery == $option['id'])
                                                         <div class="mt-3">
                                                             <div id="danePaczkomatu"
-                                                                class="mb-2 text-sm text-gray-600"></div>
+                                                                class="mb-2 text-sm text-gray-600">
+                                                                @if (!empty($parcelLockerData) && is_array($parcelLockerData) && !empty($parcelLockerData['name']))
+                                                                    <strong>{{ $parcelLockerData['name'] }}</strong>
+                                                                    @if (!empty($parcelLockerData['address']['line1']))
+                                                                        - {{ $parcelLockerData['address']['line1'] }},
+                                                                        {{ $parcelLockerData['address']['line2'] ?? '' }}
+                                                                    @endif
+                                                                @endif
+                                                            </div>
+                                                            {{-- Ukryte pole z danymi paczkomatu (jak w starym systemie - paczkomat_name) --}}
+                                                            @php
+                                                                $paczkomatName = '';
+                                                                if (!empty($parcelLockerData)) {
+                                                                    if (is_string($parcelLockerData)) {
+                                                                        $decoded = json_decode($parcelLockerData, true);
+                                                                        if (
+                                                                            json_last_error() === JSON_ERROR_NONE &&
+                                                                            is_array($decoded)
+                                                                        ) {
+                                                                            $paczkomatName = $decoded['name'] ?? '';
+                                                                        }
+                                                                    } elseif (is_array($parcelLockerData)) {
+                                                                        $paczkomatName =
+                                                                            $parcelLockerData['name'] ?? '';
+                                                                    }
+                                                                }
+                                                            @endphp
+                                                            <input type="hidden" id="paczkomat_name"
+                                                                name="paczkomat_name" value="{{ $paczkomatName }}">
                                                             <button type="button" onclick="openEasyPackModal()"
                                                                 id="parcelLockerBtn"
                                                                 class="bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors duration-200 flex items-center text-sm">
@@ -1055,7 +1173,9 @@ $submitOrder = function () use ($validateStep1, $validateStep2, $validateStep3, 
                                                                     <path
                                                                         d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
                                                                 </svg>
-                                                                <span id="btnText">Wybierz paczkomat</span>
+                                                                <span
+                                                                    id="btnText">{{ !empty($parcelLockerData) && is_array($parcelLockerData) && !empty($parcelLockerData['name']) ? 'Zmień' : 'Wybierz' }}
+                                                                    paczkomat</span>
                                                             </button>
                                                         </div>
                                                     @endif
@@ -1191,7 +1311,7 @@ $submitOrder = function () use ($validateStep1, $validateStep2, $validateStep3, 
         {{-- Przycisk zamówienia --}}
         <div class="mt-8">
             <form wire:submit.prevent="submitOrder" onsubmit="setParcelLockerData(event)">
-                <input type="hidden" wire:model="parcelLockerData" id="parcelLockerDataInput">
+                <input type="hidden" wire:model.live="parcelLockerData" id="parcelLockerDataInput">
                 <flux:button type="submit" variant="primary" class="w-full">
                     Złóż zamówienie
                 </flux:button>
@@ -1338,19 +1458,41 @@ $submitOrder = function () use ($validateStep1, $validateStep2, $validateStep3, 
                     const locker = JSON.parse(saved);
                     const displayDiv = document.getElementById('danePaczkomatu');
                     const btnText = document.getElementById('btnText');
+                    const paczkomatNameInput = document.getElementById('paczkomat_name');
+                    const parcelLockerDataInput = document.getElementById('parcelLockerDataInput');
 
-                    if (displayDiv && locker.name) {
-                        displayDiv.innerHTML = '<strong>' + locker.name + '</strong> - ' +
-                            (locker.address?.line1 || '') + ', ' +
-                            (locker.address?.line2 || '');
+                    if (locker.name) {
+                        // Wyświetl dane
+                        if (displayDiv) {
+                            displayDiv.innerHTML = '<strong>' + locker.name + '</strong> - ' +
+                                (locker.address?.line1 || '') + ', ' +
+                                (locker.address?.line2 || '');
+                        }
 
                         // Zmień tekst przycisku
                         if (btnText) {
                             btnText.textContent = 'Zmień paczkomat';
                         }
+
+                        // Ustaw wartość ukrytego pola paczkomat_name (jak w starym systemie)
+                        if (paczkomatNameInput) {
+                            paczkomatNameInput.value = locker.name || '';
+                        }
+
+                        // Synchronizuj z Livewire przez parcelLockerDataInput
+                        if (parcelLockerDataInput) {
+                            parcelLockerDataInput.value = JSON.stringify(locker);
+                            parcelLockerDataInput.dispatchEvent(new Event('input', {
+                                bubbles: true
+                            }));
+                            parcelLockerDataInput.dispatchEvent(new Event('change', {
+                                bubbles: true
+                            }));
+                        }
                     }
                 } catch (e) {
                     // Błąd parsowania zapisanego paczkomatu
+                    console.error('Błąd parsowania danych paczkomatu:', e);
                 }
             }
         }
@@ -1389,6 +1531,27 @@ $submitOrder = function () use ($validateStep1, $validateStep2, $validateStep3, 
                     document.cookie =
                         `selectedParcelLocker=${JSON.stringify(point)}; expires=${expiryDate.toUTCString()}; path=/`;
 
+                    // Synchronizuj z Livewire przez ukryte pole (jak w starym systemie - ukryte pole paczkomat_name)
+                    const input = document.getElementById('parcelLockerDataInput');
+                    if (input) {
+                        const jsonData = JSON.stringify(point);
+                        input.value = jsonData;
+                        // Wywołaj event input i change, aby Livewire zsynchronizował wartość
+                        input.dispatchEvent(new Event('input', {
+                            bubbles: true
+                        }));
+                        input.dispatchEvent(new Event('change', {
+                            bubbles: true
+                        }));
+                        // wire:model.live automatycznie zsynchronizuje wartość
+                    }
+
+                    // Ustaw wartość ukrytego pola paczkomat_name (jak w starym systemie - linia 37)
+                    const paczkomatNameInput = document.getElementById('paczkomat_name');
+                    if (paczkomatNameInput) {
+                        paczkomatNameInput.value = point.name || '';
+                    }
+
                     // Wyświetl wybór
                     const displayDiv = document.getElementById('danePaczkomatu');
                     const btnText = document.getElementById('btnText');
@@ -1413,8 +1576,13 @@ $submitOrder = function () use ($validateStep1, $validateStep2, $validateStep3, 
 
         // Funkcja do ustawiania danych paczkomatu przed submitem (jak w starym sklepie - sprawdzamy nazwę dostawy)
         function setParcelLockerData(event) {
+            // Zapobiegaj domyślnemu submitowi, aby móc zsynchronizować dane przed walidacją
+            event.preventDefault();
+
             const input = document.getElementById('parcelLockerDataInput');
             if (!input) {
+                // Jeśli nie ma inputa, kontynuuj normalny submit
+                @this.call('submitOrder');
                 return;
             }
 
@@ -1425,6 +1593,10 @@ $submitOrder = function () use ($validateStep1, $validateStep2, $validateStep3, 
                 input.dispatchEvent(new Event('input', {
                     bubbles: true
                 }));
+                // Poczekaj chwilę na synchronizację i wywołaj submit
+                setTimeout(() => {
+                    @this.call('submitOrder');
+                }, 100);
                 return;
             }
 
@@ -1435,6 +1607,9 @@ $submitOrder = function () use ($validateStep1, $validateStep2, $validateStep3, 
                 input.dispatchEvent(new Event('input', {
                     bubbles: true
                 }));
+                setTimeout(() => {
+                    @this.call('submitOrder');
+                }, 100);
                 return;
             }
 
@@ -1442,12 +1617,15 @@ $submitOrder = function () use ($validateStep1, $validateStep2, $validateStep3, 
             const parcelLockerName = @js(config('enova.delivery.parcel_locker_name', 'Paczkomaty 24/7'));
             const isParcelLocker = deliveryName.toLowerCase().includes(parcelLockerName.toLowerCase());
 
-            // Jeśli to nie paczkomat, wyczyść dane
+            // Jeśli to nie paczkomat, wyczyść dane i kontynuuj
             if (!isParcelLocker) {
                 input.value = '';
                 input.dispatchEvent(new Event('input', {
                     bubbles: true
                 }));
+                setTimeout(() => {
+                    @this.call('submitOrder');
+                }, 100);
                 return;
             }
 
@@ -1458,10 +1636,17 @@ $submitOrder = function () use ($validateStep1, $validateStep2, $validateStep3, 
                     const locker = JSON.parse(saved);
                     // Ustaw wartość bezpośrednio w ukrytym polu - Livewire automatycznie zsynchronizuje
                     input.value = JSON.stringify(locker);
-                    // Wywołaj event input, aby Livewire zsynchronizował wartość
+                    // Wywołaj event input i change, aby Livewire zsynchronizował wartość
                     input.dispatchEvent(new Event('input', {
                         bubbles: true
                     }));
+                    input.dispatchEvent(new Event('change', {
+                        bubbles: true
+                    }));
+                    // Poczekaj chwilę na synchronizację Livewire, potem wywołaj submit
+                    setTimeout(() => {
+                        @this.call('submitOrder');
+                    }, 200);
                 } catch (e) {
                     // Błąd parsowania - nie ustawiamy danych
                     console.error('Błąd parsowania danych paczkomatu:', e);
@@ -1469,13 +1654,19 @@ $submitOrder = function () use ($validateStep1, $validateStep2, $validateStep3, 
                     input.dispatchEvent(new Event('input', {
                         bubbles: true
                     }));
+                    setTimeout(() => {
+                        @this.call('submitOrder');
+                    }, 100);
                 }
             } else {
-                // Brak zapisanych danych - wyczyść pole
+                // Brak zapisanych danych - wyczyść pole i kontynuuj (walidacja pokaże błąd)
                 input.value = '';
                 input.dispatchEvent(new Event('input', {
                     bubbles: true
                 }));
+                setTimeout(() => {
+                    @this.call('submitOrder');
+                }, 100);
             }
         }
 

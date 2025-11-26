@@ -57,6 +57,7 @@ state([
     'showPaymentSuccess' => false,
     'notFound' => false, // Flaga czy zamówienie nie zostało znalezione
     'recommendedProducts' => [], // Rekomendowane produkty do wyświetlenia gdy zamówienie nie znalezione
+    'payuRedirectUri' => null, // Bezpośredni link do PayU jeśli istnieje
 ]);
 
 mount(function ($ext_order_id) {
@@ -100,7 +101,7 @@ mount(function ($ext_order_id) {
             $this->notFound = true;
             // Ustawiamy kod odpowiedzi HTTP na 404 przez session, aby middleware mógł to odczytać
             session(['order_not_found_404' => true]);
-            
+
             // Pobierz kilka losowych produktów do rekomendacji
             try {
                 $this->recommendedProducts = Product::with(['productNameFeature', 'price', 'group'])
@@ -116,7 +117,7 @@ mount(function ($ext_order_id) {
                 $this->recommendedProducts = [];
                 Log::warning('Nie udało się pobrać rekomendowanych produktów: ' . $e->getMessage());
             }
-            
+
             return; // Przerwij dalsze wykonywanie, jeśli zamówienie nie zostało znalezione
         }
 
@@ -150,6 +151,11 @@ mount(function ($ext_order_id) {
                             $status = $orderData['status'] ?? null;
                             $statusDesc = $orderData['statusDesc'] ?? null;
                             $localStatus = $payuService->mapPayuStatusToLocal($status);
+
+                            // Jeśli zamówienie jest PENDING i ma redirectUri, zapisz go do użycia w linku
+                            if ($status === 'PENDING' && isset($orderData['redirectUri'])) {
+                                $this->payuRedirectUri = $orderData['redirectUri'];
+                            }
 
                             // Zaktualizuj płatność jeśli status się zmienił
                             if ($localStatus !== $this->order->payment->status) {
@@ -225,8 +231,10 @@ mount(function ($ext_order_id) {
                         d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                 </svg>
                 <div class="flex-1">
-                    <h3 class="text-lg font-semibold text-green-800 mb-2">{{ __('Płatność zrealizowana pomyślnie!') }}</h3>
-                    <p class="text-green-700">{{ __('Twoje zamówienie zostało opłacone i zostanie zrealizowane w najbliższym czasie.') }}</p>
+                    <h3 class="text-lg font-semibold text-green-800 mb-2">{{ __('Płatność zrealizowana pomyślnie!') }}
+                    </h3>
+                    <p class="text-green-700">
+                        {{ __('Twoje zamówienie zostało opłacone i zostanie zrealizowane w najbliższym czasie.') }}</p>
                 </div>
             </div>
         </div>
@@ -253,35 +261,34 @@ mount(function ($ext_order_id) {
         {{-- Komunikat o braku zamówienia z kodem 404 --}}
         <div class="bg-red-50 border border-red-200 rounded-lg p-6 text-center mb-8">
             <svg class="mx-auto h-12 w-12 text-red-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z">
+                </path>
             </svg>
             <h2 class="text-xl font-semibold text-red-800 mb-2">Nie znaleziono zamówienia</h2>
             <p class="text-red-700 mb-4">Zamówienie o podanym numerze nie zostało znalezione w systemie.</p>
             <p class="text-sm text-red-600 mb-6">Sprawdź czy numer zamówienia został wprowadzony poprawnie.</p>
-            
+
             {{-- Przycisk do strony głównej --}}
-            <a href="{{ route('home') }}" 
-               class="inline-flex items-center px-6 py-3 bg-primary hover:bg-primary/90 text-white font-semibold rounded-lg transition-colors duration-200">
+            <a href="{{ route('home') }}"
+                class="inline-flex items-center px-6 py-3 bg-primary hover:bg-primary/90 text-white font-semibold rounded-lg transition-colors duration-200">
                 <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6">
+                    </path>
                 </svg>
                 Przejdź do strony głównej
             </a>
         </div>
-        
+
         {{-- Rekomendowane produkty --}}
         @if (!empty($recommendedProducts))
             <div class="mb-8">
                 <h2 class="text-2xl font-bold text-gray-900 mb-6">Polecane produkty</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     @foreach ($recommendedProducts as $product)
-                        <livewire:components.product-card 
-                            :product-id="$product['ID']" 
-                            :product-name="$product['Nazwa']" 
-                            :product-price="$product['BruttoValue']"
-                            :product-group="$product['Grupa']" 
-                            :product-weight="$product['MasaBruttoValue']" 
-                            variant="default" />
+                        <livewire:components.product-card :product-id="$product['ID']" :product-name="$product['Nazwa']" :product-price="$product['BruttoValue']"
+                            :product-group="$product['Grupa']" :product-weight="$product['MasaBruttoValue']" variant="default" />
                     @endforeach
                 </div>
             </div>
@@ -301,7 +308,8 @@ mount(function ($ext_order_id) {
                         @if (!empty($orderNumber))
                             {{ $orderNumber }}
                         @elseif ($order)
-                            <span class="text-gray-500 italic">{{ __('Numer zostanie przypisany po rejestracji w systemie') }}</span>
+                            <span
+                                class="text-gray-500 italic">{{ __('Numer zostanie przypisany po rejestracji w systemie') }}</span>
                         @else
                             -
                         @endif
@@ -444,16 +452,33 @@ mount(function ($ext_order_id) {
                             <div>
                                 {{-- Status płatności wyświetlamy tylko jeśli to nie gotówka --}}
                                 @if ($order->payment->payu_order_id)
-                                    <h3 class="text-sm font-medium text-gray-500 mb-1">{{ __('Status płatności') }}</h3>
-                                    <span
-                                        class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium
-                                    @if ($paymentStatus === __('Opłacone')) bg-green-100 text-green-800
-                                    @elseif($paymentStatus === __('Oczekuje na potwierdzenie')) bg-blue-100 text-blue-800
-                                    @elseif($paymentStatus === __('Oczekuje na płatność')) bg-yellow-100 text-yellow-800
-                                    @elseif($paymentStatus === __('Nieudane')) bg-red-100 text-red-800
-                                    @else bg-gray-100 text-gray-800 @endif">
-                                        {{ $paymentStatus ?? 'Oczekuje na płatność' }}
-                                    </span>
+                                    <h3 class="text-sm font-medium text-gray-500 mb-1">{{ __('Status płatności') }}
+                                    </h3>
+                                    @if ($order->payment && $order->payment->isPayu() && !$order->payment->isCompleted())
+                                        {{-- Jeśli płatność nie jest zrealizowana, pokaż tylko link --}}
+                                        @if ($payuRedirectUri)
+                                            {{-- Użyj bezpośredniego linku do PayU jeśli jest dostępny --}}
+                                            <a href="{{ $payuRedirectUri }}"
+                                                class="text-primary hover:text-primary/80 text-sm font-medium underline">
+                                                Zapłać teraz on-line
+                                            </a>
+                                        @else
+                                            {{-- Jeśli nie ma bezpośredniego linku, użyj route do utworzenia nowego zamówienia --}}
+                                            <a href="{{ route('order.retry-payment', $order->ext_order_id) }}"
+                                                class="text-primary hover:text-primary/80 text-sm font-medium underline">
+                                                Zapłać teraz on-line
+                                            </a>
+                                        @endif
+                                    @else
+                                        {{-- Jeśli płatność jest zrealizowana, pokaż status --}}
+                                        <span
+                                            class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium
+                                        @if ($paymentStatus === __('Opłacone')) bg-green-100 text-green-800
+                                        @elseif($paymentStatus === __('Oczekuje na potwierdzenie')) bg-blue-100 text-blue-800
+                                        @else bg-gray-100 text-gray-800 @endif">
+                                            {{ $paymentStatus ?? 'Oczekuje na płatność' }}
+                                        </span>
+                                    @endif
                                 @else
                                     {{-- Dla gotówki pozostaw puste miejsce, aby zachować układ kolumn --}}
                                     <span class="text-gray-400 text-sm">—</span>
@@ -706,7 +731,8 @@ mount(function ($ext_order_id) {
                                     }
                                 } catch (\Exception $e) {
                                 }
-                                $isDelivery = !empty($kod) && (str_contains($kod, 'przes') || str_contains($kod, 'dostaw'));
+                                $isDelivery =
+                                    !empty($kod) && (str_contains($kod, 'przes') || str_contains($kod, 'dostaw'));
                                 if ($isDelivery) {
                                     $deliveryPosition = $pos;
                                     break;
@@ -725,7 +751,10 @@ mount(function ($ext_order_id) {
                                 try {
                                     $deliveryProduct = Product::find($productId);
                                     if ($deliveryProduct) {
-                                        $deliveryNameFeature = $deliveryProduct->features()->where('Name', config('enova.features.product_name'))->first();
+                                        $deliveryNameFeature = $deliveryProduct
+                                            ->features()
+                                            ->where('Name', config('enova.features.product_name'))
+                                            ->first();
                                         if ($deliveryNameFeature) {
                                             $deliveryName = $deliveryNameFeature->Wartosc ?? 'Dostawa';
                                         }
@@ -856,7 +885,8 @@ mount(function ($ext_order_id) {
                     <div class="p-6 border-t bg-white">
                         <div class="flex justify-between text-sm text-gray-600">
                             <span>Dostawa ({{ $order->delivery_name }}):</span>
-                            <span class="font-medium">{{ number_format($order->delivery_cost ?? 0, 2, ',', '.') }} zł</span>
+                            <span class="font-medium">{{ number_format($order->delivery_cost ?? 0, 2, ',', '.') }}
+                                zł</span>
                         </div>
                     </div>
                 @endif

@@ -34,10 +34,13 @@ Volt::route('/zamawianie', 'pages.order-create')->name('order.create');
 Volt::route('/zamowienie/{ext_order_id}', 'pages.order-info')
     ->middleware([\App\Http\Middleware\SetOrderNotFoundStatus::class])
     ->name('order.info');
+Route::get('/zamowienie/{ext_order_id}/email-preview', [App\Http\Controllers\OrderEmailPreviewController::class, 'preview'])
+    ->name('order.email-preview');
 
 // PayU callbacks
 Route::post('/payu/notify', [App\Http\Controllers\PayuController::class, 'notify'])->name('payu.notify');
 Route::get('/payu/success', [App\Http\Controllers\PayuController::class, 'success'])->name('payu.success');
+Route::get('/zamowienie/{ext_order_id}/retry-payment', [App\Http\Controllers\PayuController::class, 'retry'])->name('order.retry-payment');
 
 // Cache management
 Route::prefix('cache')->group(function () {
