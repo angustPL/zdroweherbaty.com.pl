@@ -248,30 +248,19 @@ class EnovaXmlService
         $this->addFeature($dom, $features, 'E-mail_zamowienia', $order->customer_email);
         $this->addFeature($dom, $features, 'Telefon_zamowienia', $this->formatPhone($order->customer_phone ?? ''));
 
-        // Uwagi - dodaj informacje o paczkomacie jeśli są dostępne
+        // Uwagi - już zawierają paczkomat i promocje (zapisane w order-create)
+        // Format: "Paczkomat: ...\n\nPromocja: ...\n\nUwagi klienta"
         $uwagi = $order->notes ?? '';
         
-        // Jeśli są dane paczkomatu, dodaj je do uwag (jak w starym systemie)
-        if (!empty($order->parcel_locker_data)) {
-            $locker = is_string($order->parcel_locker_data) 
-                ? json_decode($order->parcel_locker_data, true) 
-                : $order->parcel_locker_data;
+        // Jeśli notes nie zawiera jeszcze promocji, dodaj ją (dla kompatybilności wstecznej)
+        if (!empty($order->promotion_code) && stripos($uwagi, 'Promocja:') === false) {
+            $promotionInfo = 'Promocja: ' . $order->promotion_code 
+                . ' - zniżka: ' . number_format($order->discount_amount, 2, ',', '.') . ' zł';
             
-            if (is_array($locker) && !empty($locker['name'])) {
-                $paczkomatInfo = 'Paczkomat: '
-                    . ($locker['name'] ?? '')
-                    . ', '
-                    . ($locker['address']['line1'] ?? '')
-                    . ', '
-                    . ($locker['address']['line2'] ?? '')
-                    . "\n\n";
-                
-                // Dodaj informacje o paczkomacie na początku uwag (jeśli są uwagi od klienta)
-                if (!empty($uwagi)) {
-                    $uwagi = $paczkomatInfo . $uwagi;
-                } else {
-                    $uwagi = $paczkomatInfo;
-                }
+            if (!empty($uwagi)) {
+                $uwagi = $promotionInfo . "\n\n" . $uwagi;
+            } else {
+                $uwagi = $promotionInfo;
             }
         }
         

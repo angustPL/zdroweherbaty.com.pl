@@ -173,7 +173,7 @@
                 $hasFreeDelivery = $freeThreshold > 0 && $cartTotal >= $freeThreshold;
             @endphp
             @if ($hasFreeDelivery)
-                <div class="mb-4">
+                <div class="mb-2">
                     <flux:callout variant="success" icon="check-circle">
                         <flux:callout.heading>Darmowa dostawa</flux:callout.heading>
                         <flux:callout.text>
@@ -184,7 +184,7 @@
             @elseif ($freeThreshold > 0)
                 @php $missing = max(0, $freeThreshold - $cartTotal); @endphp
                 @if ($missing > 0)
-                    <div class="mb-4">
+                    <div class="mb-2">
                         <flux:callout variant="secondary" icon="information-circle">
                             <flux:callout.heading>
                                 Brakuje {{ number_format($missing, 2, ',', '.') }} zł do darmowej dostawy
@@ -196,30 +196,96 @@
 
             {{-- Podsumowanie --}}
             <div class="bg-white rounded-lg shadow p-6">
-                <div class="flex justify-between items-center mb-4">
-                    <span class="text-xl font-medium">Suma:</span>
-                    <span class="text-3xl font-bold text-primary">
-                        {{ number_format($cart['total'] ?? 0, 2, ',', '.') }} zł
-                    </span>
+                {{-- Pole na kod rabatowy --}}
+                <div class="mb-4 flex justify-end">
+                    <div class="flex flex-col items-end gap-2">
+                        <div class="flex gap-2 items-end">
+                            <div class="w-48">
+                                <flux:input 
+                                    wire:model="promotionCode"
+                                    placeholder="Wprowadź kod rabatowy"
+                                    class="w-full"
+                                    wire:keydown.enter="applyPromotionCode"
+                                />
+                            </div>
+                        @if ($appliedPromotion)
+                            <flux:button 
+                                variant="outline" 
+                                wire:click="removePromotionCode"
+                                class="whitespace-nowrap"
+                            >
+                                Usuń kod
+                            </flux:button>
+                        @else
+                            <flux:button 
+                                variant="primary" 
+                                wire:click="applyPromotionCode"
+                                wire:loading.attr="disabled"
+                                class="whitespace-nowrap"
+                            >
+                                Zastosuj
+                            </flux:button>
+                        @endif
+                        </div>
+                        @if ($promotionError)
+                            <p class="text-sm text-red-600 mt-1">{{ $promotionError }}</p>
+                        @endif
+                    </div>
                 </div>
 
-                <div class="flex gap-4">
+                {{-- Podsumowanie --}}
+                <div class="space-y-2">
+                    @if ($appliedPromotion && $promotionDiscount > 0)
+                        {{-- Wartość produktów --}}
+                        <div class="flex justify-between text-sm text-gray-600">
+                            <span>Wartość produktów:</span>
+                            <span>{{ number_format($cart['total'] ?? 0, 2, ',', '.') }} zł</span>
+                        </div>
+                        
+                        {{-- Zniżka z promocji --}}
+                        <div class="flex justify-between text-sm text-green-600">
+                            <span>Zniżka ({{ $appliedPromotion->code }}):</span>
+                            <span>-{{ number_format($promotionDiscount, 2, ',', '.') }} zł</span>
+                        </div>
+                        
+                        {{-- Razem --}}
+                        <div class="flex justify-between font-semibold text-lg pt-2 border-t">
+                            <span>Razem:</span>
+                            <span>{{ number_format(max(0, ($cart['total'] ?? 0) - $promotionDiscount), 2, ',', '.') }} zł</span>
+                        </div>
+                    @else
+                        {{-- Razem (bez zniżki) --}}
+                        <div class="flex justify-between font-semibold text-lg">
+                            <span>Razem:</span>
+                            <span>{{ number_format($cart['total'] ?? 0, 2, ',', '.') }} zł</span>
+                        </div>
+                    @endif
+                </div>
+
+                @php
+                    // Przygotuj dane dla GTM przed użyciem w JavaScript
+                    $gtmItems = [];
+                    if (!empty($cart['items'])) {
+                        foreach ($cart['items'] as $productId => $item) {
+                            $gtmItems[] = [
+                                'item_id' => $item['id'],
+                                'item_name' => $item['name'],
+                                'price' => $item['price'],
+                                'currency' => 'PLN',
+                                'quantity' => $item['quantity']
+                            ];
+                        }
+                    }
+                @endphp
+
+                <div class="flex gap-4 mt-6">
                     <flux:button variant="outline" wire:click="clearCart"
                         onclick="
                             if (typeof dataLayer !== 'undefined') {
                                 dataLayer.push({
                                     'event': 'remove_from_cart',
                                     'ecommerce': {
-                                        'items': [
-                                            @foreach ($cart['items'] as $productId => $item)
-                                            {
-                                                'item_id': '{{ $item['id'] }}',
-                                                'item_name': '{{ $item['name'] }}',
-                                                'price': {{ $item['price'] }},
-                                                'currency': 'PLN',
-                                                'quantity': {{ $item['quantity'] }}
-                                            }@if (!$loop->last),@endif @endforeach
-                                        ]
+                                        'items': @js($gtmItems)
                                     }
                                 });
                             }

@@ -644,6 +644,7 @@ Aplikacja wykorzystuje system cache'owania Laravel do optymalizacji wydajności:
 #### Typy cache'owania:
 
 -   **Cache bazy danych** - wyniki zapytań do Enova
+-   **Backup cache** - cache zapasowy dla awarii serwera Enova (TTL: 48h)
 -   **Cache widoków** - skompilowane szablony Blade
 -   **Cache konfiguracji** - ustawienia aplikacji
 -   **Cache routingu** - zdefiniowane ścieżki
@@ -677,6 +678,43 @@ $products = Cache::remember('products_group_' . $groupId, 3600, function () use 
 
 // Inwalidacja cache
 Cache::forget('products_group_' . $groupId);
+```
+
+#### Backup Cache dla Enova
+
+Aplikacja automatycznie generuje cache dla danych Enova, który jest używany w przypadku awarii serwera Enova:
+
+-   **Generowanie:** Codziennie o 4:00 rano (wymaga skonfigurowanego cron joba)
+-   **TTL:** 48 godzin (bufor bezpieczeństwa na wypadek problemów z cronem)
+-   **Zakres:** Wszystkie produkty, grupy, produkty w grupach, pojedyncze produkty, opcje dostawy
+-   **Fallback:** Automatyczne użycie cache (nawet jeśli wygasł) gdy Enova nie odpowiada
+
+**Dokumentacja metod cache'ujących:** Zobacz [CACHE_METHODS.md](CACHE_METHODS.md) dla pełnej listy wszystkich metod cache'ujących i ich użycia.
+
+**Konfiguracja cron joba:**
+
+```bash
+# Dodaj do crontab (crontab -e)
+# Uruchamia się codziennie o 4:00 rano
+0 4 * * * cd /ścieżka/do/projektu && php artisan enova:generate-backup-cache >> /dev/null 2>&1
+```
+
+**Przykład dla `/var/www/zdroweherbaty.com.pl`:**
+
+```bash
+0 4 * * * cd /var/www/zdroweherbaty.com.pl && php artisan enova:generate-backup-cache >> /dev/null 2>&1
+```
+
+Szczegółowe instrukcje: zobacz `CRON_SETUP.md`
+
+**Ręczne uruchomienie:**
+
+```bash
+# Generuj backup cache
+php artisan enova:generate-backup-cache
+
+# Wymuś regenerację
+php artisan enova:generate-backup-cache --force
 ```
 
 ### Optymalizacja Zapytań

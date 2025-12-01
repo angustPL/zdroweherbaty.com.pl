@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Scout\Searchable;
 
@@ -117,31 +118,39 @@ class Product extends EnovaModel
     /**
      * Pobiera produkty z określonej grupy z cache'owaniem.
      * Wyniki są cache'owane zgodnie z konfiguracją (domyślnie 24 godziny).
+     * W przypadku awarii Enova używa cache (nawet jeśli wygasł).
      *
      * @param string $groupPath Pełna ścieżka grupy w formacie Enova (np. "Grupa\Podgrupa\")
      * @param int|null $ttl Czas życia cache w sekundach (domyślnie z konfiguracji)
-     * @return \Illuminate\Database\Eloquent\Collection
+     * @return \Illuminate\Database\Eloquent\Collection|array
      */
     public static function getCachedByGroup(string $groupPath, ?int $ttl = null)
     {
         $cacheKey = 'enova_products_group_' . md5($groupPath);
-        $cacheTtl = $ttl ?? config('enova.cache.ttl', 86400);
 
-        return Cache::remember($cacheKey, $cacheTtl, function () use ($groupPath) {
-            return static::with(['productNameFeature', 'price', 'group', 'productMark'])
-                ->whereHas('group', function ($query) use ($groupPath) {
-                    $query->where('Data', $groupPath);
-                })
-                ->get()
-                ->map(function ($product) {
-                    return $product->toDisplayArray();
-                });
-        });
+        return static::getCachedWithBackup(
+            $cacheKey,
+            function () use ($groupPath) {
+                return static::with(['productNameFeature', 'price', 'group', 'productMark'])
+                    ->whereHas('group', function ($query) use ($groupPath) {
+                        $query->where('Data', $groupPath);
+                    })
+                    ->get()
+                    ->map(function ($product) {
+                        return $product->toDisplayArray();
+                    })
+                    ->toArray(); // Zawsze zwracaj tablicę dla spójności z cache
+            },
+            [], // wartość domyślna: pusta tablica
+            $ttl,
+            "group_path: {$groupPath}"
+        );
     }
 
     /**
      * Pobiera pojedynczy produkt z cache'owaniem.
      * Wyniki są cache'owane zgodnie z konfiguracją (domyślnie 24 godziny).
+     * W przypadku awarii Enova używa cache (nawet jeśli wygasł).
      *
      * @param int $productId ID produktu
      * @param int|null $ttl Czas życia cache w sekundach (domyślnie z konfiguracji)
@@ -150,20 +159,26 @@ class Product extends EnovaModel
     public static function getCachedById(int $productId, ?int $ttl = null): ?array
     {
         $cacheKey = 'enova_product_' . $productId;
-        $cacheTtl = $ttl ?? config('enova.cache.ttl', 86400);
 
-        return Cache::remember($cacheKey, $cacheTtl, function () use ($productId) {
-            $product = static::with(['productNameFeature', 'price', 'group', 'productMark'])
-                ->where('ID', $productId)
-                ->first();
+        return static::getCachedWithBackup(
+            $cacheKey,
+            function () use ($productId) {
+                $product = static::with(['productNameFeature', 'price', 'group', 'productMark'])
+                    ->where('ID', $productId)
+                    ->first();
 
-            return $product ? $product->toDisplayArray() : null;
-        });
+                return $product ? $product->toDisplayArray() : null;
+            },
+            null, // wartość domyślna: null
+            $ttl,
+            "product_id: {$productId}"
+        );
     }
 
     /**
      * Pobiera wszystkie produkty z cache'owaniem.
      * Wyniki są cache'owane zgodnie z konfiguracją (domyślnie 24 godziny).
+     * W przypadku awarii Enova używa cache (nawet jeśli wygasł).
      *
      * @param int|null $ttl Czas życia cache w sekundach (domyślnie z konfiguracji)
      * @return array
@@ -171,16 +186,21 @@ class Product extends EnovaModel
     public static function getCachedAll(?int $ttl = null): array
     {
         $cacheKey = 'enova_products_all';
-        $cacheTtl = $ttl ?? config('enova.cache.ttl', 86400);
 
-        return Cache::remember($cacheKey, $cacheTtl, function () {
-            return static::with(['productNameFeature', 'price', 'group', 'productMark'])
-                ->get()
-                ->map(function ($product) {
-                    return $product->toDisplayArray();
-                })
-                ->toArray();
-        });
+        return static::getCachedWithBackup(
+            $cacheKey,
+            function () {
+                return static::with(['productNameFeature', 'price', 'group', 'productMark'])
+                    ->get()
+                    ->map(function ($product) {
+                        return $product->toDisplayArray();
+                    })
+                    ->toArray();
+            },
+            [], // wartość domyślna: pusta tablica
+            $ttl,
+            'all products'
+        );
     }
 
     /**

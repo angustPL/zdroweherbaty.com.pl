@@ -23,9 +23,11 @@ mount(function () {
 ?>
 
 @push('header-banner')
-    {{-- Banner z obrazem tła - pełna szerokość tuż pod headerem --}}
-    <div class="w-full h-[250px] md:h-[350px] lg:h-[450px] bg-cover bg-center bg-no-repeat"
-        style="background-image: url('{{ asset('img/bifix-hp-bg.jpg') }}');">
+    {{-- Banner z obrazem - pełna szerokość tuż pod headerem --}}
+    <div class="w-full h-[250px] md:h-[350px] lg:h-[450px] overflow-x-hidden"
+        style="display: flex; align-items: center; justify-content: center;">
+        <img src="{{ asset('img/bifix-hp-bg.jpg') }}" alt="BIFIX - Zdrowe herbaty"
+            style="height: 100%; width: auto; min-width: 100%; object-fit: cover; object-position: center;">
     </div>
 @endpush
 

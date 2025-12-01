@@ -72,7 +72,17 @@ mount(function ($ext_order_id) {
     }
 
     // Najpierw sprawdź czy zamówienie jest w Enova (jak w starym systemie)
-    $this->enovaOrder = EnovaOrder::byGuid($ext_order_id)->first();
+    // Obsługa timeoutów - jeśli Enova nie odpowiada, używamy lokalnej bazy
+    try {
+        $this->enovaOrder = EnovaOrder::byGuid($ext_order_id)->first();
+    } catch (\Exception $e) {
+        // Timeout lub błąd połączenia z Enova - loguj i kontynuuj z lokalną bazą
+        \Log::warning('Błąd połączenia z Enova przy pobieraniu zamówienia', [
+            'ext_order_id' => $ext_order_id,
+            'error' => $e->getMessage(),
+        ]);
+        $this->enovaOrder = null;
+    }
 
     if ($this->enovaOrder) {
         // Zamówienie jest w Enova - używamy TYLKO danych z Enova (najwyższy priorytet)
@@ -102,15 +112,13 @@ mount(function ($ext_order_id) {
             // Ustawiamy kod odpowiedzi HTTP na 404 przez session, aby middleware mógł to odczytać
             session(['order_not_found_404' => true]);
 
-            // Pobierz kilka losowych produktów do rekomendacji
+            // Pobierz kilka losowych produktów do rekomendacji z cache
             try {
-                $this->recommendedProducts = Product::with(['productNameFeature', 'price', 'group'])
-                    ->inRandomOrder()
+                $allProducts = Product::getCachedAll();
+                $this->recommendedProducts = collect($allProducts)
+                    ->shuffle()
                     ->take(6)
-                    ->get()
-                    ->map(function ($product) {
-                        return $product->toDisplayArray();
-                    })
+                    ->values()
                     ->toArray();
             } catch (\Exception $e) {
                 // W przypadku błędu, zostaw puste produkty
@@ -502,9 +510,9 @@ mount(function ($ext_order_id) {
                                         $product = null;
                                         $kod = '';
                                         try {
-                                            $product = $productId ? Product::find($productId) : null;
+                                            $product = $productId ? Product::getCachedById($productId) : null;
                                             if ($product) {
-                                                $kod = strtolower($product->Kod ?? '');
+                                                $kod = strtolower($product['Kod'] ?? '');
                                             }
                                         } catch (\Exception $e) {
                                         }
@@ -523,10 +531,35 @@ mount(function ($ext_order_id) {
                                     <strong>{{ $product->Nazwa ?? 'Dostawa' }}</strong>
                                 </p>
                             @endif
-                            @if ($enovaOrder->notes)
-                                <p class="text-gray-700 mt-2">
-                                    <strong>Uwagi:</strong><br>
-                                    <span class="whitespace-pre-wrap">{{ $enovaOrder->notes }}</span>
+                            {{-- Wyciągnij dane paczkomatu z uwag (gdy dane z Enova) --}}
+                            @php
+                                $parcelLockerFromNotes = null;
+                                if ($enovaOrder->notes && stripos($enovaOrder->notes, 'Paczkomat:') !== false) {
+                                    // Format: "Paczkomat: name, address.line1, address.line2"
+                                    preg_match('/Paczkomat:\s*(.+?)(?:\n|$)/i', $enovaOrder->notes, $matches);
+                                    if (!empty($matches[1])) {
+                                        $parts = array_map('trim', explode(',', $matches[1]));
+                                        if (count($parts) >= 3) {
+                                            $parcelLockerFromNotes = [
+                                                'name' => $parts[0],
+                                                'address' => [
+                                                    'line1' => $parts[1],
+                                                    'line2' => $parts[2],
+                                                ],
+                                            ];
+                                        }
+                                    }
+                                }
+                            @endphp
+                            @if ($parcelLockerFromNotes)
+                                <p class="text-sm text-gray-700 mt-2">
+                                    <strong>{{ $parcelLockerFromNotes['name'] }}</strong>
+                                </p>
+                                <p class="text-sm text-gray-600 mt-1">
+                                    {{ $parcelLockerFromNotes['address']['line1'] }}
+                                    @if (!empty($parcelLockerFromNotes['address']['line2']))
+                                        <br>{{ $parcelLockerFromNotes['address']['line2'] }}
+                                    @endif
                                 </p>
                             @endif
                         @elseif ($order)
@@ -549,12 +582,7 @@ mount(function ($ext_order_id) {
                                     </p>
                                 @endif
                             @endif
-                            @if ($order->notes)
-                                <p class="text-gray-700 mt-2">
-                                    <strong>Uwagi:</strong><br>
-                                    <span class="whitespace-pre-wrap">{{ $order->notes }}</span>
-                                </p>
-                            @endif
+                            {{-- Uwagi są dla wewnętrznej informacji - nie wyświetlamy --}}
                         @endif
                     </div>
                 </div>
@@ -582,9 +610,9 @@ mount(function ($ext_order_id) {
                             $product = null;
                             $kod = '';
                             try {
-                                $product = $productId ? Product::find($productId) : null;
+                                $product = $productId ? Product::getCachedById($productId) : null;
                                 if ($product) {
-                                    $kod = strtolower($product->Kod ?? '');
+                                    $kod = strtolower($product['Kod'] ?? '');
                                 }
                             } catch (\Exception $e) {
                                 // Ignoruj błędy
@@ -635,25 +663,20 @@ mount(function ($ext_order_id) {
                                         $quantity = (int) ($position->IloscValue ?? 1); // Ilość jako liczba całkowita
                                         $total = $price * $quantity;
 
-                                        // Spróbuj pobrać produkt (może nie działać jeśli relacja nie działa)
+                                        // Spróbuj pobrać produkt z cache
                                         $product = null;
                                         try {
-                                            $product = $productId ? Product::find($productId) : null;
+                                            $product = $productId ? Product::getCachedById($productId) : null;
                                         } catch (\Exception $e) {
-                                            // Ignoruj błędy relacji
+                                            // Ignoruj błędy
                                         }
 
                                         // Pobierz nazwę produktu
                                         $productName = 'Produkt';
                                         $productKod = '';
                                         if ($product) {
-                                            try {
-                                                $productNameFeature = $product
-                                                    ->features()
-                                                    ->where('Name', config('enova.features.product_name'))
-                                                    ->first();
-                                                $productName =
-                                                    $productNameFeature?->Data ?? ($product->Nazwa ?? 'Produkt');
+                                            // Produkt z cache jest tablicą, nazwa jest już w 'Nazwa'
+                                            $productName = $product['Nazwa'] ?? 'Produkt';
                                                 $productKod = strtolower($product->Kod ?? '');
                                             } catch (\Exception $e) {
                                                 $productName = $product->Nazwa ?? 'Produkt';
@@ -725,9 +748,9 @@ mount(function ($ext_order_id) {
                                 $product = null;
                                 $kod = '';
                                 try {
-                                    $product = $productId ? Product::find($productId) : null;
+                                    $product = $productId ? Product::getCachedById($productId) : null;
                                     if ($product) {
-                                        $kod = strtolower($product->Kod ?? '');
+                                        $kod = strtolower($product['Kod'] ?? '');
                                     }
                                 } catch (\Exception $e) {
                                 }
@@ -749,23 +772,33 @@ mount(function ($ext_order_id) {
                             // Spróbuj pobrać nazwę produktu dostawy
                             if ($productId = $deliveryPosition->Towar ?? null) {
                                 try {
-                                    $deliveryProduct = Product::find($productId);
+                                    $deliveryProduct = Product::getCachedById($productId);
                                     if ($deliveryProduct) {
-                                        $deliveryNameFeature = $deliveryProduct
-                                            ->features()
-                                            ->where('Name', config('enova.features.product_name'))
-                                            ->first();
-                                        if ($deliveryNameFeature) {
-                                            $deliveryName = $deliveryNameFeature->Wartosc ?? 'Dostawa';
+                                        // Nazwa produktu jest już w cache (productNameFeature)
+                                        $deliveryName = $deliveryProduct['Nazwa'] ?? 'Dostawa';
                                         }
                                     }
                                 } catch (\Exception $e) {
                                 }
                             }
                         }
-                        // Oblicz razem
+                        // Wyciągnij informacje o promocji z uwag
+                        $promotionCodeFromNotes = null;
+                        $promotionDiscountFromNotes = 0;
+                        if ($enovaOrder->notes && stripos($enovaOrder->notes, 'Promocja:') !== false) {
+                            // Format: "Promocja: CODE (nazwa) - zniżka: X,XX zł"
+                            if (preg_match('/Promocja:\s*([A-Z0-9]+)/i', $enovaOrder->notes, $codeMatch)) {
+                                $promotionCodeFromNotes = strtoupper(trim($codeMatch[1]));
+                            }
+                            // Wyciągnij kwotę zniżki
+                            if (preg_match('/zniżka:\s*([0-9,\.]+)\s*zł/i', $enovaOrder->notes, $discountMatch)) {
+                                $promotionDiscountFromNotes = (float) str_replace(',', '.', $discountMatch[1]);
+                            }
+                        }
+                        
+                        // Oblicz razem (uwzględniając zniżkę z promocji jeśli jest)
                         $sumaBrutto = $enovaOrder->SumaBrutto ?? ($subtotal ?? 0);
-                        $total = $sumaBrutto + $deliveryCost;
+                        $total = $sumaBrutto + $deliveryCost - $promotionDiscountFromNotes;
                         // Sprawdź czy jest dostawa (jeśli nie ma deliveryPosition, to odbiór osobisty)
                         $hasDelivery = $deliveryPosition !== null;
                     @endphp
@@ -785,6 +818,15 @@ mount(function ($ext_order_id) {
                             <div class="flex justify-between text-sm text-gray-600">
                                 <span>Dostawa ({{ $deliveryName }}):</span>
                                 <span class="font-medium">{{ number_format($deliveryCost, 2, ',', '.') }} zł</span>
+                            </div>
+                        </div>
+                    @endif
+                    {{-- Zniżka z promocji (gdy dane z Enova) --}}
+                    @if ($promotionCodeFromNotes && $promotionDiscountFromNotes > 0)
+                        <div class="p-6 border-t bg-white">
+                            <div class="flex justify-between text-sm text-green-600">
+                                <span>Zniżka ({{ $promotionCodeFromNotes }}):</span>
+                                <span class="font-medium">-{{ number_format($promotionDiscountFromNotes, 2, ',', '.') }} zł</span>
                             </div>
                         </div>
                     @endif
@@ -887,6 +929,15 @@ mount(function ($ext_order_id) {
                             <span>Dostawa ({{ $order->delivery_name }}):</span>
                             <span class="font-medium">{{ number_format($order->delivery_cost ?? 0, 2, ',', '.') }}
                                 zł</span>
+                        </div>
+                    </div>
+                @endif
+                {{-- Zniżka z promocji --}}
+                @if ($order->discount_amount > 0 && $order->promotion_code)
+                    <div class="p-6 border-t bg-white">
+                        <div class="flex justify-between text-sm text-green-600">
+                            <span>Zniżka ({{ $order->promotion_code }}):</span>
+                            <span class="font-medium">-{{ number_format($order->discount_amount, 2, ',', '.') }} zł</span>
                         </div>
                     </div>
                 @endif

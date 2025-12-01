@@ -1,5 +1,5 @@
 {{-- Logika: app/Livewire/Components/AddToCartButton.php --}}
-<div x-data="{ isHovered: false }" @mouseenter="isHovered = true" @mouseleave="isHovered = false">
+<div x-data="{ isHovered: false }" @mouseenter="isHovered = true" @mouseleave="isHovered = false" wire:init="checkIfInCart">
     @if ($isInCart)
         <flux:button href="{{ route('cart') }}" variant="filled" class="flex w-full items-center justify-center">
             <span wire:loading.remove x-text="isHovered ? 'Do koszyka' : 'W koszyku'">

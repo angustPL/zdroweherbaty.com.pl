@@ -64,6 +64,11 @@ return new class extends Migration
             $table->decimal('total', 10, 2); // Całkowita kwota
             $table->string('currency', 3)->default('PLN');
 
+            // ===== PROMOCJA =====
+            $table->foreignId('promotion_id')->nullable()->after('currency')->constrained()->onDelete('set null');
+            $table->decimal('discount_amount', 10, 2)->default(0)->after('promotion_id'); // Kwota zniżki
+            $table->string('promotion_code')->nullable()->after('discount_amount'); // Kod promocyjny (dla łatwego wyszukiwania)
+
             // ===== DODATKOWE INFORMACJE =====
             $table->text('notes')->nullable();
             $table->json('parcel_locker_data')->nullable(); // Dane paczkomatu (EasyPack)
@@ -75,6 +80,8 @@ return new class extends Migration
             $table->index('status');
             $table->index('customer_email');
             $table->index('created_at');
+            $table->index('promotion_id');
+            $table->index('promotion_code');
         });
     }
 

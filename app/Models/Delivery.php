@@ -129,4 +129,47 @@ class Delivery extends EnovaModel
             'StandardowaIloscValue' => $this->price?->StandardowaIloscValue ?? 0,
         ];
     }
+
+    /**
+     * Pobiera wszystkie opcje dostawy z cache'owania.
+     * W przypadku awarii Enova używa cache (nawet jeśli wygasł).
+     *
+     * @param int|null $ttl Czas życia cache w sekundach (domyślnie 48h)
+     * @return array
+     */
+    public static function getCachedAll(?int $ttl = null): array
+    {
+        $cacheKey = 'enova_deliveries_all';
+
+        return static::getCachedWithBackup(
+            $cacheKey,
+            function () {
+                return static::join('Ceny', 'Towary.ID', '=', 'Ceny.Towar')
+                    ->join('Features as PaymentFeatures', function ($join) {
+                        $join->on('Towary.ID', '=', 'PaymentFeatures.Parent')
+                            ->where('PaymentFeatures.Name', '=', config('enova.payment.feature_payment_method'));
+                    })
+                    ->join('SposobyZaplaty', 'PaymentFeatures.Data', '=', 'SposobyZaplaty.ID')
+                    ->where('Ceny.Definicja', config('enova.prices.definition'))
+                    ->orderBy('MasaBruttoValue')
+                    ->orderBy('Ceny.BruttoValue')
+                    ->select(['Towary.ID', 'Towary.Nazwa', 'Towary.Opis', 'Towary.MasaBruttoValue', 'Ceny.BruttoValue', 'SposobyZaplaty.Nazwa as PaymentMethodName'])
+                    ->get()
+                    ->map(function ($delivery) {
+                        return [
+                            'ID' => $delivery->ID,
+                            'Nazwa' => $delivery->Nazwa,
+                            'Opis' => $delivery->Opis,
+                            'MasaBruttoValue' => $delivery->MasaBruttoValue,
+                            'BruttoValue' => $delivery->BruttoValue,
+                            'PaymentMethod' => $delivery->PaymentMethodName ?? '-',
+                        ];
+                    })
+                    ->toArray();
+            },
+            [], // wartość domyślna: pusta tablica
+            $ttl,
+            'all deliveries'
+        );
+    }
 }

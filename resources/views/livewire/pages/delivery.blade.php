@@ -3,6 +3,7 @@
 
 use function Livewire\Volt\{state, mount, layout};
 use App\Models\Delivery;
+use App\Models\Promotion;
 
 layout('layouts.app');
 
@@ -13,36 +14,33 @@ layout('layouts.app');
 // Schema.org JSON-LD - tylko typ (reszta z domyślnych)
 app('seotools.json-ld')->setType('WebPage');
 
-state(['deliveries' => [], 'opcjeDostawy' => []]);
+state(['deliveries' => [], 'opcjeDostawy' => [], 'freeDeliveryThreshold' => 0]);
 
 mount(function () {
-    $this->deliveries = Delivery::join('Ceny', 'Towary.ID', '=', 'Ceny.Towar')
-        ->join('Features as PaymentFeatures', function ($join) {
-            $join->on('Towary.ID', '=', 'PaymentFeatures.Parent')->where('PaymentFeatures.Name', '=', config('enova.payment.feature_payment_method'));
-        })
-        ->join('SposobyZaplaty', 'PaymentFeatures.Data', '=', 'SposobyZaplaty.ID')
-        // ->where('Towary.Blokada', '=', 0)
-        ->where('Ceny.Definicja', config('enova.prices.definition'))
-        ->orderBy('MasaBruttoValue')
-        ->orderBy('Ceny.BruttoValue')
-        ->select(['Towary.ID', 'Towary.Nazwa', 'Towary.Opis', 'Towary.MasaBruttoValue', 'Ceny.BruttoValue', 'SposobyZaplaty.Nazwa as PaymentMethodName'])
-        ->get()
-        ->map(function ($delivery) {
-            return [
-                'ID' => $delivery->ID,
-                'Nazwa' => $delivery->Nazwa,
-                'Opis' => $delivery->Opis,
-                'MasaBruttoValue' => $delivery->MasaBruttoValue,
-                'BruttoValue' => $delivery->BruttoValue,
-                'PaymentMethod' => $delivery->PaymentMethodName ?? '-',
-            ];
-        })
-        ->toArray();
+    $this->deliveries = Delivery::getCachedAll();
 
     $this->opcjeDostawy = [];
     foreach ($this->deliveries as $delivery) {
         $this->opcjeDostawy[$delivery['MasaBruttoValue']][] = $delivery;
     }
+
+    // Pobierz próg bezpłatnej dostawy z promocji w bazie
+    $freeDeliveryPromotion = Promotion::where('type', 'automatic')
+        ->where('discount_type', 'free_delivery')
+        ->where('is_active', true)
+        ->where(function ($query) {
+            $query->whereNull('valid_from')
+                ->orWhere('valid_from', '<=', now());
+        })
+        ->where(function ($query) {
+            $query->whereNull('valid_to')
+                ->orWhere('valid_to', '>=', now());
+        })
+        ->first();
+
+    $this->freeDeliveryThreshold = $freeDeliveryPromotion && $freeDeliveryPromotion->min_order_amount 
+        ? (float) $freeDeliveryPromotion->min_order_amount 
+        : (float) config('enova.delivery.free_delivery_threshold', 0);
 
     // GTM page type
     try {
@@ -59,16 +57,14 @@ mount(function () {
         <h1 class="text-4xl font-bold text-gray-900 mb-4">
             Opcje dostawy
         </h1>
-        @if (config('enova.delivery.free_delivery_threshold') > 0)
+        @if ($freeDeliveryThreshold > 0)
             <p>
                 Bezpłatna dostawa dla zamówień o wartości większej niż
-                <strong
-                    class="text-lg">{{ number_format(config('enova.delivery.free_delivery_threshold'), 0, ',', '.') }}
-                    zł</strong>
+                <strong class="text-lg">{{ number_format($freeDeliveryThreshold, 0, ',', '.') }} zł</strong>
             </p>
             <p>
                 Koszty dostawy dla zamówień o wartości do
-                {{ number_format(config('enova.delivery.free_delivery_threshold'), 0, ',', '.') }} zł
+                {{ number_format($freeDeliveryThreshold, 0, ',', '.') }} zł
                 przedstawia tabela.
             </p>
         @endif

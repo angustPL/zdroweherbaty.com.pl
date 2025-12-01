@@ -2,13 +2,16 @@
 
 use function Livewire\Volt\{state, mount, layout, action};
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Str;
 use App\Services\CartService;
 use App\Services\PayuService;
 use App\Services\EnovaXmlService;
+use App\Services\PromotionService;
 use App\Models\Delivery;
 use App\Models\Order;
 use App\Models\Payment;
+use App\Models\Content;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
 use App\Events\OrderCreated;
@@ -57,11 +60,16 @@ state([
     'selectedPayuOption' => null,
     'notes' => '',
     'parcelLockerData' => null,
-    'currentStep' => 1, // Aktualny krok walidacji: 1=dane, 2=dostawa, 3=płatność
+    'acceptedTerms' => false,
+    'termsContent' => null,
+    'appliedPromotion' => null,
+    'promotionDiscount' => 0,
+    'currentStep' => 1, // Aktualny krok walidacji: 1=dane, 2=dostawa, 3=płatność, 4=regulamin
     'stepErrors' => [
         'step1' => [],
         'step2' => [],
         'step3' => [],
+        'step4' => [],
     ],
 ]);
 
@@ -97,6 +105,11 @@ $rulesStep3 = [
     'selectedPayment' => 'required|string',
 ];
 
+// Reguły walidacji - KROK 4: Akceptacja regulaminu
+$rulesStep4 = [
+    'acceptedTerms' => 'required|accepted',
+];
+
 // Komunikaty błędów
 $messages = [
     'customerData.first_name.required' => 'Imię jest wymagane.',
@@ -115,6 +128,8 @@ $messages = [
     'invoiceData.post_office.required_if' => 'Poczta jest wymagana dla faktury.',
     'selectedDelivery.required' => 'Wybierz opcję dostawy.',
     'selectedPayment.required' => 'Wybierz sposób płatności.',
+    'acceptedTerms.required' => 'Musisz zaakceptować regulamin, aby złożyć zamówienie.',
+    'acceptedTerms.accepted' => 'Musisz zaakceptować regulamin, aby złożyć zamówienie.',
     'parcel_locker' => 'Wybierz paczkomat dla dostawy do paczkomatu.',
 ];
 
@@ -168,9 +183,7 @@ $validateStep2 = action(function () use ($rulesStep2, $messages) {
                 $isParcelLocker = str_contains($deliveryName, $parcelLockerName);
 
                 if ($isParcelLocker) {
-                    // Sprawdź czy są dane paczkomatu (parcelLockerData jest ustawiane automatycznie z cookies w updatedSelectedDelivery)
-                    // W starym systemie sprawdzano ukryte pole paczkomat_name - tutaj sprawdzamy parcelLockerData i paczkomat_name
-                    // parcelLockerData może być stringiem JSON (z wire:model) lub tablicą (z updatedSelectedDelivery)
+                    // Sprawdź czy są dane paczkomatu w hidden input (parcelLockerData)
                     $parcelLockerData = $this->parcelLockerData;
 
                     // Jeśli to string JSON, zdekoduj
@@ -179,42 +192,11 @@ $validateStep2 = action(function () use ($rulesStep2, $messages) {
                     }
 
                     // Sprawdź czy dane są poprawne
-                    $hasValidData = !empty($parcelLockerData) && is_array($parcelLockerData) && !empty($parcelLockerData['name']);
-
-                    // Sprawdź też ukryte pole paczkomat_name (jak w starym systemie - linia 136-137 w dostawa.ajax.phtml)
-                    $paczkomatName = request()->input('paczkomat_name');
-                    if (empty($hasValidData) && !empty($paczkomatName)) {
-                        $hasValidData = true;
-                    }
-
-                    if (!$hasValidData) {
-                        // Sprawdź też bezpośrednio cookie jako backup (główne źródło prawdy)
-                        $cookieData = request()->cookie('selectedParcelLocker');
-                        if (empty($cookieData)) {
-                            $this->stepErrors['step2']['parcel_locker'] = ['Wybierz paczkomat dla dostawy do paczkomatu.'];
-                            $this->currentStep = 2;
-                            $this->dispatch('scroll-to-step', step: 2);
-                            return false;
-                        } else {
-                            // Cookie istnieje, ale parcelLockerData nie jest ustawione - spróbuj ustawić teraz
-                            try {
-                                $parcelLocker = json_decode($cookieData, true);
-                                if (json_last_error() === JSON_ERROR_NONE && !empty($parcelLocker['name'])) {
-                                    $this->parcelLockerData = $parcelLocker;
-                                    // Dane są teraz dostępne, kontynuuj walidację
-                                } else {
-                                    $this->stepErrors['step2']['parcel_locker'] = ['Wybierz paczkomat dla dostawy do paczkomatu.'];
-                                    $this->currentStep = 2;
-                                    $this->dispatch('scroll-to-step', step: 2);
-                                    return false;
-                                }
-                            } catch (\Exception $e) {
-                                $this->stepErrors['step2']['parcel_locker'] = ['Wybierz paczkomat dla dostawy do paczkomatu.'];
-                                $this->currentStep = 2;
-                                $this->dispatch('scroll-to-step', step: 2);
-                                return false;
-                            }
-                        }
+                    if (empty($parcelLockerData) || !is_array($parcelLockerData) || empty($parcelLockerData['name'])) {
+                        $this->stepErrors['step2']['parcel_locker'] = ['Wybierz paczkomat dla dostawy do paczkomatu.'];
+                        $this->currentStep = 2;
+                        $this->dispatch('scroll-to-step', step: 2);
+                        return false;
                     }
                 }
             }
@@ -242,8 +224,85 @@ $validateStep3 = action(function () use ($rulesStep3, $messages) {
     }
 });
 
+$validateStep4 = action(function () use ($rulesStep4, $messages) {
+    $this->stepErrors['step4'] = [];
+    try {
+        $this->validate($rulesStep4, $messages);
+        return true;
+    } catch (\Illuminate\Validation\ValidationException $e) {
+        $this->stepErrors['step4'] = $e->errors();
+        $this->currentStep = 4;
+        $this->dispatch('scroll-to-step', step: 4);
+        return false;
+    }
+});
+
 mount(function () {
     $this->loadCart();
+
+    // Pobierz regulamin z bazy danych
+    $this->termsContent = Content::getTerms('regulamin');
+    
+    // Pobierz kod promocyjny z sesji i oblicz zniżkę
+    $promotionCode = session('promotion_code');
+    if ($promotionCode) {
+        $promotionService = app(PromotionService::class);
+        $promotion = $promotionService->findByCode($promotionCode);
+        
+        if ($promotion) {
+            // Przygotuj dane koszyka
+            $cartItems = [];
+            foreach ($this->cart['items'] ?? [] as $productId => $item) {
+                $cartItems[] = [
+                    'id' => $item['id'] ?? $productId,
+                    'group' => $item['group'] ?? null,
+                    'price' => $item['price'] ?? 0,
+                    'quantity' => $item['quantity'] ?? 1,
+                ];
+            }
+            $cartTotal = $this->cart['total'] ?? 0;
+            
+            // Waliduj promocję
+            $validation = $promotionService->validatePromotion($promotion, $cartItems, $cartTotal);
+            
+            if ($validation['valid']) {
+                $this->appliedPromotion = $promotion;
+                $this->promotionDiscount = $promotionService->calculateDiscount($promotion, $cartItems, $cartTotal);
+            } else {
+                // Kod nieprawidłowy - usuń z sesji
+                session()->forget('promotion_code');
+            }
+        } else {
+            // Kod nie istnieje - usuń z sesji
+            session()->forget('promotion_code');
+        }
+    }
+    
+    // Wczytaj dane klienta z cookies
+    $savedCustomerData = Cookie::get('savedCustomerData');
+    if ($savedCustomerData) {
+        try {
+            $data = json_decode($savedCustomerData, true);
+            if (is_array($data) && (isset($data['first_name']) || isset($data['email']))) {
+                $this->customerData = array_merge($this->customerData, $data);
+            }
+        } catch (\Exception $e) {
+            // Ignoruj błędy parsowania
+        }
+    }
+    
+    // Wczytaj dane faktury z cookies
+    $savedInvoiceData = Cookie::get('savedInvoiceData');
+    if ($savedInvoiceData) {
+        try {
+            $data = json_decode($savedInvoiceData, true);
+            if (is_array($data) && (isset($data['company_name']) || isset($data['nip']))) {
+                $this->invoiceData = array_merge($this->invoiceData, $data);
+            }
+        } catch (\Exception $e) {
+            // Ignoruj błędy parsowania
+        }
+    }
 });
 
 // Funkcja do czyszczenia danych faktury
@@ -510,9 +569,10 @@ $saveOrder = function ($extOrderId, $paymentMethodGuid, $payuOrderId, $component
     $selectedDeliveryOption = collect($component->deliveryOptions)->firstWhere('id', $component->selectedDelivery);
     $deliveryPrice = $selectedDeliveryOption['price'] ?? 0;
     $subtotal = $component->cart['total'] ?? 0;
-    $total = $subtotal + $deliveryPrice;
+    $promotionDiscount = $component->promotionDiscount ?? 0;
+    $total = max(0, $subtotal + $deliveryPrice - $promotionDiscount);
 
-    // Przygotuj uwagi (np. informacje o paczkomacie)
+    // Przygotuj uwagi (np. informacje o paczkomacie i promocjach)
     $notes = '';
     if (!empty($component->notes)) {
         $notes = $component->notes;
@@ -524,27 +584,33 @@ $saveOrder = function ($extOrderId, $paymentMethodGuid, $payuOrderId, $component
     $parcelLockerName = config('enova.delivery.parcel_locker_name', 'Paczkomaty 24/7');
     $isParcelLocker = stripos($deliveryName, $parcelLockerName) !== false;
 
+    // Buduj uwagi w strukturze ułatwiającej późniejsze odczytanie
+    $notesParts = [];
+
+    // 1. Paczkomat (jeśli jest)
     if ($isParcelLocker && !empty($component->parcelLockerData)) {
         $parcelLockerData = is_string($component->parcelLockerData) ? json_decode($component->parcelLockerData, true) : $component->parcelLockerData;
-        
-        // Dodaj dane paczkomatu do uwag (jak w starym systemie) - format zgodny z Enova
+
         if (is_array($parcelLockerData) && !empty($parcelLockerData['name'])) {
-            $paczkomatInfo = 'Paczkomat: '
-                . ($parcelLockerData['name'] ?? '')
-                . ', '
-                . ($parcelLockerData['address']['line1'] ?? '')
-                . ', '
-                . ($parcelLockerData['address']['line2'] ?? '')
-                . "\n\n";
-            
-            // Dodaj informacje o paczkomacie na początku uwag (jeśli są uwagi od klienta)
-            if (!empty($notes)) {
-                $notes = $paczkomatInfo . $notes;
-            } else {
-                $notes = $paczkomatInfo;
-            }
+            $notesParts[] = 'Paczkomat: ' . ($parcelLockerData['name'] ?? '') . ', ' . ($parcelLockerData['address']['line1'] ?? '') . ', ' . ($parcelLockerData['address']['line2'] ?? '');
         }
     }
+
+    // 2. Promocje (jeśli są)
+    if ($component->appliedPromotion) {
+        $promotionInfo = 'Promocja: ' . $component->appliedPromotion->code 
+            . ' (' . $component->appliedPromotion->name . ')'
+            . ' - zniżka: ' . number_format($promotionDiscount, 2, ',', '.') . ' zł';
+        $notesParts[] = $promotionInfo;
+    }
+
+    // 3. Uwagi klienta (jeśli są)
+    if (!empty($notes)) {
+        $notesParts[] = $notes;
+    }
+
+    // Połącz wszystkie części z podwójnym znakiem nowej linii dla czytelności
+    $notes = implode("\n\n", $notesParts);
 
     // Zapisz zamówienie (płatność to osobna operacja, można ją ponowić)
     $order = Order::create([
@@ -577,11 +643,22 @@ $saveOrder = function ($extOrderId, $paymentMethodGuid, $payuOrderId, $component
         'subtotal' => $subtotal,
         'delivery_cost' => $deliveryPrice,
         'is_free_delivery' => $selectedDeliveryOption['is_free'] ?? false,
+        'promotion_id' => $component->appliedPromotion?->id ?? null,
+        'discount_amount' => $promotionDiscount,
+        'promotion_code' => $component->appliedPromotion?->code ?? null,
         'total' => $total,
         'currency' => 'PLN',
         'notes' => $notes,
         'parcel_locker_data' => $parcelLockerData,
     ]);
+    
+    // Zapisz relację promocji w pivot table (jeśli jest promocja)
+    if ($component->appliedPromotion) {
+        $order->promotions()->attach($component->appliedPromotion->id);
+        
+        // Zwiększ licznik użycia promocji
+        $component->appliedPromotion->increment('usage_count');
+    }
 
     // Zapisz płatność (osobna operacja - można ją ponowić w przypadku niepowodzenia)
     $payment = Payment::create([
@@ -592,7 +669,7 @@ $saveOrder = function ($extOrderId, $paymentMethodGuid, $payuOrderId, $component
         'payu_option' => $component->selectedPayuOption,
         'ext_order_id' => $extOrderId,
         'status' => PaymentStatus::PENDING->value,
-        'amount' => $total,
+        'amount' => $total, // Total już uwzględnia zniżkę
         'currency' => 'PLN',
     ]);
 
@@ -602,10 +679,10 @@ $saveOrder = function ($extOrderId, $paymentMethodGuid, $payuOrderId, $component
     return $order;
 };
 
-$submitOrder = function () use ($validateStep1, $validateStep2, $validateStep3, $generateGuid, $saveOrder) {
+$submitOrder = function () use ($validateStep1, $validateStep2, $validateStep3, $validateStep4, $generateGuid, $saveOrder) {
     \Log::info('submitOrder wywołane');
 
-    // Walidacja w 3 krokach - zatrzymujemy się przy pierwszym błędzie
+    // Walidacja w 4 krokach - zatrzymujemy się przy pierwszym błędzie
     if (!$validateStep1()) {
         return; // Błąd w kroku 1 - zatrzymujemy walidację
     }
@@ -616,6 +693,10 @@ $submitOrder = function () use ($validateStep1, $validateStep2, $validateStep3, 
 
     if (!$validateStep3()) {
         return; // Błąd w kroku 3 - zatrzymujemy walidację
+    }
+
+    if (!$validateStep4()) {
+        return; // Błąd w kroku 4 - zatrzymujemy walidację
     }
 
     // Sprawdź czy wybrano PayU
@@ -675,11 +756,12 @@ $submitOrder = function () use ($validateStep1, $validateStep2, $validateStep3, 
             ];
         }
 
-        // Oblicz całkowitą kwotę (produkty + dostawa)
+        // Oblicz całkowitą kwotę (produkty + dostawa - zniżka)
         $totalAmount = $this->cart['total'] ?? 0;
         if ($selectedDeliveryOption && ($selectedDeliveryOption['price'] ?? 0) > 0) {
             $totalAmount += $selectedDeliveryOption['price'];
         }
+        $totalAmount = max(0, $totalAmount - ($this->promotionDiscount ?? 0));
 
         // Przygotuj dane zamówienia
         $orderData = [
@@ -817,17 +899,8 @@ $submitOrder = function () use ($validateStep1, $validateStep2, $validateStep3, 
 
                     <div class="space-y-4">
                         {{-- Dane zamawiającego --}}
-                        <div class="flex items-center justify-between mb-4">
+                        <div class="mb-4">
                             <h2 class="text-xl font-semibold">Dane zamawiającego</h2>
-                            <button type="button" wire:click="loadCustomerData" id="loadCustomerDataBtn"
-                                class="text-sm text-primary hover:text-primary/80 font-medium items-center gap-1 hidden"
-                                style="display: none;">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                                </svg>
-                                Użyj zapamiętanych danych
-                            </button>
                         </div>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
@@ -933,18 +1006,8 @@ $submitOrder = function () use ($validateStep1, $validateStep2, $validateStep3, 
                                 x-transition:leave="transition ease-in duration-200"
                                 x-transition:leave-start="opacity-100 max-h-screen"
                                 x-transition:leave-end="opacity-0 max-h-0 overflow-hidden" class="mt-4 space-y-4">
-                                <div class="flex items-center justify-between mb-4">
+                                <div class="mb-4">
                                     <h2 class="text-xl font-semibold">Dane do faktury</h2>
-                                    <button type="button" wire:click="loadInvoiceData" id="loadInvoiceDataBtn"
-                                        class="text-sm text-primary hover:text-primary/80 font-medium items-center gap-1 hidden"
-                                        style="display: none;">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor"
-                                            viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                                        </svg>
-                                        Użyj zapamiętanych danych
-                                    </button>
                                 </div>
 
                                 {{-- Alert błędów dla faktury (tylko błędy związane z fakturą) --}}
@@ -1145,26 +1208,6 @@ $submitOrder = function () use ($validateStep1, $validateStep2, $validateStep3, 
                                                                     @endif
                                                                 @endif
                                                             </div>
-                                                            {{-- Ukryte pole z danymi paczkomatu (jak w starym systemie - paczkomat_name) --}}
-                                                            @php
-                                                                $paczkomatName = '';
-                                                                if (!empty($parcelLockerData)) {
-                                                                    if (is_string($parcelLockerData)) {
-                                                                        $decoded = json_decode($parcelLockerData, true);
-                                                                        if (
-                                                                            json_last_error() === JSON_ERROR_NONE &&
-                                                                            is_array($decoded)
-                                                                        ) {
-                                                                            $paczkomatName = $decoded['name'] ?? '';
-                                                                        }
-                                                                    } elseif (is_array($parcelLockerData)) {
-                                                                        $paczkomatName =
-                                                                            $parcelLockerData['name'] ?? '';
-                                                                    }
-                                                                }
-                                                            @endphp
-                                                            <input type="hidden" id="paczkomat_name"
-                                                                name="paczkomat_name" value="{{ $paczkomatName }}">
                                                             <button type="button" onclick="openEasyPackModal()"
                                                                 id="parcelLockerBtn"
                                                                 class="bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors duration-200 flex items-center text-sm">
@@ -1268,28 +1311,47 @@ $submitOrder = function () use ($validateStep1, $validateStep2, $validateStep3, 
             {{-- Podsumowanie --}}
             <div class="lg:col-span-1">
                 <div class="bg-white rounded-lg shadow p-6 sticky top-20">
-                    <h2 class="text-xl font-semibold mb-4">Podsumowanie zamówienia</h2>
+                    <h2 class="text-lg font-semibold mb-3">W koszyku</h2>
 
                     {{-- Produkty --}}
-                    <div class="space-y-3 mb-4">
+                    <div class="space-y-2 mb-4">
                         @foreach ($cart['items'] as $productId => $item)
-                            <div class="flex justify-between items-center text-sm">
-                                <div class="flex-1">
-                                    <div class="font-medium">{{ $item['name'] }}</div>
-                                    <div class="text-gray-600">Ilość: {{ $item['quantity'] }}</div>
-                                </div>
-                                <div class="text-right">
-                                    {{ number_format($item['price'] * $item['quantity'], 2, ',', '.') }} zł
+                            <div class="text-xs">
+                                <div class="font-medium mb-0.5">{{ $item['name'] }}</div>
+                                <div class="flex justify-between items-center text-gray-600">
+                                    <span>Ilość: {{ $item['quantity'] }}</span>
+                                    <span class="font-medium text-gray-900">{{ number_format($item['price'] * $item['quantity'], 2, ',', '.') }} zł</span>
                                 </div>
                             </div>
                         @endforeach
                     </div>
 
-                    <div class="border-t pt-4">
-                        <div class="flex justify-between font-semibold text-lg">
-                            <span>Razem:</span>
-                            <span>{{ number_format($cart['total'] ?? 0, 2, ',', '.') }} zł</span>
-                        </div>
+                    <div class="border-t pt-4 space-y-2">
+                        @if ($appliedPromotion && $promotionDiscount > 0)
+                            {{-- Wartość produktów --}}
+                            <div class="flex justify-between text-sm text-gray-600">
+                                <span>Wartość produktów:</span>
+                                <span>{{ number_format($cart['total'] ?? 0, 2, ',', '.') }} zł</span>
+                            </div>
+                            
+                            {{-- Zniżka z promocji --}}
+                            <div class="flex justify-between text-sm text-green-600">
+                                <span>Zniżka ({{ $appliedPromotion->code }}):</span>
+                                <span>-{{ number_format($promotionDiscount, 2, ',', '.') }} zł</span>
+                            </div>
+                            
+                            {{-- Razem --}}
+                            <div class="flex justify-between font-semibold text-lg pt-2 border-t">
+                                <span>Razem:</span>
+                                <span>{{ number_format(max(0, ($cart['total'] ?? 0) - $promotionDiscount), 2, ',', '.') }} zł</span>
+                            </div>
+                        @else
+                            {{-- Razem (bez zniżki) --}}
+                            <div class="flex justify-between font-semibold text-lg">
+                                <span>Razem:</span>
+                                <span>{{ number_format($cart['total'] ?? 0, 2, ',', '.') }} zł</span>
+                            </div>
+                        @endif
                     </div>
 
                     {{-- Przycisk edycji koszyka --}}
@@ -1308,10 +1370,53 @@ $submitOrder = function () use ($validateStep1, $validateStep2, $validateStep3, 
             </div>
         </div>
 
+        {{-- KROK 4: Akceptacja regulaminu --}}
+        <div class="bg-white rounded-lg shadow p-6 mt-6" id="step-4">
+            {{-- Alert błędów dla kroku 4 --}}
+            @if (!empty($stepErrors['step4']))
+                <div class="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                    <div class="flex items-start">
+                        <svg class="w-5 h-5 text-red-600 mt-0.5 mr-2 flex-shrink-0" fill="currentColor"
+                            viewBox="0 0 20 20">
+                            <path fill-rule="evenodd"
+                                d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                                clip-rule="evenodd" />
+                        </svg>
+                        <div>
+                            @foreach ($stepErrors['step4'] as $field => $errors)
+                                @foreach ($errors as $error)
+                                    <p class="text-sm font-medium text-red-800">{{ $error }}</p>
+                                @endforeach
+                            @endforeach
+                        </div>
+                    </div>
+                </div>
+            @endif
+
+            <h2 class="text-xl font-semibold mb-4">Akceptacja regulaminu</h2>
+
+            {{-- Checkbox akceptacji regulaminu --}}
+            <div class="mb-4">
+                <label class="flex items-start">
+                    <input type="checkbox" wire:model.live="acceptedTerms"
+                        class="mt-1 mr-2 h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded">
+                    <span class="text-sm text-gray-700">
+                        Akceptuję
+                        <flux:modal.trigger name="terms-modal">
+                            <button type="button" class="text-primary hover:underline">
+                                Regulamin
+                            </button>
+                        </flux:modal.trigger>
+                    </span>
+                </label>
+            </div>
+        </div>
+
         {{-- Przycisk zamówienia --}}
         <div class="mt-8">
-            <form wire:submit.prevent="submitOrder" onsubmit="setParcelLockerData(event)">
+            <form wire:submit.prevent="submitOrder">
                 <input type="hidden" wire:model.live="parcelLockerData" id="parcelLockerDataInput">
+
                 <flux:button type="submit" variant="primary" class="w-full">
                     Złóż zamówienie
                 </flux:button>
@@ -1319,6 +1424,35 @@ $submitOrder = function () use ($validateStep1, $validateStep2, $validateStep3, 
         </div>
     @endif
 
+    {{-- Modal z regulaminem --}}
+    <flux:modal name="terms-modal" focusable class="max-w-4xl">
+        <div class="space-y-4">
+            <div>
+                <flux:heading size="xl">
+                    {{ $termsContent?->title ?? 'Regulamin' }}
+                </flux:heading>
+                <flux:subheading>
+                    Regulamin sklepu internetowego Zdrowe Herbaty
+                </flux:subheading>
+            </div>
+
+            <div class="prose prose-sm max-w-none text-gray-700 leading-relaxed">
+                @if ($termsContent && $termsContent->content)
+                    {!! $termsContent->content !!}
+                @else
+                    <p class="text-gray-500">Regulamin nie jest dostępny.</p>
+                @endif
+            </div>
+        </div>
+        
+        <x-slot name="footer">
+            <div class="flex justify-end">
+                <flux:modal.close>
+                    <flux:button variant="filled">Zamknij</flux:button>
+                </flux:modal.close>
+            </div>
+        </x-slot>
+    </flux:modal>
 
     <!-- EasyPack CSS -->
     <link href="//geowidget.easypack24.net/css/easypack.css" media="screen" rel="stylesheet" type="text/css">
@@ -1525,150 +1659,47 @@ $submitOrder = function () use ($validateStep1, $validateStep2, $validateStep3, 
 
             easyPack.modalMap(function(point, modal) {
                 modal.closeModal();
-                if (point.name) {
-                    // Zapisz wybór do cookies na 30 dni
-                    const expiryDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-                    document.cookie =
-                        `selectedParcelLocker=${JSON.stringify(point)}; expires=${expiryDate.toUTCString()}; path=/`;
 
-                    // Synchronizuj z Livewire przez ukryte pole (jak w starym systemie - ukryte pole paczkomat_name)
-                    const input = document.getElementById('parcelLockerDataInput');
-                    if (input) {
-                        const jsonData = JSON.stringify(point);
-                        input.value = jsonData;
-                        // Wywołaj event input i change, aby Livewire zsynchronizował wartość
-                        input.dispatchEvent(new Event('input', {
-                            bubbles: true
-                        }));
-                        input.dispatchEvent(new Event('change', {
-                            bubbles: true
-                        }));
-                        // wire:model.live automatycznie zsynchronizuje wartość
-                    }
-
-                    // Ustaw wartość ukrytego pola paczkomat_name (jak w starym systemie - linia 37)
-                    const paczkomatNameInput = document.getElementById('paczkomat_name');
-                    if (paczkomatNameInput) {
-                        paczkomatNameInput.value = point.name || '';
-                    }
-
-                    // Wyświetl wybór
-                    const displayDiv = document.getElementById('danePaczkomatu');
-                    const btnText = document.getElementById('btnText');
-
-                    if (displayDiv) {
-                        displayDiv.innerHTML = '<strong>' + point.name + '</strong> - ' +
-                            (point.address?.line1 || '') + ', ' +
-                            (point.address?.line2 || '');
-                    }
-
-                    // Zmień tekst przycisku
-                    if (btnText) {
-                        btnText.textContent = 'Zmień paczkomat';
-                    }
-                } else {
-                    alert('Brak danych paczkomatu');
+                // Sprawdź czy point ma wymagane dane
+                if (!point || !point.name) {
+                    return;
                 }
-            }, {
-                width: 500
-            });
-        }
 
-        // Funkcja do ustawiania danych paczkomatu przed submitem (jak w starym sklepie - sprawdzamy nazwę dostawy)
-        function setParcelLockerData(event) {
-            // Zapobiegaj domyślnemu submitowi, aby móc zsynchronizować dane przed walidacją
-            event.preventDefault();
+                // Zapisz wybór do cookies na 30 dni
+                const expiryDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+                document.cookie =
+                    `selectedParcelLocker=${JSON.stringify(point)}; expires=${expiryDate.toUTCString()}; path=/`;
 
-            const input = document.getElementById('parcelLockerDataInput');
-            if (!input) {
-                // Jeśli nie ma inputa, kontynuuj normalny submit
-                @this.call('submitOrder');
-                return;
-            }
-
-            // Sprawdź czy wybrana dostawa to paczkomat - sprawdzamy nazwę dostawy (jak w starym sklepie)
-            const selectedDeliveryId = @js($selectedDelivery ?? null);
-            if (!selectedDeliveryId) {
-                input.value = '';
-                input.dispatchEvent(new Event('input', {
-                    bubbles: true
-                }));
-                // Poczekaj chwilę na synchronizację i wywołaj submit
-                setTimeout(() => {
-                    @this.call('submitOrder');
-                }, 100);
-                return;
-            }
-
-            const deliveryOptions = @js($deliveryOptions ?? []);
-            const selectedDeliveryOption = deliveryOptions.find(opt => opt.id === selectedDeliveryId);
-            if (!selectedDeliveryOption) {
-                input.value = '';
-                input.dispatchEvent(new Event('input', {
-                    bubbles: true
-                }));
-                setTimeout(() => {
-                    @this.call('submitOrder');
-                }, 100);
-                return;
-            }
-
-            const deliveryName = selectedDeliveryOption.name || '';
-            const parcelLockerName = @js(config('enova.delivery.parcel_locker_name', 'Paczkomaty 24/7'));
-            const isParcelLocker = deliveryName.toLowerCase().includes(parcelLockerName.toLowerCase());
-
-            // Jeśli to nie paczkomat, wyczyść dane i kontynuuj
-            if (!isParcelLocker) {
-                input.value = '';
-                input.dispatchEvent(new Event('input', {
-                    bubbles: true
-                }));
-                setTimeout(() => {
-                    @this.call('submitOrder');
-                }, 100);
-                return;
-            }
-
-            // Jeśli to paczkomat, wczytaj dane z cookies (jak w starym sklepie - zawsze czytamy z cookies jeśli istnieje)
-            const saved = getCookie('selectedParcelLocker');
-            if (saved) {
-                try {
-                    const locker = JSON.parse(saved);
-                    // Ustaw wartość bezpośrednio w ukrytym polu - Livewire automatycznie zsynchronizuje
-                    input.value = JSON.stringify(locker);
-                    // Wywołaj event input i change, aby Livewire zsynchronizował wartość
+                // Ustaw wartość w hidden input - Livewire automatycznie zsynchronizuje przez wire:model.live
+                const input = document.getElementById('parcelLockerDataInput');
+                if (input) {
+                    input.value = JSON.stringify(point);
                     input.dispatchEvent(new Event('input', {
                         bubbles: true
                     }));
                     input.dispatchEvent(new Event('change', {
                         bubbles: true
                     }));
-                    // Poczekaj chwilę na synchronizację Livewire, potem wywołaj submit
-                    setTimeout(() => {
-                        @this.call('submitOrder');
-                    }, 200);
-                } catch (e) {
-                    // Błąd parsowania - nie ustawiamy danych
-                    console.error('Błąd parsowania danych paczkomatu:', e);
-                    input.value = '';
-                    input.dispatchEvent(new Event('input', {
-                        bubbles: true
-                    }));
-                    setTimeout(() => {
-                        @this.call('submitOrder');
-                    }, 100);
                 }
-            } else {
-                // Brak zapisanych danych - wyczyść pole i kontynuuj (walidacja pokaże błąd)
-                input.value = '';
-                input.dispatchEvent(new Event('input', {
-                    bubbles: true
-                }));
-                setTimeout(() => {
-                    @this.call('submitOrder');
-                }, 100);
-            }
+
+                // Wyświetl wybór
+                const displayDiv = document.getElementById('danePaczkomatu');
+                const btnText = document.getElementById('btnText');
+
+                if (displayDiv) {
+                    displayDiv.innerHTML = '<strong>' + point.name + '</strong> - ' +
+                        (point.address?.line1 || '') + ', ' +
+                        (point.address?.line2 || '');
+                }
+
+                if (btnText) {
+                    btnText.textContent = 'Zmień paczkomat';
+                }
+            }, {
+                width: 500
+            });
         }
+
 
         // Nasłuchuj na eventy Livewire do zapisywania i wczytywania danych
         document.addEventListener('livewire:init', () => {
@@ -1679,153 +1710,12 @@ $submitOrder = function () use ($validateStep1, $validateStep2, $validateStep3, 
                 }
             });
 
-            // Wczytywanie danych klienta
-            Livewire.on('load-customer-data', () => {
-                const saved = getCookie('savedCustomerData');
-                if (saved) {
-                    try {
-                        const data = JSON.parse(saved);
-                        if (typeof Livewire !== 'undefined' && typeof Livewire.find !== 'undefined') {
-                            const form = document.getElementById('order-form');
-                            if (form) {
-                                const wireId = form.closest('[wire\\:id]')?.getAttribute('wire:id');
-                                if (wireId) {
-                                    const component = Livewire.find(wireId);
-                                    if (component && typeof component.set === 'function') {
-                                        try {
-                                            component.set('customerData', data);
-                                            // Po wczytaniu danych, upewnij się że przycisk pozostaje widoczny
-                                            setTimeout(() => {
-                                                checkAndShowSavedDataButtons();
-                                            }, 500);
-                                        } catch (e) {
-                                            console.warn('Nie można ustawić customerData:', e);
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    } catch (e) {
-                        console.error('Błąd parsowania zapisanych danych klienta:', e);
-                    }
-                }
-            });
-
             // Zapisywanie danych faktury
             Livewire.on('save-invoice-data', (event) => {
                 if (event.data) {
                     setCookie('savedInvoiceData', event.data);
                 }
             });
-
-            // Wczytywanie danych faktury
-            Livewire.on('load-invoice-data', () => {
-                const saved = getCookie('savedInvoiceData');
-                if (saved) {
-                    try {
-                        const data = JSON.parse(saved);
-                        if (typeof Livewire !== 'undefined' && typeof Livewire.find !== 'undefined') {
-                            const form = document.getElementById('order-form');
-                            if (form) {
-                                const wireId = form.closest('[wire\\:id]')?.getAttribute('wire:id');
-                                if (wireId) {
-                                    const component = Livewire.find(wireId);
-                                    if (component && typeof component.set === 'function') {
-                                        try {
-                                            component.set('invoiceData', data);
-                                            // Po wczytaniu danych, upewnij się że przycisk pozostaje widoczny
-                                            setTimeout(() => {
-                                                checkAndShowSavedDataButtons();
-                                            }, 500);
-                                        } catch (e) {
-                                            console.warn('Nie można ustawić invoiceData:', e);
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    } catch (e) {
-                        console.error('Błąd parsowania zapisanych danych faktury:', e);
-                    }
-                }
-            });
-        });
-
-        // Funkcja do sprawdzania i pokazywania przycisków "Użyj zapamiętanych danych"
-        function checkAndShowSavedDataButtons() {
-            // Sprawdź dane klienta
-            const savedCustomer = getCookie('savedCustomerData');
-            const customerBtn = document.getElementById('loadCustomerDataBtn');
-            if (customerBtn) {
-                if (savedCustomer) {
-                    try {
-                        const data = JSON.parse(savedCustomer);
-                        // Sprawdź czy dane są poprawne i zawierają wymagane pola
-                        if (data && (data.first_name || data.email)) {
-                            customerBtn.classList.remove('hidden');
-                            customerBtn.style.display = 'flex';
-                        } else {
-                            customerBtn.classList.add('hidden');
-                            customerBtn.style.display = 'none';
-                        }
-                    } catch (e) {
-                        customerBtn.classList.add('hidden');
-                        customerBtn.style.display = 'none';
-                    }
-                } else {
-                    customerBtn.classList.add('hidden');
-                    customerBtn.style.display = 'none';
-                }
-            }
-
-            // Sprawdź dane faktury
-            const savedInvoice = getCookie('savedInvoiceData');
-            const invoiceBtn = document.getElementById('loadInvoiceDataBtn');
-            if (invoiceBtn) {
-                if (savedInvoice) {
-                    try {
-                        const data = JSON.parse(savedInvoice);
-                        // Sprawdź czy dane są poprawne i zawierają wymagane pola
-                        if (data && (data.company_name || data.nip)) {
-                            invoiceBtn.classList.remove('hidden');
-                            invoiceBtn.style.display = 'flex';
-                        } else {
-                            invoiceBtn.classList.add('hidden');
-                            invoiceBtn.style.display = 'none';
-                        }
-                    } catch (e) {
-                        invoiceBtn.classList.add('hidden');
-                        invoiceBtn.style.display = 'none';
-                    }
-                } else {
-                    invoiceBtn.classList.add('hidden');
-                    invoiceBtn.style.display = 'none';
-                }
-            }
-        }
-
-        // Sprawdź i pokaż przyciski przy załadowaniu strony (BEZ automatycznego wczytywania)
-        document.addEventListener('DOMContentLoaded', function() {
-            // Sprawdź i pokaż przyciski
-            checkAndShowSavedDataButtons();
-        });
-
-        // Sprawdź przyciski po zapisaniu danych (z większym opóźnieniem, aby cookies się zapisały)
-        document.addEventListener('livewire:init', () => {
-            Livewire.on('save-customer-data', () => {
-                // Zwiększone opóźnienie, aby cookies się zapisały przed sprawdzeniem
-                setTimeout(checkAndShowSavedDataButtons, 300);
-            });
-
-            Livewire.on('save-invoice-data', () => {
-                // Zwiększone opóźnienie, aby cookies się zapisały przed sprawdzeniem
-                setTimeout(checkAndShowSavedDataButtons, 300);
-            });
-        });
-
-        // Sprawdź przyciski również po każdej aktualizacji Livewire (gdy formularz się odświeża)
-        document.addEventListener('livewire:navigated', () => {
-            setTimeout(checkAndShowSavedDataButtons, 200);
         });
     </script>
 

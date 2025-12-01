@@ -9,6 +9,7 @@
             $currentPath = ($parentPath ?? '') . ($parentPath ? '\\' : '') . $groupName;
             $shouldExpand = false;
 
+            // Sprawdź route 'group'
             if (request()->routeIs('group')) {
                 $currentGrupa = request()->route('group');
                 if ($currentGrupa) {
@@ -17,6 +18,15 @@
 
                     // Sprawdź czy aktualna ścieżka zawiera tę grupę jako rodzic
                     $shouldExpand = str_contains($currentGroupPath, $currentPath . '\\');
+                }
+            }
+            
+            // Sprawdź route 'product' - rozwiń grupę jeśli produkt należy do tej grupy lub jej podgrupy
+            if (!$shouldExpand && request()->routeIs('product')) {
+                $currentProductGroup = view()->shared('currentProductGroup');
+                if ($currentProductGroup) {
+                    // Sprawdź czy grupa produktu zawiera tę grupę jako rodzic
+                    $shouldExpand = str_contains($currentProductGroup, $currentPath . '\\');
                 }
             }
         @endphp
@@ -37,12 +47,25 @@
 
             // Sprawdź czy to jest aktualna grupa
             $isCurrent = false;
+            
+            // Sprawdź route 'group'
             if (request()->routeIs('group')) {
                 $currentGrupa = request()->route('group');
                 if ($currentGrupa) {
                     // Porównaj po dekodowaniu dla polskich znaków
                     $decodedCurrent = urldecode($currentGrupa);
                     $isCurrent = $decodedCurrent === $urlPath;
+                }
+            }
+            
+            // Sprawdź route 'product' - porównaj grupę produktu z grupą w sidebarze
+            if (!$isCurrent && request()->routeIs('product')) {
+                $currentProductGroup = view()->shared('currentProductGroup');
+                if ($currentProductGroup) {
+                    // Porównaj clean_name produktu z grupą w sidebarze
+                    // clean_name ma format "Bi fix herbatki owocowe\Herbaty specjalne"
+                    // urlPath ma format "Bi fix herbatki owocowe--Herbaty specjalne" (z -- zamiast \)
+                    $isCurrent = $currentProductGroup === $groupPath;
                 }
             }
         @endphp

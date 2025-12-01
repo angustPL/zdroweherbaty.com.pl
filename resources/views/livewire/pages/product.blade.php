@@ -22,6 +22,11 @@ app('seotools.json-ld')->setType('Product');
 state(['product' => null, 'productId' => null]);
 
 mount(function ($id, $name = null) {
+    // Włącz logowanie zapytań MySQL (tylko w trybie debug) - NAJWCZEŚNIEJ
+    if (config('app.debug')) {
+        \Illuminate\Support\Facades\DB::enableQueryLog();
+    }
+
     $this->productId = $id;
 
     // Załaduj produkt z cache'owaniem (TTL z konfiguracji, domyślnie 24h)
@@ -111,6 +116,23 @@ mount(function ($id, $name = null) {
 ?>
 
 <div>
+    @php
+        // Przekaż grupę produktu do view share, aby sidebar mógł ją użyć do zaznaczenia
+        if ($product && isset($product['Grupa'])) {
+            view()->share('currentProductGroup', $product['Grupa']);
+        }
+        
+        $startTime = microtime(true);
+
+        // Pobierz logi zapytań MySQL (tylko w trybie debug)
+        $queryLog = [];
+        if (config('app.debug')) {
+            $queryLog = \Illuminate\Support\Facades\DB::getQueryLog();
+        }
+
+        $endTime = microtime(true);
+        $executionTime = ($endTime - $startTime) * 1000; // w milisekundach
+    @endphp
     <div class="mb-6">
         <h1 class="text-3xl font-bold text-gray-900 mb-2">
             {{ $product['Nazwa'] ?? 'Produkt' }}
@@ -139,7 +161,7 @@ mount(function ($id, $name = null) {
 
                         <div>
                             <livewire:components.add-to-cart-button :product-id="$product['ID']" :product-name="$product['Nazwa']"
-                                :price="$product['BruttoValue']" :image="$product['ID'] . '_200x120.jpg'" />
+                                :price="$product['BruttoValue']" :image="$product['ID'] . '_200x120.jpg'" :weight="$product['MasaBruttoValue'] ?? 0" />
                         </div>
                     </div>
 
@@ -155,16 +177,44 @@ mount(function ($id, $name = null) {
             </div>
         </div>
 
-        {{-- Podobne produkty --}}
-        @if (\App\Livewire\Components\SimilarProducts::hasSimilarProducts($product['ID'], $product['Nazwa']))
-            <div class="mt-12">
-                <h2 class="text-2xl font-bold text-gray-900 mb-2">Podobne produkty</h2>
-                <livewire:components.similar-products :product-id="$product['ID']" :product-name="$product['Nazwa']" />
-            </div>
-        @endif
+        {{-- Podobne produkty - lazy loading --}}
+        <div class="mt-12">
+            <h2 class="text-2xl font-bold text-gray-900 mb-2">Podobne produkty</h2>
+            <livewire:components.similar-products :product-id="$product['ID']" :product-name="$product['Nazwa']" lazy />
+        </div>
     @else
         <div class="text-center py-12">
             <p class="text-gray-500 text-lg">Produkt nie został znaleziony</p>
+        </div>
+    @endif
+
+    {{-- Debug: wyświetl informacje o zapytaniach MySQL (tylko w trybie debug) --}}
+    @if (config('app.debug'))
+        <div class="mt-4 p-4 bg-gray-100 text-xs font-mono">
+            <p><strong>🔍 MySQL Query Debug:</strong></p>
+            <p>Execution time: <strong>{{ number_format($executionTime, 2) }} ms</strong></p>
+            <p>Total queries: <strong>{{ count($queryLog) }}</strong></p>
+            @if (count($queryLog) > 0)
+                <details class="mt-2">
+                    <summary class="cursor-pointer font-semibold">Zobacz zapytania ({{ count($queryLog) }})</summary>
+                    <div class="mt-2 space-y-2">
+                        @foreach ($queryLog as $index => $query)
+                            <div class="p-2 bg-white border border-gray-300 rounded">
+                                <p class="font-semibold text-red-600">Query #{{ $index + 1 }}
+                                    ({{ number_format($query['time'], 2) }} ms)
+                                    :</p>
+                                <pre class="text-xs overflow-x-auto">{{ $query['query'] }}</pre>
+                                @if (!empty($query['bindings']))
+                                    <p class="text-xs text-gray-600 mt-1">Bindings:
+                                        {{ json_encode($query['bindings']) }}</p>
+                                @endif
+                            </div>
+                        @endforeach
+                    </div>
+                </details>
+            @else
+                <p class="mt-2 text-yellow-600">⚠️ Brak zapytań MySQL - wszystko z cache!</p>
+            @endif
         </div>
     @endif
 

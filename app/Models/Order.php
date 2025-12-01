@@ -6,6 +6,8 @@ use App\Enums\OrderStatus;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
@@ -72,6 +74,11 @@ class Order extends Model
         'total',
         'currency',
 
+        // Promocja
+        'promotion_id',
+        'discount_amount',
+        'promotion_code',
+
         // Dodatkowe informacje
         'notes',
         'parcel_locker_data',
@@ -137,6 +144,23 @@ class Order extends Model
     public function payment(): HasOne
     {
         return $this->hasOne(Payment::class)->latestOfMany();
+    }
+
+    /**
+     * Relacja z promocją (bezpośrednia przez promotion_id).
+     */
+    public function promotion(): BelongsTo
+    {
+        return $this->belongsTo(Promotion::class);
+    }
+
+    /**
+     * Relacja many-to-many z promocjami (tabela pivot order_promotions).
+     */
+    public function promotions(): BelongsToMany
+    {
+        return $this->belongsToMany(Promotion::class, 'order_promotions')
+            ->withTimestamps();
     }
 
     /**

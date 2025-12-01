@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class Group extends EnovaModel
 {
@@ -85,6 +86,7 @@ class Group extends EnovaModel
      * Tylko grupy, które mają przynajmniej jeden produkt spełniający wszystkie warunki
      * (ma grupę, ma product_mark=1, nie jest zablokowany).
      * Wyniki są cache'owane zgodnie z konfiguracją (domyślnie 24 godziny).
+     * W przypadku awarii Enova używa cache (nawet jeśli wygasł).
      *
      * @param int|null $ttl Czas życia cache w sekundach (domyślnie z konfiguracji)
      * @return array
@@ -93,64 +95,110 @@ class Group extends EnovaModel
     {
         $cacheKey = 'enova_groups_hierarchy_with_products';
 
-        $cacheTtl = $ttl ?? config('enova.cache.ttl', 86400);
+        return static::getCachedWithBackup(
+            $cacheKey,
+            function () {
+                $prefix = config('enova.features.product_group_prefix');
+                $productGroupName = config('enova.features.product_group');
+                $productMark = config('enova.features.product_mark');
 
-        return Cache::remember($cacheKey, $cacheTtl, function () {
-            $prefix = config('enova.features.product_group_prefix');
-            $productGroupName = config('enova.features.product_group');
-            $productMark = config('enova.features.product_mark');
+                // Pobierz tylko grupy, które mają przynajmniej jeden produkt spełniający wszystkie warunki
+                // (ma grupę, ma product_mark=1, nie jest zablokowany)
+                // Group to Feature, gdzie Name = 'www_grupa', Data = ścieżka grupy, Parent = ID produktu
+                // Musimy sprawdzić, czy istnieją produkty (Towary) które:
+                // 1. Mają Feature z Name='www_grupa' i Data=ścieżka grupy (czyli są w tej grupie)
+                // 2. Mają Blokada=0 (nie są zablokowane)
+                // 3. Mają Feature z Name=product_mark i Data='1' (są oznaczone jako dostępne w sklepie)
 
-            // Pobierz tylko grupy, które mają przynajmniej jeden produkt spełniający wszystkie warunki
-            // (ma grupę, ma product_mark=1, nie jest zablokowany)
-            // Group to Feature, gdzie Name = 'www_grupa', Data = ścieżka grupy, Parent = ID produktu
-            // Musimy sprawdzić, czy istnieją produkty (Towary) które:
-            // 1. Mają Feature z Name='www_grupa' i Data=ścieżka grupy (czyli są w tej grupie)
-            // 2. Mają Blokada=0 (nie są zablokowane)
-            // 3. Mają Feature z Name=product_mark i Data='1' (są oznaczone jako dostępne w sklepie)
+                $groupsWithProducts = self::select('Features.Data')
+                    ->where('Features.Data', 'like', $prefix . '%')
+                    ->where('Features.Name', $productGroupName)
+                    ->whereExists(function ($query) use ($productMark) {
+                        $query->select(DB::raw(1))
+                            ->from('Towary')
+                            ->whereColumn('Towary.ID', 'Features.Parent')
+                            ->where('Towary.Blokada', 0) // notBlocked
+                            ->whereExists(function ($subQuery) use ($productMark) {
+                                $subQuery->select(DB::raw(1))
+                                    ->from('Features as F2')
+                                    ->whereColumn('F2.Parent', 'Towary.ID')
+                                    ->where('F2.Name', $productMark)
+                                    ->where('F2.Data', '1'); // hasProductMark
+                            });
+                    })
+                    ->distinct()
+                    ->orderBy('Features.Data')
+                    ->get();
 
-            $groupsWithProducts = self::select('Features.Data')
-                ->where('Features.Data', 'like', $prefix . '%')
-                ->where('Features.Name', $productGroupName)
-                ->whereExists(function ($query) use ($productMark) {
-                    $query->select(DB::raw(1))
-                        ->from('Towary')
-                        ->whereColumn('Towary.ID', 'Features.Parent')
-                        ->where('Towary.Blokada', 0) // notBlocked
-                        ->whereExists(function ($subQuery) use ($productMark) {
-                            $subQuery->select(DB::raw(1))
-                                ->from('Features as F2')
-                                ->whereColumn('F2.Parent', 'Towary.ID')
-                                ->where('F2.Name', $productMark)
-                                ->where('F2.Data', '1'); // hasProductMark
-                        });
-                })
-                ->distinct()
-                ->orderBy('Features.Data')
-                ->get();
+                $hierarchy = [];
 
-            $hierarchy = [];
+                foreach ($groupsWithProducts as $group) {
+                    $path = Str::after($group->Data, $prefix);
+                    $path = rtrim($path, '\\');
+                    $parts = explode('\\', $path);
 
-            foreach ($groupsWithProducts as $group) {
-                $path = Str::after($group->Data, $prefix);
-                $path = rtrim($path, '\\');
-                $parts = explode('\\', $path);
+                    $current = &$hierarchy;
 
-                $current = &$hierarchy;
-
-                foreach ($parts as $part) {
-                    if (!isset($current[$part])) {
-                        $current[$part] = [
-                            'name' => $part,
-                            'full_path' => implode('\\', array_slice($parts, 0, array_search($part, $parts) + 1)),
-                            'children' => []
-                        ];
+                    foreach ($parts as $part) {
+                        if (!isset($current[$part])) {
+                            $current[$part] = [
+                                'name' => $part,
+                                'full_path' => implode('\\', array_slice($parts, 0, array_search($part, $parts) + 1)),
+                                'children' => []
+                            ];
+                        }
+                        $current = &$current[$part]['children'];
                     }
-                    $current = &$current[$part]['children'];
                 }
-            }
 
-            return $hierarchy;
-        });
+                return $hierarchy;
+            },
+            [], // wartość domyślna: pusta tablica
+            $ttl,
+            'groups hierarchy'
+        );
+    }
+
+    /**
+     * Pobiera pojedynczą grupę po ścieżce z cache'owaniem.
+     * W przypadku awarii Enova używa cache (nawet jeśli wygasł).
+     *
+     * @param string $groupPath Pełna ścieżka grupy w formacie Enova (np. "kategoria\Zestawy herbat\")
+     * @param int|null $ttl Czas życia cache w sekundach (domyślnie 48h)
+     * @return static|null
+     */
+    public static function getCachedByPath(string $groupPath, ?int $ttl = null)
+    {
+        $cacheKey = 'enova_group_' . md5($groupPath);
+
+        $result = static::getCachedWithBackup(
+            $cacheKey,
+            function () use ($groupPath) {
+                $group = static::where('Data', $groupPath)->first();
+                // Jeśli grupa istnieje, zwróć jako tablicę atrybutów (dla łatwiejszej serializacji)
+                return $group ? [
+                    'ID' => $group->Parent ?? null,
+                    'Data' => $group->Data ?? null,
+                    'Name' => $group->Name ?? null,
+                    'clean_name' => $group->clean_name ?? null,
+                ] : null;
+            },
+            null, // wartość domyślna: null
+            $ttl,
+            "group_path: {$groupPath}"
+        );
+
+        // Jeśli wynik to tablica, utwórz model z atrybutów
+        if (is_array($result) && isset($result['Data'])) {
+            $group = new static();
+            $group->Parent = $result['ID'] ?? null;
+            $group->Data = $result['Data'] ?? null;
+            $group->Name = $result['Name'] ?? null;
+            // clean_name jest atrybutem obliczanym, więc nie trzeba go zapisywać
+            return $group;
+        }
+
+        return $result;
     }
 
     /**

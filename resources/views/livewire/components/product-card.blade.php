@@ -47,9 +47,8 @@
                 }
             ">
             @php
-                // Fallback: jeśli flaga nie jest ustawiona lub jest false, sprawdź plik bezpośrednio (dla kompatybilności wstecznej)
-                // Używamy isset() aby sprawdzić czy właściwość istnieje, jeśli nie - sprawdzamy plik
-                $imageExists = isset($hasImageSmall) ? $hasImageSmall : Storage::disk('public')->exists('img/towary/' . $productId . '_200x120.jpg');
+                // Używamy hasImageSmall z cache - nie sprawdzamy pliku ponownie (to było wolne!)
+                $imageExists = $hasImageSmall ?? false;
             @endphp
             <img src="{{ $imageExists ? Storage::disk('public')->url('img/towary/' . $productId . '_200x120.jpg') : asset('img/towary/placeholder.jpg') }}"
                 alt="{{ $productName }}"

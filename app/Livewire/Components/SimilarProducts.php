@@ -15,6 +15,7 @@ class SimilarProducts extends Component
     {
         $this->productId = $productId;
         $this->productName = $productName;
+        // Ładuj podobne produkty przy pierwszym renderowaniu (komponent jest lazy)
         $this->loadSimilarProducts();
     }
 
@@ -36,22 +37,32 @@ class SimilarProducts extends Component
                 return $product->toDisplayArray();
             })->toArray();
         } catch (\Exception $e) {
-            // Fallback: użyj SQL jeśli Algolia nie działa
-            \Log::info('Algolia search failed, using SQL fallback: ' . $e->getMessage());
+            // Fallback: użyj cache wszystkich produktów i filtruj w PHP
+            \Log::info('Algolia search failed, using cache fallback: ' . $e->getMessage());
 
-            $similarProducts = Product::query()
-                ->where('ID', '!=', $this->productId)
-                ->where(function ($query) {
-                    $query->where('Nazwa', 'like', '%' . $this->productName . '%')
-                        ->orWhere('Opis', 'like', '%' . $this->productName . '%');
-                })
-                ->with(['group', 'price', 'productNameFeature'])
-                ->take(3)
-                ->get();
+            try {
+                // Pobierz wszystkie produkty z cache
+                $allProducts = Product::getCachedAll();
+                
+                // Filtruj w PHP - wyklucz aktualny produkt i znajdź podobne
+                $similarProducts = collect($allProducts)
+                    ->filter(function ($product) {
+                        return $product['ID'] != $this->productId
+                            && (
+                                stripos($product['Nazwa'] ?? '', $this->productName) !== false
+                                || stripos($product['Opis'] ?? '', $this->productName) !== false
+                            );
+                    })
+                    ->take(3)
+                    ->values()
+                    ->toArray();
 
-            $this->similarProducts = $similarProducts->map(function ($product) {
-                return $product->toDisplayArray();
-            })->toArray();
+                $this->similarProducts = $similarProducts;
+            } catch (\Exception $cacheException) {
+                // Jeśli cache też nie działa, zwróć pustą tablicę
+                \Log::warning('Cache fallback also failed: ' . $cacheException->getMessage());
+                $this->similarProducts = [];
+            }
         }
     }
 
@@ -61,7 +72,7 @@ class SimilarProducts extends Component
     }
 
     /**
-     * Sprawdza czy są dostępne podobne produkty.
+     * Sprawdza czy są dostępne podobne produkty (szybka wersja bez pełnego ładowania).
      * 
      * @param int $productId ID produktu
      * @param string $productName Nazwa produktu
@@ -69,11 +80,8 @@ class SimilarProducts extends Component
      */
     public static function hasSimilarProducts(int $productId, string $productName): bool
     {
-        $component = new self();
-        $component->productId = $productId;
-        $component->productName = $productName;
-        $component->loadSimilarProducts();
-        
-        return !empty($component->similarProducts) && count($component->similarProducts) > 0;
+        // Zawsze zwracaj true - podobne produkty będą ładowane lazy
+        // To pozwala uniknąć synchronicznego pobierania wszystkich produktów
+        return true;
     }
 }

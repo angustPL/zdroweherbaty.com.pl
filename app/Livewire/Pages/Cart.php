@@ -4,12 +4,17 @@ namespace App\Livewire\Pages;
 
 use Livewire\Component;
 use App\Services\CartService;
+use App\Services\PromotionService;
 use Artesaos\SEOTools\Facades\SEOTools;
 use Artesaos\SEOTools\Facades\JsonLd;
 
 class Cart extends Component
 {
     public $cart = [];
+    public $promotionCode = '';
+    public $appliedPromotion = null;
+    public $promotionDiscount = 0;
+    public $promotionError = '';
 
     protected $listeners = [
         'cart-updated' => 'loadCart'
@@ -36,6 +41,10 @@ class Cart extends Component
     {
         $cartService = app(CartService::class);
         $this->cart = $cartService->getCart();
+        
+        // NIE przywracamy kodu promocyjnego z sesji - użytkownik musi go wprowadzić za każdym razem
+        // Wyczyść kod promocyjny przy każdym wejściu do koszyka
+        $this->removePromotionCode();
 
         // GTM begin_checkout event
         if (!empty($this->cart['items'])) {
@@ -115,6 +124,9 @@ class Cart extends Component
         try {
             $cartService = app(CartService::class);
             $cartService->clearCart();
+            
+            // Usuń kod promocyjny
+            $this->removePromotionCode();
 
             // Emituj event do odświeżenia ikony koszyka
             $this->dispatch('cart-updated');
@@ -128,6 +140,78 @@ class Cart extends Component
                 'type' => 'error',
                 'message' => 'Błąd podczas czyszczenia koszyka',
             ]);
+        }
+    }
+
+    public function applyPromotionCode()
+    {
+        $this->promotionError = ''; // Wyczyść poprzedni błąd
+        $this->validateAndApplyPromotion();
+    }
+
+    public function removePromotionCode()
+    {
+        $this->promotionCode = '';
+        $this->appliedPromotion = null;
+        $this->promotionDiscount = 0;
+        $this->promotionError = '';
+        session()->forget('promotion_code');
+    }
+
+    protected function validateAndApplyPromotion()
+    {
+        if (empty($this->promotionCode)) {
+            $this->removePromotionCode();
+            return;
+        }
+
+        try {
+            $promotionService = app(PromotionService::class);
+            $promotion = $promotionService->findByCode($this->promotionCode);
+
+            if (!$promotion) {
+                $this->appliedPromotion = null;
+                $this->promotionDiscount = 0;
+                $this->promotionError = 'Nieprawidłowy kod rabatowy';
+                session()->forget('promotion_code');
+                return;
+            }
+
+            // Przygotuj dane koszyka
+            $cartItems = [];
+            foreach ($this->cart['items'] ?? [] as $productId => $item) {
+                $cartItems[] = [
+                    'id' => $item['id'] ?? $productId,
+                    'group' => $item['group'] ?? null,
+                    'price' => $item['price'] ?? 0,
+                    'quantity' => $item['quantity'] ?? 1,
+                ];
+            }
+            $cartTotal = $this->cart['total'] ?? 0;
+
+            // Waliduj promocję
+            $validation = $promotionService->validatePromotion($promotion, $cartItems, $cartTotal);
+            
+            if (!$validation['valid']) {
+                $this->appliedPromotion = null;
+                $this->promotionDiscount = 0;
+                $this->promotionError = $validation['message'] ?? 'Kod promocyjny nie może być zastosowany';
+                session()->forget('promotion_code');
+                return;
+            }
+
+            // Oblicz zniżkę
+            $this->appliedPromotion = $promotion;
+            $this->promotionDiscount = $promotionService->calculateDiscount($promotion, $cartItems, $cartTotal);
+            $this->promotionError = ''; // Wyczyść błąd przy sukcesie
+            
+            // Zapisz kod w sesji
+            session(['promotion_code' => strtoupper(trim($this->promotionCode))]);
+        } catch (\Exception $e) {
+            $this->appliedPromotion = null;
+            $this->promotionDiscount = 0;
+            $this->promotionError = 'Błąd podczas zastosowania kodu promocyjnego';
+            session()->forget('promotion_code');
         }
     }
 

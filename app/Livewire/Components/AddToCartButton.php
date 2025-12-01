@@ -16,21 +16,15 @@ class AddToCartButton extends Component
     public $isInCart = false;
     public $isLoading = false;
 
-    public function mount($productId, $productName, $price, $image)
+    public function mount($productId, $productName, $price, $image, $weight = 0)
     {
         $this->productId = $productId;
         $this->productName = $productName;
         $this->price = $price;
         $this->image = $image;
+        $this->weight = $weight; // Waga przekazywana z zewnątrz (z cache produktów)
 
-        // Pobierz wagę produktu z bazy danych
-        $product = Product::find($productId);
-        if ($product) {
-            // Waga w kg (tak jak w bazie danych)
-            $this->weight = $product->MasaBruttoValue ?? 0;
-        }
-
-        $this->checkIfInCart();
+        // Usunięto synchroniczne sprawdzanie - będzie ładowane przez wire:init
     }
 
     public function checkIfInCart()
@@ -41,7 +35,9 @@ class AddToCartButton extends Component
 
     public function addToCart()
     {
-        // Sprawdź czy produkt już jest w koszyku
+        // Sprawdź czy produkt już jest w koszyku (sprawdzamy przy kliknięciu, nie wcześniej)
+        $this->checkIfInCart();
+        
         if ($this->isInCart) {
             return;
         }
