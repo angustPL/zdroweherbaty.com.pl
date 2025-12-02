@@ -79,7 +79,7 @@ Enova używa systemu atrybutów do kategoryzacji produktów:
 -   [ ] Implementacja modelu VAT
 -   [ ] Implementacja modelu przecen
 
-### Faza 3 - Podstawowe Funkcjonalności 🚧
+### Faza 3 - Podstawowe Funkcjonalności ✅
 
 -   [x] Implementacja listy produktów w grupach
 -   [x] Implementacja hierarchicznego sidebar z grupami
@@ -91,8 +91,11 @@ Enova używa systemu atrybutów do kategoryzacji produktów:
 -   [x] Implementacja ikony koszyka w header
 -   [x] Implementacja strony koszyka z tabelą produktów
 -   [x] Implementacja strony dostawy z opcjami i sposobami płatności
--   [ ] Implementacja widoku produktu
--   [ ] Implementacja procesu zamawiania
+-   [x] Implementacja widoku produktu
+-   [x] Implementacja procesu zamawiania
+-   [x] Implementacja formularza kontaktowego z walidacją
+-   [x] Implementacja systemu promocji i kodów rabatowych
+-   [x] Implementacja podobnych produktów
 
 ### Faza 4 - Optymalizacja i Usprawnienia
 
@@ -129,6 +132,28 @@ Enova używa systemu atrybutów do kategoryzacji produktów:
 5. Wygeneruj klucz aplikacji: `php artisan key:generate`
 6. Uruchom serwer deweloperski: `php artisan serve`
 
+## Komendy Artisan
+
+### Generowanie Cache Enova
+
+```bash
+# Generuj backup cache (codziennie o 4:00 przez cron)
+php artisan enova:generate-backup-cache
+
+# Wymuś regenerację cache (ignoruje istniejący cache)
+php artisan enova:generate-backup-cache --force
+
+# Sprawdź status cache bez generowania
+php artisan enova:generate-backup-cache --check
+```
+
+**Funkcjonalności:**
+
+-   Generuje cache dla wszystkich produktów, grup, produktów w grupach i opcji dostawy
+-   TTL: 48 godzin
+-   Automatyczny fallback na cache w przypadku awarii Enova
+-   Wysyłka emaila z raportem do admina po zakończeniu
+
 ## Funkcjonalności Livewire
 
 ### Refaktoryzacja z Volt na Dedicated Classes
@@ -139,8 +164,10 @@ Projekt przeszedł refaktoryzację z komponentów Volt (inline PHP) na dedykowan
 
 -   **CartIcon** (`app/Livewire/Components/CartIcon.php`) - ikona koszyka z licznikiem
 -   **AddToCartButton** (`app/Livewire/Components/AddToCartButton.php`) - przycisk dodawania do koszyka
--   **Cart** (`app/Livewire/Pages/Cart.php`) - strona koszyka
+-   **Cart** (`app/Livewire/Pages/Cart.php`) - strona koszyka z obsługą promocji
 -   **ProductCard** (`app/Livewire/Components/ProductCard.php`) - karta produktu
+-   **SimilarProducts** (`app/Livewire/Components/SimilarProducts.php`) - podobne produkty na stronie produktu
+-   **SearchProducts** (`app/Livewire/Components/SearchProducts.php`) - wyszukiwarka produktów
 
 #### Komunikacja między komponentami:
 
@@ -170,6 +197,17 @@ Projekt przeszedł refaktoryzację z komponentów Volt (inline PHP) na dedykowan
 -   Ceny z właściwej definicji
 -   Responsywny grid layout
 -   Komponenty "Dodaj do koszyka" z dynamicznym tekstem
+-   SEO content z bazy danych
+-   Optymalizacja wydajności (cache, lazy loading)
+
+#### Strona Produktu (`product.blade.php`)
+
+-   Szczegóły produktu z obrazkami
+-   Komponent "Dodaj do koszyka" z wagą produktu
+-   Podobne produkty (lazy loading)
+-   Link do grupy produktu
+-   SEO meta tags
+-   GTM tracking
 
 #### System Koszyka
 
@@ -183,7 +221,20 @@ Projekt przeszedł refaktoryzację z komponentów Volt (inline PHP) na dedykowan
 -   **Home** (`welcome.blade.php`) - strona główna
 -   **Dostawa** (`dostawa.blade.php`) - informacje o dostawie z opcjami i sposobami płatności
 -   **Regulamin** (`regulamin.blade.php`) - regulamin sklepu
--   **Kontakt** (`kontakt.blade.php`) - dane kontaktowe
+-   **Kontakt** (`kontakt.blade.php`) - formularz kontaktowy z walidacją (Volt + Flux UI)
+
+### Formularz Kontaktowy
+
+Formularz kontaktowy został zaimplementowany z wykorzystaniem Livewire Volt i Flux UI:
+
+-   **Walidacja:** Walidacja po stronie serwera z polskimi komunikatami błędów
+-   **Komponenty:** Flux UI (`flux:input`, `flux:textarea`, `flux:button`)
+-   **Email:** Automatyczne wysyłanie emaila do admina z informacjami o nadawcy
+-   **Reply-To:** Ustawienie reply-to z nazwą nadawcy dla łatwej odpowiedzi
+-   **Pola:** Imię i nazwisko, Email, Wiadomość
+
+**Klasa Mail:** `App\Mail\ContactFormMail`
+**Szablon emaila:** `resources/views/emails/contact-form.blade.php`
 
 ## Modele Enova
 
@@ -715,7 +766,23 @@ php artisan enova:generate-backup-cache
 
 # Wymuś regenerację
 php artisan enova:generate-backup-cache --force
+
+# Sprawdź status cache (bez generowania)
+php artisan enova:generate-backup-cache --check
 ```
+
+**Raport email po generowaniu cache:**
+
+Po każdym uruchomieniu komendy `enova:generate-backup-cache` automatycznie wysyłany jest email z raportem do admina zawierający:
+
+-   Status wykonania (sukces/błąd)
+-   Statystyki: liczba produktów, grup, opcji dostawy
+-   Czas wykonania
+-   Informacje o błędach (jeśli wystąpiły)
+
+**Klasa Mail:** `App\Mail\CacheGenerationReportMail`
+**Szablon emaila:** `resources/views/emails/cache-generation-report.blade.php`
+**Adres odbiorcy:** `config('enova.orders.email.address')` (domyślnie: `sklep@bifix.pl`)
 
 ### Optymalizacja Zapytań
 
@@ -980,6 +1047,60 @@ sudo chmod -R 775 /var/www/zdroweherbaty.com.pl/storage
 
 ---
 
-**Ostatnia aktualizacja:** {{ date('Y-m-d') }}
+## System Promocji
 
-**Wersja dokumentacji:** 1.0.0
+Aplikacja obsługuje system promocji i kodów rabatowych:
+
+### Funkcjonalności:
+
+-   **Kody rabatowe** - możliwość wprowadzenia kodu promocyjnego w koszyku
+-   **Promocje grupowe** - promocje przypisane do grup produktów
+-   **Promocje produktowe** - promocje przypisane do konkretnych produktów
+-   **Progi bezpłatnej dostawy** - automatyczne wykrywanie bezpłatnej dostawy
+-   **Walidacja kodów** - sprawdzanie ważności i limitów użycia kodów
+
+### Modele:
+
+-   **Promotion** (`app/Models/Promotion.php`) - główny model promocji
+-   **PromotionGroup** (`app/Models/PromotionGroup.php`) - promocje dla grup
+-   **PromotionProduct** (`app/Models/PromotionProduct.php`) - promocje dla produktów
+-   **OrderPromotion** (`app/Models/OrderPromotion.php`) - promocje zastosowane w zamówieniach
+
+### Serwis:
+
+-   **PromotionService** (`app/Services/PromotionService.php`) - logika biznesowa promocji
+
+## SEO i Optymalizacja
+
+### SEO Tools (Artesaos)
+
+Aplikacja wykorzystuje pakiet `artesaos/seotools` do zarządzania meta tagami:
+
+-   **Meta tags** - tytuł, opis, słowa kluczowe
+-   **Open Graph** - tagi dla mediów społecznościowych
+-   **Twitter Cards** - karty Twitter
+-   **JSON-LD** - strukturalne dane dla wyszukiwarek
+
+### Content Management
+
+-   **Model Content** (`app/Models/Content.php`) - treści SEO z bazy danych
+-   **Cache'owanie** - treści SEO są cache'owane dla lepszej wydajności
+-   **Warianty identyfikatorów** - automatyczne wyszukiwanie treści po różnych wariantach nazw grup
+
+## Email System
+
+### Klasy Mail:
+
+-   **ContactFormMail** (`app/Mail/ContactFormMail.php`) - email z formularza kontaktowego
+-   **CacheGenerationReportMail** (`app/Mail/CacheGenerationReportMail.php`) - raport generowania cache
+-   **OrderConfirmationMail** (`app/Mail/OrderConfirmationMail.php`) - potwierdzenie zamówienia
+
+### Szablony Email:
+
+-   `resources/views/emails/contact-form.blade.php` - szablon formularza kontaktowego
+-   `resources/views/emails/cache-generation-report.blade.php` - szablon raportu cache
+-   `resources/views/emails/order-confirmation.blade.php` - szablon potwierdzenia zamówienia
+
+**Ostatnia aktualizacja:** 2025-12-01
+
+**Wersja dokumentacji:** 2.0.0

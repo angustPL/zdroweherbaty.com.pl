@@ -49,6 +49,10 @@
 }" x-init="adjustPadding()" @scroll.window="handleScroll()"
     @resize.window="adjustPadding()">
     @include('googletagmanager::body')
+    
+    <!-- Floating Buttons (Share & Scroll to Top) - poza głównym kontenerem dla poprawnego fixed positioning -->
+    <x-floating-buttons />
+    
     <div class="min-h-screen bg-white">
         <!-- Floating Header -->
         <flux:header container id="header-top"
@@ -115,7 +119,7 @@
         </main>
 
         <!-- Footer -->
-        <footer class="bg-primary dark:bg-primary text-white py-12">
+        <footer class="bg-primary dark:bg-primary text-white py-12 font-marcellus">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mx-6">
                     <!-- Company Info -->
@@ -184,6 +188,7 @@
             </div>
         </footer>
     </div>
+    
     @livewireScripts
     @fluxScripts
 </body>

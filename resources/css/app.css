@@ -202,3 +202,17 @@ body.scrolled .header-top .slogan {
 .prose strong {
     @apply font-bold;
 }
+
+/* Alpine.js x-cloak - ukrywa elementy przed inicjalizacją Alpine */
+[x-cloak] {
+    display: none !important;
+}
+
+/* Biały cień dla floating buttons */
+.floating-button-shadow {
+    box-shadow: 0 4px 6px -1px rgba(255, 255, 255, 0.25), 0 2px 4px -1px rgba(255, 255, 255, 0.2);
+}
+
+.floating-button-shadow:hover {
+    box-shadow: 0 10px 15px -3px rgba(255, 255, 255, 0.35), 0 4px 6px -2px rgba(255, 255, 255, 0.3);
+}
