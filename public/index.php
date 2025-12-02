@@ -3,6 +3,9 @@
 use Illuminate\Foundation\Application;
 use Illuminate\Http\Request;
 
+// Increase memory limit for large product lists
+ini_set('memory_limit', '256M');
+
 define('LARAVEL_START', microtime(true));
 
 // Determine if the application is in maintenance mode...

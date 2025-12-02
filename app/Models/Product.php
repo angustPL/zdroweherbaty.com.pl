@@ -190,12 +190,53 @@ class Product extends EnovaModel
         return static::getCachedWithBackup(
             $cacheKey,
             function () {
-                return static::with(['productNameFeature', 'price', 'group', 'productMark'])
-                    ->get()
-                    ->map(function ($product) {
-                        return $product->toDisplayArray();
-                    })
-                    ->toArray();
+                $products = static::with(['productNameFeature', 'price', 'group', 'productMark'])
+                    ->get();
+
+                // Batch check all image files at once to reduce memory usage
+                $imagePaths = [];
+                foreach ($products as $product) {
+                    $imagePaths[] = 'img/towary/' . $product->ID . '_200x120.jpg';
+                    $imagePaths[] = 'img/towary/' . $product->ID . '_800x600.jpg';
+                }
+                
+                // Check all files in one operation
+                $existingImages = [];
+                $storage = Storage::disk('public');
+                foreach ($imagePaths as $path) {
+                    if ($storage->exists($path)) {
+                        $existingImages[$path] = true;
+                    }
+                }
+
+                // Map products with pre-checked image existence
+                return $products->map(function ($product) use ($existingImages) {
+                    $imageSmall = 'img/towary/' . $product->ID . '_200x120.jpg';
+                    $imageLarge = 'img/towary/' . $product->ID . '_800x600.jpg';
+
+                    return [
+                        'ID' => $product->ID,
+                        'Nazwa' => $product->productNameFeature->Name ?? $product->Nazwa,
+                        'Grupa' => $product->group->clean_name ?? null,
+                        'Opis' => $product->Opis,
+                        'HasProductMark' => (string) ($product->productMark->Data ?? '') === '1',
+                        'MasaNettoValue' => $product->MasaNettoValue,
+                        'MasaNettoSymbol' => $product->MasaNettoSymbol,
+                        'MasaBruttoValue' => $product->MasaBruttoValue,
+                        'MasaBruttoSymbol' => $product->MasaBruttoSymbol,
+                        'SWW' => $product->SWW,
+                        'DefinicjaStawki' => $product->DefinicjaStawki,
+                        'NettoValue' => $product->price->NettoValue,
+                        'BruttoValue' => $product->price->BruttoValue,
+                        'StandardowaIloscValue' => $product->price->StandardowaIloscValue,
+                        'Jednostka' => $product->price->Jednostka,
+                        'StandardowaIloscSymbol' => $product->price->StandardowaIloscSymbol,
+                        'HasImageSmall' => isset($existingImages[$imageSmall]),
+                        'HasImageLarge' => isset($existingImages[$imageLarge]),
+                        'ImageSmallPath' => $imageSmall,
+                        'ImageLargePath' => $imageLarge,
+                    ];
+                })->toArray();
             },
             [], // wartość domyślna: pusta tablica
             $ttl,
