@@ -5,8 +5,10 @@ namespace App\Console\Commands;
 use Illuminate\Console\Command;
 use App\Models\Product;
 use App\Models\Group;
+use App\Mail\CacheGenerationReportMail;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 
 class GenerateEnovaBackupCache extends Command
 {
@@ -90,13 +92,20 @@ class GenerateEnovaBackupCache extends Command
 
             Log::info('Enova cache został wygenerowany pomyślnie', $stats);
 
+            // Wyślij email do admina z raportem
+            $this->sendReportEmail($stats, $duration, true);
+
             return Command::SUCCESS;
         } catch (\Exception $e) {
+            $duration = round(microtime(true) - $startTime, 2);
             $this->error('Błąd podczas generowania cache: ' . $e->getMessage());
             Log::error('Błąd podczas generowania Enova cache', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
+
+            // Wyślij email do admina z informacją o błędzie
+            $this->sendReportEmail($stats ?? [], $duration, false, $e->getMessage());
 
             return Command::FAILURE;
         }
@@ -519,6 +528,36 @@ class GenerateEnovaBackupCache extends Command
                 return $count;
             }
             return 0;
+        }
+    }
+
+    /**
+     * Wysyła email z raportem do admina
+     */
+    private function sendReportEmail(array $stats, float $duration, bool $success, ?string $errorMessage = null): void
+    {
+        try {
+            $adminEmail = config('enova.orders.email.address', 'sklep@bifix.pl');
+            
+            if (empty($adminEmail)) {
+                $this->warn('  ⚠ Brak skonfigurowanego adresu email admina - pomijam wysyłkę raportu');
+                return;
+            }
+
+            Mail::to($adminEmail)->send(
+                new CacheGenerationReportMail($stats, $duration, $success, $errorMessage)
+            );
+
+            $this->line("  ✓ Raport wysłany na adres: {$adminEmail}");
+            Log::info('Raport generowania cache wysłany do admina', [
+                'email' => $adminEmail,
+                'success' => $success,
+            ]);
+        } catch (\Exception $e) {
+            $this->warn("  ⚠ Nie udało się wysłać raportu email: " . $e->getMessage());
+            Log::error('Błąd wysyłki raportu generowania cache', [
+                'error' => $e->getMessage(),
+            ]);
         }
     }
 }

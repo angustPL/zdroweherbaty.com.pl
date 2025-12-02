@@ -1,5 +1,6 @@
 <div>
     @if (count($similarProducts) > 0)
+        <h2 class="text-2xl font-bold text-gray-900 mb-2">Podobne produkty</h2>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
             @foreach ($similarProducts as $product)
                 <livewire:components.product-card :product-id="$product['ID']" :product-name="$product['Nazwa']" :product-price="$product['BruttoValue']"

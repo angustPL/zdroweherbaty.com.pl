@@ -118,8 +118,16 @@ mount(function ($id, $name = null) {
 <div>
     @php
         // Przekaż grupę produktu do view share, aby sidebar mógł ją użyć do zaznaczenia
+        $groupUrl = null;
         if ($product && isset($product['Grupa'])) {
             view()->share('currentProductGroup', $product['Grupa']);
+            
+            // Przygotuj URL do strony grupy
+            // Grupa ma format "Bi fix herbatki owocowe\Herbaty specjalne" (clean_name)
+            // Konwertuj na format URL: zamień \ na separator z konfiguracji i zakoduj
+            $groupPath = $product['Grupa'];
+            $urlPath = str_replace('\\', config('enova.grupa_url_separator'), $groupPath);
+            $groupUrl = route('group', ['group' => urlencode($urlPath)]);
         }
         
         $startTime = microtime(true);
@@ -137,7 +145,15 @@ mount(function ($id, $name = null) {
         <h1 class="text-3xl font-bold text-gray-900 mb-2">
             {{ $product['Nazwa'] ?? 'Produkt' }}
         </h1>
-        <p class="text-gray-600">{{ $product['Grupa'] ?? 'Kategoria' }}</p>
+        @if ($groupUrl && isset($product['Grupa']))
+            <p class="text-gray-600">
+                <a href="{{ $groupUrl }}" class="text-primary hover:text-primary-dark hover:underline transition-colors">
+                    {{ $product['Grupa'] }}
+                </a>
+            </p>
+        @else
+            <p class="text-gray-600">{{ $product['Grupa'] ?? 'Kategoria' }}</p>
+        @endif
     </div>
 
     {{-- Debug danych produktu --}}
@@ -179,7 +195,6 @@ mount(function ($id, $name = null) {
 
         {{-- Podobne produkty - lazy loading --}}
         <div class="mt-12">
-            <h2 class="text-2xl font-bold text-gray-900 mb-2">Podobne produkty</h2>
             <livewire:components.similar-products :product-id="$product['ID']" :product-name="$product['Nazwa']" lazy />
         </div>
     @else

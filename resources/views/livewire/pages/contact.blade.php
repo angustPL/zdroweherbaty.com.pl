@@ -1,178 +1,196 @@
 <?php
 
-use function Livewire\Volt\{state, mount, rules, layout};
+use function Livewire\Volt\{state, mount, layout, action};
+use App\Mail\ContactFormMail;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Log;
 
 layout('layouts.app');
 
 // SEO Meta Tags
 app('seotools')->setTitle('Kontakt - Zdrowe Herbaty BIFIX');
-app('seotools')->setDescription('Skontaktuj się z nami w sprawie herbat BIFIX. Adres, telefon, email i godziny otwarcia. Chętnie pomożemy!');
-// Canonical URL jest automatycznie ustawiany z konfiguracji
-
-// Open Graph - tylko URL (reszta z domyślnych)
-app('seotools')->opengraph()->setUrl(url('/kontakt'));
-
-// Schema.org JSON-LD - tylko typ (reszta z domyślnych)
-app('seotools.json-ld')->setType('ContactPage');
+app('seotools')->setDescription('Skontaktuj się z nami w sprawie herbat BIFIX. Adres, telefon, email i godziny otwarcia.');
 
 state([
     'name' => '',
     'email' => '',
-    'subject' => '',
     'message' => '',
     'submitted' => false,
 ]);
 
-rules([
-    'name' => 'required|min:2',
-    'email' => 'required|email',
-    'subject' => 'required|min:5',
-    'message' => 'required|min:10',
-]);
+$submit = action(function () {
+    $rules = [
+        'name' => 'required|string|min:2|max:255',
+        'email' => ['required', 'email:rfc,dns', 'max:255', 'regex:/^[^\s@]+@[^\s@]+\.[^\s@]+$/'],
+        'message' => 'required|string|min:10|max:5000',
+    ];
 
-$submit = function () {
-    $this->validate();
+    $messages = [
+        'name.required' => 'Imię i nazwisko jest wymagane.',
+        'name.min' => 'Imię i nazwisko musi mieć co najmniej :min znaki.',
+        'email.required' => 'Adres email jest wymagany.',
+        'email.email' => 'Podaj prawidłowy adres email.',
+        'message.required' => 'Wiadomość jest wymagana.',
+        'message.min' => 'Wiadomość musi mieć co najmniej :min znaków.',
+    ];
 
-    // Tutaj można dodać logikę wysyłania emaila
-    // Mail::to('info@zdroweherbaty.com.pl')->send(new ContactForm($this->name, $this->email, $this->subject, $this->message));
+    // Walidacja - ValidationException jest automatycznie obsługiwany przez Livewire
+    // Jeśli walidacja nie przejdzie, ValidationException zostanie rzucony i Livewire go obsłuży
+    $this->validate($rules, $messages);
 
-    $this->submitted = true;
-    $this->reset(['name', 'email', 'subject', 'message']);
-};
+    // Jeśli walidacja przeszła, kontynuujemy
+    $name = trim(strip_tags($this->name));
+    $email = trim($this->email);
 
-// GTM page type
-try {
-    app('googletagmanager')->set('pageType', 'contact');
-} catch (\Exception $e) {
-    // Silent fail - GTM event not critical for functionality
-}
+    // Logowanie do debugowania - sprawdzamy co faktycznie jest przekazywane
+    Log::info('Formularz kontaktowy - dane przed wysłaniem', [
+        'name' => $name,
+        'email' => $email,
+        'this->name' => $this->name,
+        'this->email' => $this->email,
+    ]);
+
+    // Dodatkowa walidacja emaila - upewniamy się, że jest prawidłowy
+    // Sprawdzamy zarówno przez filter_var jak i przez regex dla większej pewności
+    $isValidEmail = filter_var($email, FILTER_VALIDATE_EMAIL) !== false && preg_match('/^[^\s@]+@[^\s@]+\.[^\s@]+$/', $email);
+
+    if (!$isValidEmail) {
+        Log::warning('Nieprawidłowy email w formularzu kontaktowym', [
+            'email' => $email,
+            'name' => $name,
+        ]);
+        throw new \Illuminate\Validation\ValidationException(validator([], []), ['email' => ['Podaj prawidłowy adres email (np. przyklad@domena.pl).']]);
+    }
+
+    $messageText = trim(strip_tags($this->message));
+
+    try {
+        $recipientEmail = config('enova.orders.email.address', 'sklep@bifix.pl');
+        // Upewniamy się, że przekazujemy dane w poprawnej kolejności
+        Mail::to($recipientEmail)->send(new ContactFormMail($name, $email, $messageText));
+
+        $this->submitted = true;
+        $this->reset(['name', 'email', 'message']);
+
+        Log::info('Formularz kontaktowy wysłany', [
+            'from' => $email,
+            'to' => $recipientEmail,
+        ]);
+    } catch (\Exception $e) {
+        Log::error('Błąd wysyłki formularza kontaktowego: ' . $e->getMessage());
+        session()->flash('error', 'Wystąpił błąd podczas wysyłania wiadomości. Spróbuj ponownie później.');
+    }
+});
+
+mount(function () {
+    if (config('app.debug')) {
+        \Illuminate\Support\Facades\DB::enableQueryLog();
+    }
+});
 
 ?>
 
 <div>
-    <!-- Hero Section -->
-    <section class="bg-white">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-            <div class="text-center">
-                <h1 class="text-4xl font-bold text-gray-900 mb-4">
-                    Kontakt
-                </h1>
-                <p class="text-xl text-gray-600 mb-8">
-                    Skontaktuj się z nami - chętnie pomożemy!
-                </p>
-            </div>
-        </div>
-    </section>
+    @php
+        $startTime = microtime(true);
+        $queryLog = [];
+        if (config('app.debug')) {
+            $queryLog = \Illuminate\Support\Facades\DB::getQueryLog();
+        }
+        $endTime = microtime(true);
+        $executionTime = ($endTime - $startTime) * 1000;
+    @endphp
 
-    <!-- Contact Info Section -->
-    <section class="bg-gray-50 py-12">
+    <section class="py-8">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h1 class="text-3xl font-bold text-gray-900 mb-8">Kontakt</h1>
+
             <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <!-- Contact Information -->
+                <!-- Dane kontaktowe -->
                 <div>
                     <h2 class="text-2xl font-bold text-gray-900 mb-6">Dane kontaktowe</h2>
-
                     <div class="space-y-6">
-                        <div class="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200">
-                            <div class="p-6">
-                                <h3 class="text-lg font-semibold text-gray-900 mb-2">Adres</h3>
-                                <p class="text-gray-600">
-                                    ul. Przykładowa 1<br>
-                                    00-000 Warszawa<br>
-                                    Polska
-                                </p>
+                        <div class="bg-white rounded-lg shadow-md border border-gray-200 p-6">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-3">BiFIX Wojciech Piasecki Sp. j.</h3>
+                            <div class="space-y-2 text-gray-600">
+                                <p>Górki Małe, ul. Dworska 33</p>
+                                <p>95-080 Tuszyn</p>
                             </div>
                         </div>
 
-                        <div class="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200">
-                            <div class="p-6">
-                                <h3 class="text-lg font-semibold text-gray-900 mb-2">Telefon</h3>
-                                <p class="text-gray-600">
-                                    +48 123 456 789
+                        <div class="bg-white rounded-lg shadow-md border border-gray-200 p-6">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-2">Telefon i Fax</h3>
+                            <div class="space-y-2 text-gray-600">
+                                <p>Tel. <a href="tel:+48426144058" class="hover:text-primary">42 614 40 58</a> wew. 155
                                 </p>
+                                <p>Fax. <a href="tel:+48426144120" class="hover:text-primary">42 614 41 20</a></p>
                             </div>
                         </div>
 
-                        <div class="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200">
-                            <div class="p-6">
-                                <h3 class="text-lg font-semibold text-gray-900 mb-2">Email</h3>
-                                <p class="text-gray-600">
-                                    info@zdroweherbaty.com.pl
-                                </p>
+                        <div class="bg-white rounded-lg shadow-md border border-gray-200 p-6">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-2">Osoba do kontaktu ws. sklepu</h3>
+                            <div class="space-y-2 text-gray-600">
+                                <p class="font-medium">Małgorzata Frączkowska</p>
+                                <p>od poniedziałku do piątku, godz.: 8:00 - 16:00</p>
                             </div>
                         </div>
 
-                        <div class="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200">
-                            <div class="p-6">
-                                <h3 class="text-lg font-semibold text-gray-900 mb-2">Godziny otwarcia</h3>
-                                <div class="space-y-2 text-gray-600">
-                                    <p>Poniedziałek - Piątek: 9:00 - 18:00</p>
-                                    <p>Sobota: 9:00 - 14:00</p>
-                                    <p>Niedziela: Zamknięte</p>
-                                </div>
-                            </div>
+                        <div class="bg-white rounded-lg shadow-md border border-gray-200 p-6">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-2">Dział realizacji zamówień</h3>
+                            <p class="text-gray-600">
+                                <a href="mailto:sklep@bifix.pl" class="hover:text-primary">sklep@bifix.pl</a>
+                            </p>
+                        </div>
+
+                        <div class="bg-white rounded-lg shadow-md border border-gray-200 p-6">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-2">Dział reklamacji</h3>
+                            <p class="text-gray-600">
+                                <a href="mailto:reklamacjasklep@bifix.pl"
+                                    class="hover:text-primary">reklamacjasklep@bifix.pl</a>
+                            </p>
                         </div>
                     </div>
                 </div>
 
-                <!-- Contact Form -->
+                <!-- Formularz -->
                 <div>
                     <h2 class="text-2xl font-bold text-gray-900 mb-6">Formularz kontaktowy</h2>
 
                     @if ($submitted)
-                        <div class="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200">
-                            <div class="p-6">
-                                <div class="text-center py-8">
-                                    <div class="text-green-600 text-6xl mb-4">✓</div>
-                                    <h3 class="text-xl font-semibold text-gray-900 mb-2">Dziękujemy!</h3>
-                                    <p class="text-gray-600">Twoja wiadomość została wysłana. Skontaktujemy się z Tobą
-                                        wkrótce.</p>
-                                    <flux:button wire:click="$set('submitted', false)" class="mt-4">
-                                        Wyślij kolejną wiadomość
-                                    </flux:button>
-                                </div>
+                        <div class="bg-white rounded-lg shadow-md border border-gray-200 p-6">
+                            <div class="text-center py-8">
+                                <div class="text-green-600 text-6xl mb-4">✓</div>
+                                <h3 class="text-xl font-semibold text-gray-900 mb-2">Dziękujemy!</h3>
+                                <p class="text-gray-600 mb-4">Twoja wiadomość została wysłana. Skontaktujemy się z Tobą
+                                    wkrótce.</p>
+                                <flux:button wire:click="$set('submitted', false)">Wyślij kolejną wiadomość
+                                </flux:button>
                             </div>
                         </div>
                     @else
-                        <div class="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200">
-                            <div class="p-6">
-                                <form wire:submit="submit" class="space-y-6">
-                                    <flux:field label="Imię i nazwisko" name="name">
-                                        <flux:input wire:model="name" placeholder="Wprowadź swoje imię i nazwisko" />
-                                        @error('name')
-                                            <span class="text-red-500 text-sm">{{ $message }}</span>
-                                        @enderror
-                                    </flux:field>
+                        <div class="bg-white rounded-lg shadow-md border border-gray-200 p-6">
+                            @if (session('error'))
+                                <div class="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+                                    {{ session('error') }}
+                                </div>
+                            @endif
 
-                                    <flux:field label="Email" name="email">
-                                        <flux:input wire:model="email" type="email"
-                                            placeholder="Wprowadź swój email" />
-                                        @error('email')
-                                            <span class="text-red-500 text-sm">{{ $message }}</span>
-                                        @enderror
-                                    </flux:field>
+                            <form wire:submit.prevent="submit" class="space-y-6">
+                                <flux:input wire:model="name" label="Imię i nazwisko"
+                                    placeholder="Wprowadź swoje imię i nazwisko" />
 
-                                    <flux:field label="Temat" name="subject">
-                                        <flux:input wire:model="subject" placeholder="Temat wiadomości" />
-                                        @error('subject')
-                                            <span class="text-red-500 text-sm">{{ $message }}</span>
-                                        @enderror
-                                    </flux:field>
+                                <flux:input wire:model="email" label="Email" type="email"
+                                    placeholder="Wprowadź swój email" />
 
-                                    <flux:field label="Wiadomość" name="message">
-                                        <flux:textarea wire:model="message" rows="4"
-                                            placeholder="Wprowadź treść wiadomości" />
-                                        @error('message')
-                                            <span class="text-red-500 text-sm">{{ $message }}</span>
-                                        @enderror
-                                    </flux:field>
+                                <flux:textarea wire:model="message" label="Wiadomość" rows="4"
+                                    placeholder="Wprowadź treść wiadomości" />
 
-                                    <flux:button type="submit" class="w-full" wire:loading.attr="disabled">
-                                        <span wire:loading.remove>Wyślij wiadomość</span>
-                                        <span wire:loading>Wysyłanie...</span>
-                                    </flux:button>
-                                </form>
-                            </div>
+                                <flux:button type="submit" variant="primary" class="w-full"
+                                    wire:loading.attr="disabled">
+                                    <span wire:loading.remove>Wyślij wiadomość</span>
+                                    <span wire:loading>Wysyłanie...</span>
+                                </flux:button>
+                            </form>
                         </div>
                     @endif
                 </div>
@@ -180,57 +198,32 @@ try {
         </div>
     </section>
 
-    <!-- FAQ Section -->
-    <section class="bg-white py-12">
-        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="text-center mb-12">
-                <h2 class="text-3xl font-bold text-gray-900 mb-4">
-                    Często zadawane pytania
-                </h2>
-            </div>
-
-            <flux:accordion>
-                <flux:accordion.item>
-                    <flux:accordion.title data-item="1">Jak mogę złożyć zamówienie?</flux:accordion.title>
-                    <flux:accordion.content data-item="1">
-                        <p class="text-gray-600">
-                            Zamówienia można składać przez nasz sklep internetowy. Wystarczy wybrać produkty,
-                            dodać je do koszyka i przejść do kasy, gdzie podasz dane dostawy i wybierzesz
-                            sposób płatności.
-                        </p>
-                    </flux:accordion.content>
-                </flux:accordion.item>
-
-                <flux:accordion.item>
-                    <flux:accordion.title data-item="2">Jakie są koszty dostawy?</flux:accordion.title>
-                    <flux:accordion.content data-item="2">
-                        <p class="text-gray-600">
-                            Koszty dostawy zależą od wybranej metody. Kurier DPD: 15 zł, Poczta Polska: 12 zł.
-                            Dla zamówień powyżej 100 zł dostawa kurierem DPD jest bezpłatna.
-                        </p>
-                    </flux:accordion.content>
-                </flux:accordion.item>
-
-                <flux:accordion.item>
-                    <flux:accordion.title data-item="3">Jak długo trwa dostawa?</flux:accordion.title>
-                    <flux:accordion.content data-item="3">
-                        <p class="text-gray-600">
-                            Dostawa kurierem DPD trwa 1-2 dni robocze, a Pocztą Polską 2-3 dni robocze.
-                            Towar wysyłamy w ciągu 1-2 dni od potwierdzenia zamówienia.
-                        </p>
-                    </flux:accordion.content>
-                </flux:accordion.item>
-
-                <flux:accordion.item>
-                    <flux:accordion.title data-item="4">Czy mogę zwrócić towar?</flux:accordion.title>
-                    <flux:accordion.content data-item="4">
-                        <p class="text-gray-600">
-                            Tak, masz prawo do zwrotu towaru w ciągu 14 dni od otrzymania.
-                            Towar musi być w stanie nienaruszonym i w oryginalnym opakowaniu.
-                        </p>
-                    </flux:accordion.content>
-                </flux:accordion.item>
-            </flux:accordion>
+    @if (config('app.debug'))
+        <div class="mt-4 p-4 bg-gray-100 text-xs font-mono max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <p><strong>🔍 MySQL Query Debug:</strong></p>
+            <p>Execution time: <strong>{{ number_format($executionTime, 2) }} ms</strong></p>
+            <p>Total queries: <strong>{{ count($queryLog) }}</strong></p>
+            @if (count($queryLog) > 0)
+                <details class="mt-2">
+                    <summary class="cursor-pointer font-semibold">Zobacz zapytania ({{ count($queryLog) }})</summary>
+                    <div class="mt-2 space-y-2">
+                        @foreach ($queryLog as $index => $query)
+                            <div class="p-2 bg-white border border-gray-300 rounded">
+                                <p class="font-semibold text-red-600">Query #{{ $index + 1 }}
+                                    ({{ number_format($query['time'], 2) }} ms)
+                                    :</p>
+                                <pre class="text-xs overflow-x-auto">{{ $query['query'] }}</pre>
+                                @if (!empty($query['bindings']))
+                                    <p class="text-xs text-gray-600 mt-1">Bindings:
+                                        {{ json_encode($query['bindings']) }}</p>
+                                @endif
+                            </div>
+                        @endforeach
+                    </div>
+                </details>
+            @else
+                <p class="mt-2 text-yellow-600">⚠️ Brak zapytań MySQL - wszystko z cache!</p>
+            @endif
         </div>
-    </section>
+    @endif
 </div>
