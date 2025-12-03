@@ -66,15 +66,47 @@ class ExportEnovaCache extends Command
             $stats['keys_found']++;
         }
 
-        // Eksportuj pojedyncze produkty i grupy (jeśli dostępne przez Redis)
+        // Eksportuj produkty w grupach na podstawie hierarchii grup
+        $this->info('Eksportowanie produktów w grupach...');
+        $groupsHierarchy = Cache::get('enova_groups_hierarchy_with_products');
+        
+        if (is_array($groupsHierarchy)) {
+            $groupKeysExported = 0;
+            $processGroup = function ($groupHierarchy, $prefix = '') use (&$processGroup, &$exportedData, &$stats, &$groupKeysExported) {
+                foreach ($groupHierarchy as $groupName => $groupData) {
+                    $fullPath = $prefix ? $prefix . '\\' . $groupName : $groupName;
+                    $dbPath = config('enova.features.product_group_prefix') . $fullPath . '\\';
+                    $cacheKey = 'enova_products_group_' . md5($dbPath);
+                    
+                    $value = Cache::get($cacheKey);
+                    if ($value !== null && is_array($value) && count($value) > 0) {
+                        $exportedData[$cacheKey] = [
+                            'value' => $value,
+                            'ttl' => 48 * 3600,
+                        ];
+                        $stats['keys_exported']++;
+                        $groupKeysExported++;
+                    }
+                    
+                    // Rekurencyjnie przetwórz podgrupy
+                    if (isset($groupData['children']) && is_array($groupData['children'])) {
+                        $processGroup($groupData['children'], $fullPath);
+                    }
+                }
+            };
+            
+            $processGroup($groupsHierarchy);
+            $this->line("  ✓ Eksportowano {$groupKeysExported} grup z produktami");
+        } else {
+            $this->warn("  ⚠ Brak hierarchii grup w cache");
+        }
+        
+        // Eksportuj pojedyncze produkty (jeśli dostępne przez Redis)
         if (config('cache.default') === 'redis') {
-            $this->info('Eksportowanie pojedynczych produktów i grup...');
+            $this->info('Eksportowanie pojedynczych produktów...');
             $productKeys = $this->getCacheKeysByPattern('enova_product_*');
-            $groupKeys = $this->getCacheKeysByPattern('enova_products_group_*');
             
-            $allKeys = array_merge($productKeys, $groupKeys);
-            
-            foreach ($allKeys as $key) {
+            foreach ($productKeys as $key) {
                 $value = Cache::get($key);
                 if ($value !== null) {
                     $exportedData[$key] = [
@@ -85,10 +117,9 @@ class ExportEnovaCache extends Command
                 }
             }
             
-            $this->line("  ✓ Eksportowano " . count($allKeys) . " dodatkowych kluczy");
+            $this->line("  ✓ Eksportowano " . count($productKeys) . " pojedynczych produktów");
         } else {
-            $this->warn("  ⚠ Eksportowanie pojedynczych produktów/grup wymaga Redis");
-            $this->warn("  ⚠ Eksportowane są tylko główne klucze cache");
+            $this->warn("  ⚠ Eksportowanie pojedynczych produktów wymaga Redis");
         }
 
         // Zapisz do pliku
@@ -116,12 +147,14 @@ class ExportEnovaCache extends Command
     private function getCacheKeysByPattern(string $pattern): array
     {
         $keys = [];
-        $prefix = config('cache.prefix', '');
-
+        
         // Dla Redis - użyj bezpośredniego połączenia Redis
         if (config('cache.default') === 'redis') {
             try {
                 $redisConfig = config('database.redis.cache');
+                $redisOptions = config('database.redis.options', []);
+                $prefix = $redisOptions['prefix'] ?? '';
+                
                 $redis = new \Redis();
                 
                 // Połącz się z Redis (socket lub TCP)
@@ -133,7 +166,7 @@ class ExportEnovaCache extends Command
                     $redis->connect($host);
                 } else {
                     // TCP connection
-                    $redis->connect($host, $port);
+                    $redis->connect($host, (int)$port);
                 }
                 
                 if (isset($redisConfig['password']) && $redisConfig['password']) {
@@ -141,23 +174,30 @@ class ExportEnovaCache extends Command
                 }
                 
                 if (isset($redisConfig['database'])) {
-                    $redis->select($redisConfig['database']);
+                    $redis->select((int)$redisConfig['database']);
                 }
                 
-                $patternWithPrefix = $prefix . str_replace('*', '*', $pattern);
+                // Wzorzec z prefiksem (Redis używa * jako wildcard)
+                $patternWithPrefix = $prefix . $pattern;
                 
                 // Użyj keys (prostsze, ale mniej wydajne dla dużych baz)
+                // W Redis keys() zwraca klucze z prefiksem już dodanym
                 $allKeys = $redis->keys($patternWithPrefix);
                 
                 foreach ($allKeys as $key) {
-                    // Usuń prefix z klucza
-                    $cleanKey = str_replace($prefix, '', $key);
+                    // Usuń prefix z klucza, aby zwrócić czysty klucz cache
+                    if ($prefix && strpos($key, $prefix) === 0) {
+                        $cleanKey = substr($key, strlen($prefix));
+                    } else {
+                        $cleanKey = $key;
+                    }
                     $keys[] = $cleanKey;
                 }
                 
                 $redis->close();
             } catch (\Exception $e) {
                 $this->warn("  ⚠ Nie można przeskanować Redis: " . $e->getMessage());
+                $this->warn("  ⚠ Szczegóły: " . $e->getTraceAsString());
             }
         } else {
             // Dla innych driverów - nie można przeskanować
