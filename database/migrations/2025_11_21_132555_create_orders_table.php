@@ -65,9 +65,9 @@ return new class extends Migration
             $table->string('currency', 3)->default('PLN');
 
             // ===== PROMOCJA =====
-            $table->foreignId('promotion_id')->nullable()->after('currency')->constrained()->onDelete('set null');
-            $table->decimal('discount_amount', 10, 2)->default(0)->after('promotion_id'); // Kwota zniżki
-            $table->string('promotion_code')->nullable()->after('discount_amount'); // Kod promocyjny (dla łatwego wyszukiwania)
+            $table->foreignId('promotion_id')->nullable()->constrained()->onDelete('set null');
+            $table->decimal('discount_amount', 10, 2)->default(0); // Kwota zniżki
+            $table->string('promotion_code')->nullable(); // Kod promocyjny (dla łatwego wyszukiwania)
 
             // ===== DODATKOWE INFORMACJE =====
             $table->text('notes')->nullable();
