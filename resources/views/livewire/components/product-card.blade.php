@@ -50,7 +50,7 @@
                 // Używamy hasImageSmall z cache - nie sprawdzamy pliku ponownie (to było wolne!)
                 $imageExists = $hasImageSmall ?? false;
             @endphp
-            <img src="{{ $imageExists ? Storage::disk('public')->url('img/towary/' . $productId . '_200x120.jpg') : asset('img/towary/placeholder.jpg') }}"
+            <img src="{{ $imageExists ? asset('img/towary/' . $productId . '_200x120.jpg') : asset('img/towary/placeholder.jpg') }}"
                 alt="{{ $productName }}"
                 class="w-auto {{ $variant === 'compact' ? 'max-h-[80px]' : 'max-h-[120px] ?>' }} mx-auto my-[80px]">
         </a>

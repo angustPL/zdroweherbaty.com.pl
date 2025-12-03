@@ -702,7 +702,7 @@ mount(function ($ext_order_id) {
                                                 <div class="flex items-center">
                                                     <div class="flex-shrink-0 h-16 w-16">
                                                         <img class="h-16 w-16 rounded object-cover"
-                                                            src="{{ $imagePath && Storage::disk('public')->exists($imagePath) ? Storage::disk('public')->url($imagePath) : asset('img/towary/placeholder.jpg') }}"
+                                                            src="{{ $imagePath && file_exists(public_path($imagePath)) ? asset($imagePath) : asset('img/towary/placeholder.jpg') }}"
                                                             alt="{{ $productName }}">
                                                     </div>
                                                     <div class="ml-4">
@@ -873,7 +873,7 @@ mount(function ($ext_order_id) {
                                         <div class="flex items-center">
                                             <div class="flex-shrink-0 h-16 w-16">
                                                 <img class="h-16 w-16 rounded object-cover"
-                                                    src="{{ Storage::disk('public')->exists('img/towary/' . ($item['image'] ?? $productId . '_200x120.jpg')) ? Storage::disk('public')->url('img/towary/' . ($item['image'] ?? $productId . '_200x120.jpg')) : asset('img/towary/placeholder.jpg') }}"
+                                                    src="{{ file_exists(public_path('img/towary/' . ($item['image'] ?? $productId . '_200x120.jpg'))) ? asset('img/towary/' . ($item['image'] ?? $productId . '_200x120.jpg')) : asset('img/towary/placeholder.jpg') }}"
                                                     alt="{{ $item['name'] ?? 'Produkt' }}">
                                             </div>
                                             <div class="ml-4">

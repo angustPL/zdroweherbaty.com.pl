@@ -50,7 +50,7 @@ mount(function ($id, $name = null) {
 
         // Ustawienie zdjęcia produktu jako Open Graph image
         if (!empty($this->product['ID'])) {
-            $imageUrl = Storage::disk('public')->url('img/towary/' . $this->product['ID'] . '_800x600.jpg');
+            $imageUrl = asset('img/towary/' . $this->product['ID'] . '_800x600.jpg');
             SEOTools::opengraph()->addImage($imageUrl);
         }
 
@@ -61,7 +61,7 @@ mount(function ($id, $name = null) {
 
         // Ustawienie zdjęcia produktu jako Twitter image
         if (!empty($this->product['ID'])) {
-            $imageUrl = Storage::disk('public')->url('img/towary/' . $this->product['ID'] . '_800x600.jpg');
+            $imageUrl = asset('img/towary/' . $this->product['ID'] . '_800x600.jpg');
             SEOTools::twitter()->addImage($imageUrl);
         }
 
@@ -71,7 +71,7 @@ mount(function ($id, $name = null) {
             ->addValue('description', Str::limit($this->product['Opis'] ?? '', 200))
             ->addValue('brand', 'BIFIX')
             ->addValue('category', $this->product['Grupa'] ?? 'Herbata')
-            ->addValue('image', Storage::disk('public')->url('img/towary/' . $this->product['ID'] . '_800x600.jpg'))
+            ->addValue('image', asset('img/towary/' . $this->product['ID'] . '_800x600.jpg'))
             ->addValue('offers', [
                 '@type' => 'Offer',
                 'price' => $this->product['BruttoValue'],
@@ -164,7 +164,7 @@ mount(function ($id, $name = null) {
             <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
                 {{-- Zdjęcie produktu --}}
                 <div class="text-center">
-                    <img src="{{ Storage::disk('public')->exists('img/towary/' . $product['ID'] . '_800x600.jpg') ? Storage::disk('public')->url('img/towary/' . $product['ID'] . '_800x600.jpg') : asset('img/towary/placeholder.jpg') }}"
+                    <img src="{{ ($product['HasImageLarge'] ?? false) ? asset('img/towary/' . $product['ID'] . '_800x600.jpg') : asset('img/towary/placeholder.jpg') }}"
                         alt="{{ $product['Nazwa'] }}" class="w-full max-w-md mx-auto rounded-lg">
                 </div>
 

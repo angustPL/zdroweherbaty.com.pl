@@ -54,7 +54,7 @@
                                     <div class="flex items-center">
                                         <div class="flex-shrink-0 h-16 w-16">
                                             <img class="h-16 w-16 rounded object-cover"
-                                                src="{{ Storage::disk('public')->exists('img/towary/' . $item['image']) ? Storage::disk('public')->url('img/towary/' . $item['image']) : asset('img/towary/placeholder.jpg') }}"
+                                                src="{{ file_exists(public_path('img/towary/' . $item['image'])) ? asset('img/towary/' . $item['image']) : asset('img/towary/placeholder.jpg') }}"
                                                 alt="{{ $item['name'] }}">
                                         </div>
                                         <div class="ml-4">
