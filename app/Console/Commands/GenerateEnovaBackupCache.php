@@ -537,7 +537,7 @@ class GenerateEnovaBackupCache extends Command
     private function sendReportEmail(array $stats, float $duration, bool $success, ?string $errorMessage = null): void
     {
         try {
-            $adminEmail = config('enova.orders.email.address', 'sklep@bifix.pl');
+            $adminEmail = config('app.admin_email', env('ADMIN_EMAIL', config('enova.orders.email.address', 'sklep@bifix.pl')));
             
             if (empty($adminEmail)) {
                 $this->warn('  ⚠ Brak skonfigurowanego adresu email admina - pomijam wysyłkę raportu');
