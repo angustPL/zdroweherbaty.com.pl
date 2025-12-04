@@ -9,11 +9,6 @@ layout('layouts.app');
 state(['products' => [], 'groupName' => '', 'dbPath' => '']);
 
 mount(function ($group) {
-    // Włącz logowanie zapytań MySQL (tylko w trybie debug) - NAJWCZEŚNIEJ
-    if (config('app.debug')) {
-        \Illuminate\Support\Facades\DB::enableQueryLog();
-    }
-
     // Dekodowanie URL
     $decodedGroup = urldecode($group);
     $this->groupName = $decodedGroup; // Statyczna nazwa z URL (fallback)
@@ -48,15 +43,10 @@ mount(function ($group) {
         // Fallback do groupName
     }
 
-    $startTime = microtime(true);
-
     // Pobieranie treści SEO z bazy danych - cache'owane w Content::getForProductGroup()
-    // Używamy clean_name z Group (jeśli dostępne) zamiast groupName z URL, aby uniknąć wielu zapytań
-    $identifierForContent = $category ? $category->clean_name : $groupName;
-    $groupContent = \App\Models\Content::getForProductGroup($identifierForContent);
-
-$endTime = microtime(true);
-$executionTime = ($endTime - $startTime) * 1000; // w milisekundach
+// Używamy clean_name z Group (jeśli dostępne) zamiast groupName z URL, aby uniknąć wielu zapytań
+$identifierForContent = $category ? $category->clean_name : $groupName;
+$groupContent = \App\Models\Content::getForProductGroup($identifierForContent);
 
 // Aktualizacja SEO Meta Tags - użyj danych z bazy jeśli są dostępne
 if ($groupContent) {
@@ -72,15 +62,10 @@ if ($groupContent) {
                 $categoryName .
                 ' BIFIX. Znajdź herbaty zielone, czarne, owocowe i ziołowe dla całej rodziny.';
 
-    \Artesaos\SEOTools\Facades\SEOTools::setTitle($metaTitle);
-    \Artesaos\SEOTools\Facades\SEOTools::setDescription($metaDescription);
-}
-
-// Pobierz logi zapytań MySQL (tylko w trybie debug)
-$queryLog = [];
-if (config('app.debug')) {
-        $queryLog = \Illuminate\Support\Facades\DB::getQueryLog();
+        \Artesaos\SEOTools\Facades\SEOTools::setTitle($metaTitle);
+        \Artesaos\SEOTools\Facades\SEOTools::setDescription($metaDescription);
     }
+
 @endphp
 
 <div>
@@ -116,33 +101,4 @@ if (config('app.debug')) {
         </div>
     @endif
 
-    {{-- Debug: wyświetl informacje o zapytaniach MySQL (tylko w trybie debug) --}}
-    @if (config('app.debug'))
-        <div class="mt-4 p-4 bg-gray-100 text-xs font-mono">
-            <p><strong>🔍 MySQL Query Debug:</strong></p>
-            <p>Execution time: <strong>{{ number_format($executionTime, 2) }} ms</strong></p>
-            <p>Total queries: <strong>{{ count($queryLog) }}</strong></p>
-            @if (count($queryLog) > 0)
-                <details class="mt-2">
-                    <summary class="cursor-pointer font-semibold">Zobacz zapytania ({{ count($queryLog) }})</summary>
-                    <div class="mt-2 space-y-2">
-                        @foreach ($queryLog as $index => $query)
-                            <div class="p-2 bg-white border border-gray-300 rounded">
-                                <p class="font-semibold text-red-600">Query #{{ $index + 1 }}
-                                    ({{ number_format($query['time'], 2) }} ms)
-                                    :</p>
-                                <pre class="text-xs overflow-x-auto">{{ $query['query'] }}</pre>
-                                @if (!empty($query['bindings']))
-                                    <p class="text-xs text-gray-600 mt-1">Bindings:
-                                        {{ json_encode($query['bindings']) }}</p>
-                                @endif
-                            </div>
-                        @endforeach
-                    </div>
-                </details>
-            @else
-                <p class="mt-2 text-yellow-600">⚠️ Brak zapytań MySQL - wszystko z cache!</p>
-            @endif
-        </div>
-    @endif
 </div>

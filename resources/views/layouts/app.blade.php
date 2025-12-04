@@ -49,10 +49,10 @@
 }" x-init="adjustPadding()" @scroll.window="handleScroll()"
     @resize.window="adjustPadding()">
     @include('googletagmanager::body')
-    
+
     <!-- Floating Buttons (Share & Scroll to Top) - poza głównym kontenerem dla poprawnego fixed positioning -->
     <x-floating-buttons />
-    
+
     <div class="min-h-screen bg-white">
         <!-- Floating Header -->
         <flux:header container id="header-top"
@@ -188,7 +188,7 @@
             </div>
         </footer>
     </div>
-    
+
     @livewireScripts
     @fluxScripts
 </body>

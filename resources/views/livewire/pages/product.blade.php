@@ -22,11 +22,6 @@ app('seotools.json-ld')->setType('Product');
 state(['product' => null, 'productId' => null]);
 
 mount(function ($id, $name = null) {
-    // Włącz logowanie zapytań MySQL (tylko w trybie debug) - NAJWCZEŚNIEJ
-    if (config('app.debug')) {
-        \Illuminate\Support\Facades\DB::enableQueryLog();
-    }
-
     $this->productId = $id;
 
     // Załaduj produkt z cache'owaniem (TTL z konfiguracji, domyślnie 24h)
@@ -121,7 +116,7 @@ mount(function ($id, $name = null) {
         $groupUrl = null;
         if ($product && isset($product['Grupa'])) {
             view()->share('currentProductGroup', $product['Grupa']);
-            
+
             // Przygotuj URL do strony grupy
             // Grupa ma format "Bi fix herbatki owocowe\Herbaty specjalne" (clean_name)
             // Konwertuj na format URL: zamień \ na separator z konfiguracji i zakoduj
@@ -129,58 +124,27 @@ mount(function ($id, $name = null) {
             $urlPath = str_replace('\\', config('enova.grupa_url_separator'), $groupPath);
             $groupUrl = route('group', ['group' => urlencode($urlPath)]);
         }
-        
-        $startTime = microtime(true);
 
-        // Pobierz logi zapytań MySQL (tylko w trybie debug)
-        $queryLog = [];
-        if (config('app.debug')) {
-            $queryLog = \Illuminate\Support\Facades\DB::getQueryLog();
-        }
-
-        $endTime = microtime(true);
-        $executionTime = ($endTime - $startTime) * 1000; // w milisekundach
     @endphp
     <div class="mb-6">
         <h1 class="text-3xl font-bold text-gray-900 mb-2">
             {{ $product['Nazwa'] ?? 'Produkt' }}
         </h1>
-        @if ($groupUrl && isset($product['Grupa']))
-            <p class="text-gray-600">
-                <a href="{{ $groupUrl }}" class="text-primary hover:text-primary-dark hover:underline transition-colors">
-                    {{ $product['Grupa'] }}
-                </a>
-            </p>
-        @else
-            <p class="text-gray-600">{{ $product['Grupa'] ?? 'Kategoria' }}</p>
-        @endif
     </div>
 
-    {{-- Debug danych produktu --}}
-    {{-- @php(dd($product)) --}}
 
     @if ($product)
         <div class="bg-white rounded-lg shadow p-6 mb-12">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                {{-- Zdjęcie produktu --}}
-                <div class="text-center">
-                    <img src="{{ ($product['HasImageLarge'] ?? false) ? asset('img/towary/' . $product['ID'] . '_800x600.jpg') : asset('img/towary/placeholder.jpg') }}"
-                        alt="{{ $product['Nazwa'] }}" class="w-full max-w-md mx-auto rounded-lg">
-                </div>
-
-                {{-- Informacje o produkcie --}}
-                <div class="space-y-6">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {{-- Lewa kolumna: Zdjęcie + Opis --}}
+                <div class="lg:col-span-2 space-y-6">
+                    {{-- Zdjęcie produktu --}}
                     <div class="text-center">
-                        <div class="text-3xl font-bold text-primary mb-4">
-                            {{ Number::currency($product['BruttoValue'], 'PLN', 'pl_PL') }}
-                        </div>
-
-                        <div>
-                            <livewire:components.add-to-cart-button :product-id="$product['ID']" :product-name="$product['Nazwa']"
-                                :price="$product['BruttoValue']" :image="$product['ID'] . '_200x120.jpg'" :weight="$product['MasaBruttoValue'] ?? 0" />
-                        </div>
+                        <img src="{{ $product['HasImageLarge'] ?? false ? asset('img/towary/' . $product['ID'] . '_800x600.jpg') : asset('img/towary/placeholder.jpg') }}"
+                            alt="{{ $product['Nazwa'] }}" class="w-full max-w-full mx-auto rounded-lg">
                     </div>
 
+                    {{-- Opis produktu --}}
                     <div class="text-gray-600 leading-relaxed product-description">
                         {!! Str::of($product['Opis'] ?? 'Brak opisu produktu')->markdown() !!}
                     </div>
@@ -189,6 +153,35 @@ mount(function ($id, $name = null) {
                             margin-bottom: 1rem !important;
                         }
                     </style>
+                </div>
+
+                {{-- Prawa kolumna: Sticky z ceną, przyciskiem i grupą --}}
+                <div class="lg:col-span-1">
+                    <div class="bg-white rounded-lg shadow p-6 sticky top-20">
+                        {{-- Podlinkowana nazwa grupy --}}
+                        @if ($groupUrl && isset($product['Grupa']))
+                            <div class="mb-4 pb-4 border-b">
+                                <p class="text-sm text-gray-600 mb-1">Kategoria:</p>
+                                <a href="{{ $groupUrl }}"
+                                    class="text-primary hover:text-primary-dark hover:underline transition-colors font-medium">
+                                    {{ $product['Grupa'] }}
+                                </a>
+                            </div>
+                        @endif
+
+                        {{-- Cena --}}
+                        <div class="text-center mb-6">
+                            <div class="text-3xl font-bold text-primary mb-4">
+                                {{ Number::currency($product['BruttoValue'], 'PLN', 'pl_PL') }}
+                            </div>
+
+                            {{-- Przycisk dodawania do koszyka --}}
+                            <div>
+                                <livewire:components.add-to-cart-button :product-id="$product['ID']" :product-name="$product['Nazwa']"
+                                    :price="$product['BruttoValue']" :image="$product['ID'] . '_200x120.jpg'" :weight="$product['MasaBruttoValue'] ?? 0" />
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -203,35 +196,6 @@ mount(function ($id, $name = null) {
         </div>
     @endif
 
-    {{-- Debug: wyświetl informacje o zapytaniach MySQL (tylko w trybie debug) --}}
-    @if (config('app.debug'))
-        <div class="mt-4 p-4 bg-gray-100 text-xs font-mono">
-            <p><strong>🔍 MySQL Query Debug:</strong></p>
-            <p>Execution time: <strong>{{ number_format($executionTime, 2) }} ms</strong></p>
-            <p>Total queries: <strong>{{ count($queryLog) }}</strong></p>
-            @if (count($queryLog) > 0)
-                <details class="mt-2">
-                    <summary class="cursor-pointer font-semibold">Zobacz zapytania ({{ count($queryLog) }})</summary>
-                    <div class="mt-2 space-y-2">
-                        @foreach ($queryLog as $index => $query)
-                            <div class="p-2 bg-white border border-gray-300 rounded">
-                                <p class="font-semibold text-red-600">Query #{{ $index + 1 }}
-                                    ({{ number_format($query['time'], 2) }} ms)
-                                    :</p>
-                                <pre class="text-xs overflow-x-auto">{{ $query['query'] }}</pre>
-                                @if (!empty($query['bindings']))
-                                    <p class="text-xs text-gray-600 mt-1">Bindings:
-                                        {{ json_encode($query['bindings']) }}</p>
-                                @endif
-                            </div>
-                        @endforeach
-                    </div>
-                </details>
-            @else
-                <p class="mt-2 text-yellow-600">⚠️ Brak zapytań MySQL - wszystko z cache!</p>
-            @endif
-        </div>
-    @endif
 
     <!-- Schema.org JSON-LD -->
     {!! JsonLd::generate() !!}

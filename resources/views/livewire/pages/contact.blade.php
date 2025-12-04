@@ -42,14 +42,6 @@ $submit = action(function () {
     $name = trim(strip_tags($this->name));
     $email = trim($this->email);
 
-    // Logowanie do debugowania - sprawdzamy co faktycznie jest przekazywane
-    Log::info('Formularz kontaktowy - dane przed wysłaniem', [
-        'name' => $name,
-        'email' => $email,
-        'this->name' => $this->name,
-        'this->email' => $this->email,
-    ]);
-
     // Dodatkowa walidacja emaila - upewniamy się, że jest prawidłowy
     // Sprawdzamy zarówno przez filter_var jak i przez regex dla większej pewności
     $isValidEmail = filter_var($email, FILTER_VALIDATE_EMAIL) !== false && preg_match('/^[^\s@]+@[^\s@]+\.[^\s@]+$/', $email);
@@ -82,25 +74,11 @@ $submit = action(function () {
     }
 });
 
-mount(function () {
-    if (config('app.debug')) {
-        \Illuminate\Support\Facades\DB::enableQueryLog();
-    }
-});
+mount(function () {});
 
 ?>
 
 <div>
-    @php
-        $startTime = microtime(true);
-        $queryLog = [];
-        if (config('app.debug')) {
-            $queryLog = \Illuminate\Support\Facades\DB::getQueryLog();
-        }
-        $endTime = microtime(true);
-        $executionTime = ($endTime - $startTime) * 1000;
-    @endphp
-
     <section class="py-8">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <h1 class="text-3xl font-bold text-gray-900 mb-8">Kontakt</h1>
@@ -198,32 +176,4 @@ mount(function () {
         </div>
     </section>
 
-    @if (config('app.debug'))
-        <div class="mt-4 p-4 bg-gray-100 text-xs font-mono max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <p><strong>🔍 MySQL Query Debug:</strong></p>
-            <p>Execution time: <strong>{{ number_format($executionTime, 2) }} ms</strong></p>
-            <p>Total queries: <strong>{{ count($queryLog) }}</strong></p>
-            @if (count($queryLog) > 0)
-                <details class="mt-2">
-                    <summary class="cursor-pointer font-semibold">Zobacz zapytania ({{ count($queryLog) }})</summary>
-                    <div class="mt-2 space-y-2">
-                        @foreach ($queryLog as $index => $query)
-                            <div class="p-2 bg-white border border-gray-300 rounded">
-                                <p class="font-semibold text-red-600">Query #{{ $index + 1 }}
-                                    ({{ number_format($query['time'], 2) }} ms)
-                                    :</p>
-                                <pre class="text-xs overflow-x-auto">{{ $query['query'] }}</pre>
-                                @if (!empty($query['bindings']))
-                                    <p class="text-xs text-gray-600 mt-1">Bindings:
-                                        {{ json_encode($query['bindings']) }}</p>
-                                @endif
-                            </div>
-                        @endforeach
-                    </div>
-                </details>
-            @else
-                <p class="mt-2 text-yellow-600">⚠️ Brak zapytań MySQL - wszystko z cache!</p>
-            @endif
-        </div>
-    @endif
 </div>

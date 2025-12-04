@@ -159,7 +159,7 @@ class GenerateEnovaBackupCache extends Command
                     $fullPath = $prefix ? $prefix . '\\' . $groupName : $groupName;
                     $dbPath = config('enova.features.product_group_prefix') . $fullPath . '\\';
                     $cacheKey = 'enova_products_group_' . md5($dbPath);
-                    
+
                     $totalGroups++;
                     if (Cache::has($cacheKey)) {
                         $groupsWithCache++;
@@ -173,7 +173,7 @@ class GenerateEnovaBackupCache extends Command
             };
 
             $checkGroup($groups);
-            
+
             $status = $groupsWithCache > 0 ? '✓' : '✗';
             $color = $groupsWithCache > 0 ? 'info' : 'error';
             $this->$color("{$status} Produkty w grupach: {$groupsWithCache}/{$totalGroups} grup ma cache");
@@ -537,8 +537,9 @@ class GenerateEnovaBackupCache extends Command
     private function sendReportEmail(array $stats, float $duration, bool $success, ?string $errorMessage = null): void
     {
         try {
-            $adminEmail = config('app.admin_email', env('ADMIN_EMAIL', config('enova.orders.email.address', 'sklep@bifix.pl')));
-            
+            // Użyj ADMIN_EMAIL z .env jako pierwszej opcji
+            $adminEmail = env('ADMIN_EMAIL', config('enova.orders.email.address', 'sklep@bifix.pl'));
+
             if (empty($adminEmail)) {
                 $this->warn('  ⚠ Brak skonfigurowanego adresu email admina - pomijam wysyłkę raportu');
                 return;

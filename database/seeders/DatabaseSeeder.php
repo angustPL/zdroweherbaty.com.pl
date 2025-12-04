@@ -13,11 +13,25 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
+        // Tworzenie użytkownika administratora z danych z .env
+        $adminEmail = env('ADMIN_EMAIL', 'admin@zdroweherbaty.com.pl');
+        $adminPassword = env('ADMIN_PASSWORD', 'password');
+        $adminName = env('ADMIN_NAME', 'Administrator');
 
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-        ]);
+        User::firstOrCreate(
+            ['email' => $adminEmail],
+            [
+                'name' => $adminName,
+                'email' => $adminEmail,
+                'password' => \Illuminate\Support\Facades\Hash::make($adminPassword),
+                'email_verified_at' => now(),
+            ]
+        );
+
+        // Seed treści SEO (regulamin, treści dla grup, strona główna)
+        $this->call(ContentSeeder::class);
+
+        // Seed promocji (darmowa dostawa, kody rabatowe)
+        $this->call(PromotionSeeder::class);
     }
 }

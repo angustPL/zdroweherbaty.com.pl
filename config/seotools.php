@@ -45,8 +45,12 @@ return [
     'twitter' => [
         'defaults' => [
             'type' => 'summary_large_image',
-            'site' => null,
-            'creator' => null,
+            // Twitter handle strony - opcjonalnie można ustawić w .env jako TWITTER_SITE
+            // Jeśli nie ustawione, pozostaje puste (rozwiązuje deprecated warning)
+            'site' => env('TWITTER_SITE', ''),
+            // Twitter handle autora/twórcy treści - opcjonalnie można ustawić w .env jako TWITTER_CREATOR
+            // Jeśli nie ustawione, pozostaje puste (rozwiązuje deprecated warning)
+            'creator' => env('TWITTER_CREATOR', ''),
         ],
     ],
 
