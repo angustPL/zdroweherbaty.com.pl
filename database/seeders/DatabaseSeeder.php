@@ -13,12 +13,15 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        // Seed ról (admin, editor)
+        $this->call(RoleSeeder::class);
+
         // Tworzenie użytkownika administratora z danych z .env
         $adminEmail = env('ADMIN_EMAIL', 'admin@zdroweherbaty.com.pl');
         $adminPassword = env('ADMIN_PASSWORD', 'password');
         $adminName = env('ADMIN_NAME', 'Administrator');
 
-        User::firstOrCreate(
+        $admin = User::firstOrCreate(
             ['email' => $adminEmail],
             [
                 'name' => $adminName,
@@ -27,6 +30,11 @@ class DatabaseSeeder extends Seeder
                 'email_verified_at' => now(),
             ]
         );
+
+        // Przypisanie roli admin do administratora (jeśli jeszcze nie ma)
+        if (!$admin->hasRole('admin')) {
+            $admin->assignRole('admin');
+        }
 
         // Seed treści SEO (regulamin, treści dla grup, strona główna)
         $this->call(ContentSeeder::class);

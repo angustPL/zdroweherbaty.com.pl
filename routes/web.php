@@ -58,11 +58,16 @@ Route::view('dashboard', 'dashboard')
     ->name('dashboard');
 
 Route::middleware(['auth'])->group(function () {
-    Route::redirect('settings', 'settings/profile');
+    // Ustawienia - tylko dla admina
+    Route::middleware([\App\Http\Middleware\EnsureUserIsAdmin::class])->group(function () {
+        Route::redirect('settings', 'settings/profile');
+        Volt::route('settings/profile', 'settings.profile')->name('settings.profile');
+        Volt::route('settings/password', 'settings.password')->name('settings.password');
+        Volt::route('settings/appearance', 'settings.appearance')->name('settings.appearance');
+    });
 
-    Volt::route('settings/profile', 'settings.profile')->name('settings.profile');
-    Volt::route('settings/password', 'settings.password')->name('settings.password');
-    Volt::route('settings/appearance', 'settings.appearance')->name('settings.appearance');
+    // Promocje - zarządzanie
+    Volt::route('promocje', 'pages.promotions')->name('promotions');
 });
 
 require __DIR__ . '/auth.php';

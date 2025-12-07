@@ -3,6 +3,7 @@
 
 use function Livewire\Volt\{state, mount, layout};
 use App\Models\Content;
+use Illuminate\Support\Facades\Auth;
 use Artesaos\SEOTools\Facades\SEOTools;
 use Artesaos\SEOTools\Facades\SEOMeta;
 
@@ -27,12 +28,14 @@ SEOTools::opengraph()->addProperty('robots', 'noindex, nofollow');
 // Schema.org JSON-LD - tylko typ (reszta z domyślnych)
 SEOTools::jsonLd()->setType('WebPage');
 
-state(['expandedSections' => [], 'termsContent' => null]);
+state(['expandedSections' => [], 'termsContent' => null, 'editingContent' => '', 'showEditModal' => false, 'termsModel' => null]);
 
 mount(function () {
     // Pobieranie treści regulaminu z bazy danych
     $terms = Content::getTerms('regulamin');
+    $this->termsModel = $terms;
     $this->termsContent = $terms ? $terms->content : null;
+    $this->editingContent = $this->termsContent ?? '';
 });
 
 $toggleSection = function ($section) {
@@ -41,6 +44,40 @@ $toggleSection = function ($section) {
     } else {
         $this->expandedSections[] = $section;
     }
+};
+
+$openEditModal = function () {
+    $this->editingContent = $this->termsContent ?? '';
+    $this->showEditModal = true;
+};
+
+$saveContent = function () {
+    $this->validate([
+        'editingContent' => 'required|string',
+    ]);
+
+    $this->termsModel = Content::updateOrCreate(
+        [
+            'type' => 'terms',
+            'identifier' => 'regulamin',
+        ],
+        [
+            'title' => 'Regulamin',
+            'content' => $this->editingContent,
+            'is_active' => true,
+        ],
+    );
+
+    $this->termsContent = $this->termsModel->content;
+    $this->editingContent = $this->termsModel->content; // Zaktualizuj również editingContent
+    $this->showEditModal = false;
+
+    session()->flash('message', 'Regulamin został zapisany.');
+};
+
+$closeEditModal = function () {
+    $this->showEditModal = false;
+    $this->editingContent = $this->termsContent ?? '';
 };
 
 // GTM page type
@@ -54,7 +91,9 @@ try {
 
 <div>
     <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <h1 class="text-3xl font-bold text-gray-900 mb-8">Regulamin</h1>
+        <div class="mb-8">
+            <h1 class="text-3xl font-bold text-gray-900">Regulamin</h1>
+        </div>
 
         {{-- Klasy używane w treści z bazy danych - nie usuwać podczas buildowania --}}
         <div class="hidden">
@@ -70,4 +109,49 @@ try {
             @endif
         </div>
     </div>
+
+    @if (Auth::check() && (Auth::user()->hasRole('admin') || Auth::user()->hasRole('editor')))
+        @push('admin-bar-actions')
+            <flux:modal.trigger name="edit-terms-modal">
+                <flux:tooltip content="Edytuj regulamin" position="right">
+                    <button type="button" wire:click="openEditModal" class="p-2 hover:bg-gray-800 transition-colors block">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                    </button>
+                </flux:tooltip>
+            </flux:modal.trigger>
+        @endpush
+
+        <flux:modal name="edit-terms-modal" flyout position="left"
+            class="md:w-[800px] m-0! rounded-none! h-screen! flex flex-col">
+            <form class="flex flex-col h-full">
+                <div class="shrink-0 p-6 border-b">
+                    <flux:heading size="lg">Edytuj regulamin</flux:heading>
+                    <flux:subheading>Zaktualizuj treść regulaminu sklepu</flux:subheading>
+                </div>
+
+                <div class="flex-1 p-6">
+                    <x-rich-editor name="editingContent" label="Treść regulaminu" :value="$editingContent" />
+                </div>
+
+                <div
+                    class="shrink-0 flex justify-end space-x-2 rtl:space-x-reverse p-6 border-t bg-white sticky bottom-0">
+                    <flux:modal.close>
+                        <flux:button type="button" variant="ghost">Anuluj</flux:button>
+                    </flux:modal.close>
+                    <flux:button type="button" variant="primary" wire:click="saveContent"
+                        x-on:click="
+                            // Synchronizuj wartość Trix z Livewire przed zapisem
+                            const trixEditor = document.querySelector('trix-editor[input=&quot;trix-editingContent&quot;]');
+                            if (trixEditor) {
+                                $wire.set('editingContent', trixEditor.value);
+                            }
+                        ">
+                        Zapisz</flux:button>
+                </div>
+            </form>
+        </flux:modal>
+    @endif
 </div>

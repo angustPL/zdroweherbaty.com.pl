@@ -100,19 +100,23 @@ class CacheController extends Controller
                 case 'products_group':
                     if (!$param) {
                         return response()->json([
+                            'success' => false,
                             'error' => 'Brak parametru: wymagana ścieżka grupy',
                         ], 400);
                     }
-                    $this->clearProductsGroupCache($param);
+                    $result = $this->clearProductsGroupCache($param);
+                    return response()->json($result, $result['success'] ? 200 : 503);
                     break;
 
                 case 'product':
                     if (!$param) {
                         return response()->json([
+                            'success' => false,
                             'error' => 'Brak parametru: wymagane ID produktu',
                         ], 400);
                     }
-                    $this->clearProductCache((int) $param);
+                    $result = $this->clearProductCache((int) $param);
+                    return response()->json($result, $result['success'] ? 200 : 503);
                     break;
 
                 case 'all':
@@ -161,33 +165,75 @@ class CacheController extends Controller
     }
 
     /**
-     * Czyści cache produktów w określonej grupie.
+     * Czyści cache produktów w określonej grupie i od razu odświeża z Enova.
      * Automatycznie czyści również cache strony głównej (HP), ponieważ produkty mogą być wyświetlane na HP.
      *
      * @param string $groupPath Ścieżka grupy
+     * @return array ['success' => bool, 'message' => string, 'error' => string|null]
      */
-    private function clearProductsGroupCache(string $groupPath): void
+    private function clearProductsGroupCache(string $groupPath): array
     {
         $cacheKey = 'enova_products_group_' . md5($groupPath);
         Cache::forget($cacheKey);
-        
+
         // Automatycznie wyczyść cache strony głównej (HP)
         $this->clearHomePageCache();
+
+        // Próbuj od razu odświeżyć cache z Enova
+        try {
+            \App\Models\Product::getCachedByGroup($groupPath);
+            return [
+                'success' => true,
+                'message' => 'Cache grupy został odświeżony',
+                'error' => null
+            ];
+        } catch (\Exception $e) {
+            Log::error('Nie można odświeżyć cache grupy z Enova', [
+                'group_path' => $groupPath,
+                'error' => $e->getMessage()
+            ]);
+            return [
+                'success' => false,
+                'message' => 'Cache został usunięty, ale nie można było odświeżyć z Enova',
+                'error' => 'Brak połączenia z Enova. Cache nie może być odświeżony w tym momencie.'
+            ];
+        }
     }
 
     /**
-     * Czyści cache pojedynczego produktu.
+     * Czyści cache pojedynczego produktu i od razu odświeża z Enova.
      * Automatycznie czyści również cache strony głównej (HP), ponieważ produkty są wyświetlane na HP.
      *
      * @param int $productId ID produktu
+     * @return array ['success' => bool, 'message' => string, 'error' => string|null]
      */
-    private function clearProductCache(int $productId): void
+    private function clearProductCache(int $productId): array
     {
         $cacheKey = 'enova_product_' . $productId;
         Cache::forget($cacheKey);
-        
+
         // Automatycznie wyczyść cache strony głównej (HP)
         $this->clearHomePageCache();
+
+        // Próbuj od razu odświeżyć cache z Enova
+        try {
+            \App\Models\Product::getCachedById($productId);
+            return [
+                'success' => true,
+                'message' => 'Cache produktu został odświeżony',
+                'error' => null
+            ];
+        } catch (\Exception $e) {
+            Log::error('Nie można odświeżyć cache produktu z Enova', [
+                'product_id' => $productId,
+                'error' => $e->getMessage()
+            ]);
+            return [
+                'success' => false,
+                'message' => 'Cache został usunięty, ale nie można było odświeżyć z Enova',
+                'error' => 'Brak połączenia z Enova. Cache nie może być odświeżony w tym momencie.'
+            ];
+        }
     }
 
     /**
