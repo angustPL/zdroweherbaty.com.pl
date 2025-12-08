@@ -115,11 +115,7 @@ mount(function ($ext_order_id) {
             // Pobierz kilka losowych produktów do rekomendacji z cache
             try {
                 $allProducts = Product::getCachedAll();
-                $this->recommendedProducts = collect($allProducts)
-                    ->shuffle()
-                    ->take(6)
-                    ->values()
-                    ->toArray();
+                $this->recommendedProducts = collect($allProducts)->shuffle()->take(6)->values()->toArray();
             } catch (\Exception $e) {
                 // W przypadku błędu, zostaw puste produkty
                 $this->recommendedProducts = [];
@@ -515,6 +511,8 @@ mount(function ($ext_order_id) {
                                                 $kod = strtolower($product['Kod'] ?? '');
                                             }
                                         } catch (\Exception $e) {
+                                            // Ignoruj błędy
+                                            $product = null;
                                         }
                                         $isDelivery =
                                             !empty($kod) &&
@@ -609,13 +607,16 @@ mount(function ($ext_order_id) {
                             // Spróbuj pobrać produkt aby sprawdzić kod
                             $product = null;
                             $kod = '';
-                            try {
-                                $product = $productId ? Product::getCachedById($productId) : null;
-                                if ($product) {
-                                    $kod = strtolower($product['Kod'] ?? '');
+                            if ($productId) {
+                                try {
+                                    $product = Product::getCachedById($productId);
+                                    if ($product) {
+                                        $kod = strtolower($product['Kod'] ?? '');
+                                    }
+                                } catch (\Exception $e) {
+                                    // Ignoruj błędy
+                                    $product = null;
                                 }
-                            } catch (\Exception $e) {
-                                // Ignoruj błędy
                             }
 
                             $isDelivery = !empty($kod) && (str_contains($kod, 'przes') || str_contains($kod, 'dostaw'));
@@ -669,6 +670,7 @@ mount(function ($ext_order_id) {
                                             $product = $productId ? Product::getCachedById($productId) : null;
                                         } catch (\Exception $e) {
                                             // Ignoruj błędy
+                                            $product = null;
                                         }
 
                                         // Pobierz nazwę produktu
@@ -677,11 +679,7 @@ mount(function ($ext_order_id) {
                                         if ($product) {
                                             // Produkt z cache jest tablicą, nazwa jest już w 'Nazwa'
                                             $productName = $product['Nazwa'] ?? 'Produkt';
-                                                $productKod = strtolower($product->Kod ?? '');
-                                            } catch (\Exception $e) {
-                                                $productName = $product->Nazwa ?? 'Produkt';
-                                                $productKod = strtolower($product->Kod ?? '');
-                                            }
+                                            $productKod = strtolower($product['Kod'] ?? '');
                                         }
 
                                         // Pobierz obraz produktu
@@ -753,6 +751,8 @@ mount(function ($ext_order_id) {
                                         $kod = strtolower($product['Kod'] ?? '');
                                     }
                                 } catch (\Exception $e) {
+                                    // Ignoruj błędy
+                                    $product = null;
                                 }
                                 $isDelivery =
                                     !empty($kod) && (str_contains($kod, 'przes') || str_contains($kod, 'dostaw'));
@@ -776,9 +776,10 @@ mount(function ($ext_order_id) {
                                     if ($deliveryProduct) {
                                         // Nazwa produktu jest już w cache (productNameFeature)
                                         $deliveryName = $deliveryProduct['Nazwa'] ?? 'Dostawa';
-                                        }
                                     }
                                 } catch (\Exception $e) {
+                                    // Ignoruj błędy
+                                    $deliveryProduct = null;
                                 }
                             }
                         }
@@ -795,7 +796,7 @@ mount(function ($ext_order_id) {
                                 $promotionDiscountFromNotes = (float) str_replace(',', '.', $discountMatch[1]);
                             }
                         }
-                        
+
                         // Oblicz razem (uwzględniając zniżkę z promocji jeśli jest)
                         $sumaBrutto = $enovaOrder->SumaBrutto ?? ($subtotal ?? 0);
                         $total = $sumaBrutto + $deliveryCost - $promotionDiscountFromNotes;
@@ -826,7 +827,9 @@ mount(function ($ext_order_id) {
                         <div class="p-6 border-t bg-white">
                             <div class="flex justify-between text-sm text-green-600">
                                 <span>Zniżka ({{ $promotionCodeFromNotes }}):</span>
-                                <span class="font-medium">-{{ number_format($promotionDiscountFromNotes, 2, ',', '.') }} zł</span>
+                                <span
+                                    class="font-medium">-{{ number_format($promotionDiscountFromNotes, 2, ',', '.') }}
+                                    zł</span>
                             </div>
                         </div>
                     @endif
@@ -937,7 +940,8 @@ mount(function ($ext_order_id) {
                     <div class="p-6 border-t bg-white">
                         <div class="flex justify-between text-sm text-green-600">
                             <span>Zniżka ({{ $order->promotion_code }}):</span>
-                            <span class="font-medium">-{{ number_format($order->discount_amount, 2, ',', '.') }} zł</span>
+                            <span class="font-medium">-{{ number_format($order->discount_amount, 2, ',', '.') }}
+                                zł</span>
                         </div>
                     </div>
                 @endif
