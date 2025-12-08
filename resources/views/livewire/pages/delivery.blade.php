@@ -29,18 +29,14 @@ mount(function () {
         ->where('discount_type', 'free_delivery')
         ->where('is_active', true)
         ->where(function ($query) {
-            $query->whereNull('valid_from')
-                ->orWhere('valid_from', '<=', now());
+            $query->whereNull('valid_from')->orWhere('valid_from', '<=', now());
         })
         ->where(function ($query) {
-            $query->whereNull('valid_to')
-                ->orWhere('valid_to', '>=', now());
+            $query->whereNull('valid_to')->orWhere('valid_to', '>=', now());
         })
         ->first();
 
-    $this->freeDeliveryThreshold = $freeDeliveryPromotion && $freeDeliveryPromotion->min_order_amount 
-        ? (float) $freeDeliveryPromotion->min_order_amount 
-        : (float) config('enova.delivery.free_delivery_threshold', 0);
+    $this->freeDeliveryThreshold = $freeDeliveryPromotion && $freeDeliveryPromotion->min_order_amount ? (float) $freeDeliveryPromotion->min_order_amount : 0;
 
     // GTM page type
     try {
