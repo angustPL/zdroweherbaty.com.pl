@@ -242,13 +242,13 @@ mount(function () {
 
     // Pobierz regulamin z bazy danych
     $this->termsContent = Content::getTerms('regulamin');
-    
+
     // Pobierz kod promocyjny z sesji i oblicz zniżkę
     $promotionCode = session('promotion_code');
     if ($promotionCode) {
         $promotionService = app(PromotionService::class);
         $promotion = $promotionService->findByCode($promotionCode);
-        
+
         if ($promotion) {
             // Przygotuj dane koszyka
             $cartItems = [];
@@ -261,10 +261,10 @@ mount(function () {
                 ];
             }
             $cartTotal = $this->cart['total'] ?? 0;
-            
+
             // Waliduj promocję
             $validation = $promotionService->validatePromotion($promotion, $cartItems, $cartTotal);
-            
+
             if ($validation['valid']) {
                 $this->appliedPromotion = $promotion;
                 $this->promotionDiscount = $promotionService->calculateDiscount($promotion, $cartItems, $cartTotal);
@@ -277,7 +277,7 @@ mount(function () {
             session()->forget('promotion_code');
         }
     }
-    
+
     // Wczytaj dane klienta z cookies
     $savedCustomerData = Cookie::get('savedCustomerData');
     if ($savedCustomerData) {
@@ -290,7 +290,7 @@ mount(function () {
             // Ignoruj błędy parsowania
         }
     }
-    
+
     // Wczytaj dane faktury z cookies
     $savedInvoiceData = Cookie::get('savedInvoiceData');
     if ($savedInvoiceData) {
@@ -388,7 +388,20 @@ $loadDeliveryOptions = function () {
 
             // Darmowa dostawa po przekroczeniu progu wartości koszyka
             $cartTotal = $this->cart['total'] ?? 0;
-            $freeThreshold = (float) config('enova.delivery.free_delivery_threshold', 0);
+
+            // Pobierz próg bezpłatnej dostawy z promocji w bazie
+            $freeDeliveryPromotion = \App\Models\Promotion::where('type', 'automatic')
+                ->where('discount_type', 'free_delivery')
+                ->where('is_active', true)
+                ->where(function ($query) {
+                    $query->whereNull('valid_from')->orWhere('valid_from', '<=', now());
+                })
+                ->where(function ($query) {
+                    $query->whereNull('valid_to')->orWhere('valid_to', '>=', now());
+                })
+                ->first();
+
+            $freeThreshold = $freeDeliveryPromotion && $freeDeliveryPromotion->min_order_amount ? (float) $freeDeliveryPromotion->min_order_amount : 0;
             $isFree = $cartTotal >= $freeThreshold && $freeThreshold > 0;
             $price = $isFree ? 0 : $delivery->BruttoValue;
 
@@ -598,9 +611,7 @@ $saveOrder = function ($extOrderId, $paymentMethodGuid, $payuOrderId, $component
 
     // 2. Promocje (jeśli są)
     if ($component->appliedPromotion) {
-        $promotionInfo = 'Promocja: ' . $component->appliedPromotion->code 
-            . ' (' . $component->appliedPromotion->name . ')'
-            . ' - zniżka: ' . number_format($promotionDiscount, 2, ',', '.') . ' zł';
+        $promotionInfo = 'Promocja: ' . $component->appliedPromotion->code . ' (' . $component->appliedPromotion->name . ')' . ' - zniżka: ' . number_format($promotionDiscount, 2, ',', '.') . ' zł';
         $notesParts[] = $promotionInfo;
     }
 
@@ -651,11 +662,11 @@ $saveOrder = function ($extOrderId, $paymentMethodGuid, $payuOrderId, $component
         'notes' => $notes,
         'parcel_locker_data' => $parcelLockerData,
     ]);
-    
+
     // Zapisz relację promocji w pivot table (jeśli jest promocja)
     if ($component->appliedPromotion) {
         $order->promotions()->attach($component->appliedPromotion->id);
-        
+
         // Zwiększ licznik użycia promocji
         $component->appliedPromotion->increment('usage_count');
     }
@@ -1022,8 +1033,7 @@ $submitOrder = function () use ($validateStep1, $validateStep2, $validateStep3, 
                                     }
                                 @endphp
                                 @if (!empty($invoiceErrors))
-                                    <div id="invoice-alert"
-                                        class="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                                    <div id="invoice-alert" class="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
                                         <div class="flex items-start">
                                             <svg class="w-5 h-5 text-red-600 mt-0.5 mr-2 flex-shrink-0"
                                                 fill="currentColor" viewBox="0 0 20 20">
@@ -1135,7 +1145,22 @@ $submitOrder = function () use ($validateStep1, $validateStep2, $validateStep3, 
                     <h2 class="text-xl font-semibold mb-4">Wybór dostawy</h2>
 
                     @php
-                        $freeThreshold = (float) config('enova.delivery.free_delivery_threshold', 0);
+                        // Pobierz próg bezpłatnej dostawy z promocji w bazie
+                        $freeDeliveryPromotion = \App\Models\Promotion::where('type', 'automatic')
+                            ->where('discount_type', 'free_delivery')
+                            ->where('is_active', true)
+                            ->where(function ($query) {
+                                $query->whereNull('valid_from')->orWhere('valid_from', '<=', now());
+                            })
+                            ->where(function ($query) {
+                                $query->whereNull('valid_to')->orWhere('valid_to', '>=', now());
+                            })
+                            ->first();
+
+                        $freeThreshold =
+                            $freeDeliveryPromotion && $freeDeliveryPromotion->min_order_amount
+                                ? (float) $freeDeliveryPromotion->min_order_amount
+                                : 0;
                         $cartTotal = $cart['total'] ?? 0;
                         $hasFreeDelivery = $freeThreshold > 0 && $cartTotal >= $freeThreshold;
                     @endphp
@@ -1320,7 +1345,9 @@ $submitOrder = function () use ($validateStep1, $validateStep2, $validateStep3, 
                                 <div class="font-medium mb-0.5">{{ $item['name'] }}</div>
                                 <div class="flex justify-between items-center text-gray-600">
                                     <span>Ilość: {{ $item['quantity'] }}</span>
-                                    <span class="font-medium text-gray-900">{{ number_format($item['price'] * $item['quantity'], 2, ',', '.') }} zł</span>
+                                    <span
+                                        class="font-medium text-gray-900">{{ number_format($item['price'] * $item['quantity'], 2, ',', '.') }}
+                                        zł</span>
                                 </div>
                             </div>
                         @endforeach
@@ -1333,17 +1360,18 @@ $submitOrder = function () use ($validateStep1, $validateStep2, $validateStep3, 
                                 <span>Wartość produktów:</span>
                                 <span>{{ number_format($cart['total'] ?? 0, 2, ',', '.') }} zł</span>
                             </div>
-                            
+
                             {{-- Zniżka z promocji --}}
                             <div class="flex justify-between text-sm text-green-600">
                                 <span>Zniżka ({{ $appliedPromotion->code }}):</span>
                                 <span>-{{ number_format($promotionDiscount, 2, ',', '.') }} zł</span>
                             </div>
-                            
+
                             {{-- Razem --}}
                             <div class="flex justify-between font-semibold text-lg pt-2 border-t">
                                 <span>Razem:</span>
-                                <span>{{ number_format(max(0, ($cart['total'] ?? 0) - $promotionDiscount), 2, ',', '.') }} zł</span>
+                                <span>{{ number_format(max(0, ($cart['total'] ?? 0) - $promotionDiscount), 2, ',', '.') }}
+                                    zł</span>
                             </div>
                         @else
                             {{-- Razem (bez zniżki) --}}
@@ -1444,7 +1472,7 @@ $submitOrder = function () use ($validateStep1, $validateStep2, $validateStep3, 
                 @endif
             </div>
         </div>
-        
+
         <x-slot name="footer">
             <div class="flex justify-end">
                 <flux:modal.close>

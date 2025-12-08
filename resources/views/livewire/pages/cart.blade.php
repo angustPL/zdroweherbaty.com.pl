@@ -213,7 +213,22 @@
 
             {{-- Komunikat o darmowej dostawie --}}
             @php
-                $freeThreshold = (float) config('enova.delivery.free_delivery_threshold', 0);
+                // Pobierz próg bezpłatnej dostawy z promocji w bazie
+                $freeDeliveryPromotion = \App\Models\Promotion::where('type', 'automatic')
+                    ->where('discount_type', 'free_delivery')
+                    ->where('is_active', true)
+                    ->where(function ($query) {
+                        $query->whereNull('valid_from')->orWhere('valid_from', '<=', now());
+                    })
+                    ->where(function ($query) {
+                        $query->whereNull('valid_to')->orWhere('valid_to', '>=', now());
+                    })
+                    ->first();
+
+                $freeThreshold =
+                    $freeDeliveryPromotion && $freeDeliveryPromotion->min_order_amount
+                        ? (float) $freeDeliveryPromotion->min_order_amount
+                        : 0;
                 $cartTotal = $cart['total'] ?? 0;
                 $hasFreeDelivery = $freeThreshold > 0 && $cartTotal >= $freeThreshold;
             @endphp
