@@ -13,16 +13,18 @@ class AddToCartButton extends Component
     public $price;
     public $image;
     public $weight = 0;
+    public $groupCleanName = null;
     public $isInCart = false;
     public $isLoading = false;
 
-    public function mount($productId, $productName, $price, $image, $weight = 0)
+    public function mount($productId, $productName, $price, $image, $weight = 0, $groupCleanName = null)
     {
         $this->productId = $productId;
         $this->productName = $productName;
         $this->price = $price;
         $this->image = $image;
         $this->weight = $weight; // Waga przekazywana z zewnątrz (z cache produktów)
+        $this->groupCleanName = $groupCleanName; // clean_name grupy produktu (dla promocji, np. "Bi fix herbaty zielone")
 
         // Usunięto synchroniczne sprawdzanie - będzie ładowane przez wire:init
     }
@@ -46,7 +48,7 @@ class AddToCartButton extends Component
 
         try {
             $cartService = app(CartService::class);
-            $cartService->addToCart($this->productId, $this->productName, $this->price, $this->image, 1, $this->weight);
+            $cartService->addToCart($this->productId, $this->productName, $this->price, $this->image, 1, $this->weight, $this->groupCleanName);
 
             $this->isInCart = true;
 

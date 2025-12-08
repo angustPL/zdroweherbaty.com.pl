@@ -34,7 +34,7 @@ class CartService
     /**
      * Dodaje produkt do koszyka
      */
-    public function addToCart(int $productId, string $productName, float $price, string $image, int $quantity = 1, float $weight = 0): array
+    public function addToCart(int $productId, string $productName, float $price, string $image, int $quantity = 1, float $weight = 0, ?string $groupCleanName = null): array
     {
         $cart = $this->getCart();
 
@@ -50,7 +50,8 @@ class CartService
                 'price' => $price,
                 'quantity' => $quantity,
                 'image' => $image,
-                'weight' => $weight
+                'weight' => $weight,
+                'group_clean_name' => $groupCleanName, // clean_name grupy produktu (dla promocji, np. "Bi fix herbaty zielone")
             ];
         }
 

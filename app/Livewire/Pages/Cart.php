@@ -15,9 +15,10 @@ class Cart extends Component
     public $appliedPromotion = null;
     public $promotionDiscount = 0;
     public $promotionError = '';
+    public $promotionApplicableItems = []; // ID produktów objętych promocją
 
     protected $listeners = [
-        'cart-updated' => 'loadCart'
+        // Usunięto 'cart-updated' => 'loadCart' - nie chcemy usuwać kodu promocyjnego przy zmianach w koszyku
     ];
 
     public function mount()
@@ -43,7 +44,7 @@ class Cart extends Component
         $this->cart = $cartService->getCart();
         
         // NIE przywracamy kodu promocyjnego z sesji - użytkownik musi go wprowadzić za każdym razem
-        // Wyczyść kod promocyjny przy każdym wejściu do koszyka
+        // Wyczyść kod promocyjny przy każdym wejściu do koszyka (tylko przy pierwszym załadowaniu strony)
         $this->removePromotionCode();
 
         // GTM begin_checkout event
@@ -77,11 +78,35 @@ class Cart extends Component
         }
     }
 
+    /**
+     * Odświeża koszyk bez usuwania kodu promocyjnego
+     * Używane przy zmianach ilości/usuwaniu produktów
+     */
+    public function refreshCart()
+    {
+        $cartService = app(CartService::class);
+        $this->cart = $cartService->getCart();
+        
+        // Jeśli kod promocyjny był zastosowany, ponownie go zwaliduj i zastosuj
+        if (!empty($this->promotionCode) && $this->appliedPromotion) {
+            $this->validateAndApplyPromotion();
+        }
+    }
+
     public function updateQuantity($productId, $quantity)
     {
         try {
             $cartService = app(CartService::class);
-            $cartService->updateQuantity($productId, $quantity);
+            // Pobierz zaktualizowany koszyk bezpośrednio z metody updateQuantity
+            $updatedCart = $cartService->updateQuantity($productId, $quantity);
+            
+            // Użyj zaktualizowanego koszyka zamiast pobierać z cookies (które mogą być jeszcze nie zaktualizowane)
+            $this->cart = $updatedCart;
+
+            // Jeśli kod promocyjny był zastosowany, ponownie go zwaliduj i zastosuj
+            if (!empty($this->promotionCode) && $this->appliedPromotion) {
+                $this->validateAndApplyPromotion();
+            }
 
             // Emituj event do odświeżenia ikony koszyka
             $this->dispatch('cart-updated');
@@ -102,7 +127,16 @@ class Cart extends Component
     {
         try {
             $cartService = app(CartService::class);
-            $cartService->removeFromCart($productId);
+            // Pobierz zaktualizowany koszyk bezpośrednio z metody removeFromCart
+            $updatedCart = $cartService->removeFromCart($productId);
+            
+            // Użyj zaktualizowanego koszyka zamiast pobierać z cookies (które mogą być jeszcze nie zaktualizowane)
+            $this->cart = $updatedCart;
+
+            // Jeśli kod promocyjny był zastosowany, ponownie go zwaliduj i zastosuj
+            if (!empty($this->promotionCode) && $this->appliedPromotion) {
+                $this->validateAndApplyPromotion();
+            }
 
             // Emituj event do odświeżenia ikony koszyka
             $this->dispatch('cart-updated');
@@ -155,6 +189,7 @@ class Cart extends Component
         $this->appliedPromotion = null;
         $this->promotionDiscount = 0;
         $this->promotionError = '';
+        $this->promotionApplicableItems = [];
         session()->forget('promotion_code');
     }
 
@@ -182,7 +217,7 @@ class Cart extends Component
             foreach ($this->cart['items'] ?? [] as $productId => $item) {
                 $cartItems[] = [
                     'id' => $item['id'] ?? $productId,
-                    'group' => $item['group'] ?? null,
+                    'group' => $item['group_clean_name'] ?? null, // clean_name grupy produktu (dla promocji)
                     'price' => $item['price'] ?? 0,
                     'quantity' => $item['quantity'] ?? 1,
                 ];
@@ -203,6 +238,26 @@ class Cart extends Component
             // Oblicz zniżkę
             $this->appliedPromotion = $promotion;
             $this->promotionDiscount = $promotionService->calculateDiscount($promotion, $cartItems, $cartTotal);
+            
+            // Określ które produkty są objęte promocją
+            $this->promotionApplicableItems = [];
+            $hasProducts = $promotion->promotionProducts()->count() > 0;
+            $hasGroups = $promotion->promotionGroups()->count() > 0;
+            
+            if ($hasProducts || $hasGroups) {
+                foreach ($cartItems as $item) {
+                    $productId = $item['id'] ?? null;
+                    $groupCleanName = $item['group'] ?? null;
+                    
+                    if ($promotion->appliesToProduct($productId, $groupCleanName)) {
+                        $this->promotionApplicableItems[] = $productId;
+                    }
+                }
+            } else {
+                // Promocja dotyczy wszystkich produktów
+                $this->promotionApplicableItems = array_keys($this->cart['items'] ?? []);
+            }
+            
             $this->promotionError = ''; // Wyczyść błąd przy sukcesie
             
             // Zapisz kod w sesji

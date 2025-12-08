@@ -217,7 +217,8 @@ class Product extends EnovaModel
                     return [
                         'ID' => $product->ID,
                         'Nazwa' => $product->productNameFeature->Name ?? $product->Nazwa,
-                        'Grupa' => $product->group->clean_name ?? null,
+                        'Grupa' => $product->group->clean_name ?? null, // clean_name jest używany w promocjach (np. "Bi fix herbaty zielone")
+                        'GroupPath' => $product->group->Data ?? null, // Pełna ścieżka grupy w formacie Enova (dla innych celów)
                         'Opis' => $product->Opis,
                         'HasProductMark' => (string) ($product->productMark->Data ?? '') === '1',
                         'MasaNettoValue' => $product->MasaNettoValue,
@@ -258,7 +259,8 @@ class Product extends EnovaModel
         return [
             'ID' => $this->ID,
             'Nazwa' => $this->productNameFeature->Name ?? $this->Nazwa,
-            'Grupa' => $this->group->clean_name ?? null,
+            'Grupa' => $this->group->clean_name ?? null, // clean_name jest używany w promocjach (np. "Bi fix herbaty zielone")
+            'GroupPath' => $this->group->Data ?? null, // Pełna ścieżka grupy w formacie Enova (dla innych celów)
             'Opis' => $this->Opis,
             'HasProductMark' => (string) ($this->productMark->Data ?? '') === '1',
             'MasaNettoValue' => $this->MasaNettoValue,

@@ -11,20 +11,22 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('order_promotions', function (Blueprint $table) {
-            $table->id();
+        if (!Schema::hasTable('order_promotions')) {
+            Schema::create('order_promotions', function (Blueprint $table) {
+                $table->id();
 
-            // ===== POWIĄZANIA =====
-            $table->foreignId('order_id')->constrained()->onDelete('cascade');
-            $table->foreignId('promotion_id')->constrained()->onDelete('cascade');
+                // ===== POWIĄZANIA =====
+                $table->foreignId('order_id')->constrained()->onDelete('cascade');
+                $table->foreignId('promotion_id')->constrained()->onDelete('cascade');
 
-            $table->timestamps();
+                $table->timestamps();
 
-            // ===== INDEKSY =====
-            $table->index('order_id');
-            $table->index('promotion_id');
-            $table->unique(['order_id', 'promotion_id']); // Unikalna kombinacja
-        });
+                // ===== INDEKSY =====
+                $table->index('order_id');
+                $table->index('promotion_id');
+                $table->unique(['order_id', 'promotion_id']); // Unikalna kombinacja
+            });
+        }
     }
 
     /**

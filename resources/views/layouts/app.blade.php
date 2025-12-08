@@ -61,16 +61,18 @@
             <div class="bg-black text-white rounded-r-lg shadow-lg overflow-hidden">
                 <div class="flex flex-col gap-0">
                     @stack('admin-bar-actions')
-                    <flux:tooltip content="Promocje" position="right">
-                        <a href="{{ route('promotions') }}"
-                            class="p-2 hover:bg-gray-800 transition-colors block cursor-pointer">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                                <path stroke-linecap="round" stroke-linejoin="round"
-                                    d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 005.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 009.568 3z" />
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 6h.008v.008H6V6z" />
-                            </svg>
-                        </a>
-                    </flux:tooltip>
+                    <flux:modal.trigger name="promotions-modal">
+                        <flux:tooltip content="Promocje" position="right">
+                            <button type="button" class="p-2 hover:bg-gray-800 transition-colors block cursor-pointer">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                                    stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                        d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 005.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 009.568 3z" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 6h.008v.008H6V6z" />
+                                </svg>
+                            </button>
+                        </flux:tooltip>
+                    </flux:modal.trigger>
                     @if (Auth::user()->hasRole('admin'))
                         <flux:modal.trigger name="users-modal">
                             <flux:tooltip content="Użytkownicy" position="right">
@@ -250,26 +252,14 @@
         </footer>
     </div>
 
-    @if (Auth::check() && Auth::user()->hasRole('admin'))
-        <flux:modal name="users-modal" flyout position="left" class="md:w-[800px] m-0! rounded-none! h-screen!">
-            <form class="flex flex-col h-full">
-                <div class="shrink-0 p-6 border-b">
-                    <flux:heading size="lg">Użytkownicy</flux:heading>
-                    <flux:subheading>Lista wszystkich użytkowników systemu</flux:subheading>
-                </div>
+    @auth
+        <livewire:components.promotions-modal />
+        <livewire:components.promotion-form-modal />
+    @endauth
 
-                <div class="flex-1 overflow-y-auto p-6">
-                    <livewire:components.users-list />
-                </div>
-
-                <div
-                    class="shrink-0 flex justify-end space-x-2 rtl:space-x-reverse p-6 border-t bg-white sticky bottom-0">
-                    <flux:modal.close>
-                        <flux:button variant="primary">Zamknij</flux:button>
-                    </flux:modal.close>
-                </div>
-            </form>
-        </flux:modal>
+    @if (Auth::user()?->hasRole('admin'))
+        <livewire:components.users-modal />
+        <livewire:components.user-form-modal />
     @endif
 
     @livewireScripts

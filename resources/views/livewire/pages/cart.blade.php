@@ -68,7 +68,37 @@
 
                                 {{-- Cena jednostkowa --}}
                                 <td class="px-6 py-4 text-right text-sm whitespace-nowrap">
-                                    {{ number_format($item['price'], 2, ',', '.') }} zł
+                                    <div class="flex flex-col items-end">
+                                        @if ($appliedPromotion && in_array($item['id'], $promotionApplicableItems))
+                                            <span class="text-xs text-gray-400 line-through">
+                                                {{ number_format($item['price'], 2, ',', '.') }} zł
+                                            </span>
+                                            @php
+                                                // Oblicz zniżkę dla tego produktu
+                                                $itemTotal = $item['price'] * $item['quantity'];
+                                                $applicableTotal = 0;
+                                                foreach ($cart['items'] as $pid => $itm) {
+                                                    if (in_array($pid, $promotionApplicableItems)) {
+                                                        $applicableTotal += $itm['price'] * $itm['quantity'];
+                                                    }
+                                                }
+                                                $itemDiscount =
+                                                    $applicableTotal > 0
+                                                        ? ($itemTotal / $applicableTotal) * $promotionDiscount
+                                                        : 0;
+                                                $itemPriceAfterDiscount =
+                                                    $item['price'] - $itemDiscount / $item['quantity'];
+                                            @endphp
+                                            <span class="text-red-600 font-semibold">
+                                                {{ number_format($itemPriceAfterDiscount, 2, ',', '.') }} zł
+                                            </span>
+                                            <span class="text-xs text-red-600">
+                                                (objęte promocją)
+                                            </span>
+                                        @else
+                                            <span>{{ number_format($item['price'], 2, ',', '.') }} zł</span>
+                                        @endif
+                                    </div>
                                 </td>
 
                                 {{-- Ilość --}}
@@ -97,17 +127,7 @@
                                                 });
                                             }
 
-                                            // Natychmiastowa zmiana w UI
-                                            $wire.$set('cart.items.' + productId + '.quantity', newQuantity);
-
-                                            // Przelicz total
-                                            let total = 0;
-                                            Object.values($wire.cart.items).forEach(item => {
-                                                total += item.price * item.quantity;
-                                            });
-                                            $wire.$set('cart.total', total);
-
-                                            // Debounce zapisanie
+                                            // Debounce zapisanie - Livewire automatycznie zaktualizuje UI po otrzymaniu zaktualizowanego koszyka
                                             clearTimeout(this.debounceTimer);
                                             this.debounceTimer = setTimeout(() => {
                                                 $wire.updateQuantity(productId, newQuantity);
@@ -133,7 +153,32 @@
 
                                 {{-- Wartość --}}
                                 <td class="px-6 py-4 text-right text-md whitespace-nowrap">
-                                    {{ number_format($item['price'] * $item['quantity'], 2, ',', '.') }} zł
+                                    @if ($appliedPromotion && in_array($item['id'], $promotionApplicableItems))
+                                        @php
+                                            $itemTotal = $item['price'] * $item['quantity'];
+                                            $applicableTotal = 0;
+                                            foreach ($cart['items'] as $pid => $itm) {
+                                                if (in_array($pid, $promotionApplicableItems)) {
+                                                    $applicableTotal += $itm['price'] * $itm['quantity'];
+                                                }
+                                            }
+                                            $itemDiscount =
+                                                $applicableTotal > 0
+                                                    ? ($itemTotal / $applicableTotal) * $promotionDiscount
+                                                    : 0;
+                                            $itemTotalAfterDiscount = $itemTotal - $itemDiscount;
+                                        @endphp
+                                        <div class="flex flex-col items-end">
+                                            <span class="text-xs text-gray-400 line-through">
+                                                {{ number_format($itemTotal, 2, ',', '.') }} zł
+                                            </span>
+                                            <span class="text-red-600 font-semibold">
+                                                {{ number_format($itemTotalAfterDiscount, 2, ',', '.') }} zł
+                                            </span>
+                                        </div>
+                                    @else
+                                        {{ number_format($item['price'] * $item['quantity'], 2, ',', '.') }} zł
+                                    @endif
                                 </td>
 
                                 {{-- Akcje --}}
@@ -200,32 +245,28 @@
                 <div class="mb-4 flex justify-end">
                     <div class="flex flex-col items-end gap-2">
                         <div class="flex gap-2 items-end">
-                            <div class="w-48">
-                                <flux:input 
-                                    wire:model="promotionCode"
-                                    placeholder="Wprowadź kod rabatowy"
-                                    class="w-full"
-                                    wire:keydown.enter="applyPromotionCode"
-                                />
+                            <div class="w-48" x-data="{
+                                handleInput(event) {
+                                    const value = event.target.value.toUpperCase();
+                                    $wire.set('promotionCode', value);
+                                    event.target.value = value;
+                                }
+                            }">
+                                <flux:input wire:model="promotionCode" placeholder="Kod rabatowy"
+                                    class="w-full uppercase" wire:keydown.enter="applyPromotionCode"
+                                    x-on:input="handleInput" style="text-transform: uppercase;" />
                             </div>
-                        @if ($appliedPromotion)
-                            <flux:button 
-                                variant="outline" 
-                                wire:click="removePromotionCode"
-                                class="whitespace-nowrap"
-                            >
-                                Usuń kod
-                            </flux:button>
-                        @else
-                            <flux:button 
-                                variant="primary" 
-                                wire:click="applyPromotionCode"
-                                wire:loading.attr="disabled"
-                                class="whitespace-nowrap"
-                            >
-                                Zastosuj
-                            </flux:button>
-                        @endif
+                            @if ($appliedPromotion)
+                                <flux:button variant="outline" wire:click="removePromotionCode"
+                                    class="whitespace-nowrap">
+                                    Usuń kod
+                                </flux:button>
+                            @else
+                                <flux:button variant="primary" wire:click="applyPromotionCode"
+                                    wire:loading.attr="disabled" class="whitespace-nowrap">
+                                    Zastosuj
+                                </flux:button>
+                            @endif
                         </div>
                         @if ($promotionError)
                             <p class="text-sm text-red-600 mt-1">{{ $promotionError }}</p>
@@ -241,17 +282,18 @@
                             <span>Wartość produktów:</span>
                             <span>{{ number_format($cart['total'] ?? 0, 2, ',', '.') }} zł</span>
                         </div>
-                        
+
                         {{-- Zniżka z promocji --}}
                         <div class="flex justify-between text-sm text-green-600">
                             <span>Zniżka ({{ $appliedPromotion->code }}):</span>
                             <span>-{{ number_format($promotionDiscount, 2, ',', '.') }} zł</span>
                         </div>
-                        
+
                         {{-- Razem --}}
                         <div class="flex justify-between font-semibold text-lg pt-2 border-t">
                             <span>Razem:</span>
-                            <span>{{ number_format(max(0, ($cart['total'] ?? 0) - $promotionDiscount), 2, ',', '.') }} zł</span>
+                            <span>{{ number_format(max(0, ($cart['total'] ?? 0) - $promotionDiscount), 2, ',', '.') }}
+                                zł</span>
                         </div>
                     @else
                         {{-- Razem (bez zniżki) --}}
@@ -272,7 +314,7 @@
                                 'item_name' => $item['name'],
                                 'price' => $item['price'],
                                 'currency' => 'PLN',
-                                'quantity' => $item['quantity']
+                                'quantity' => $item['quantity'],
                             ];
                         }
                     }

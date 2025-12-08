@@ -32,7 +32,7 @@ class ProductCard extends Component
         $this->productId = $productId;
         $this->productName = $productName;
         $this->productPrice = $productPrice;
-        $this->productGroup = $productGroup;
+        $this->productGroup = $productGroup; // clean_name grupy (używany w promocjach)
         $this->productWeight = $productWeight;
         $this->hasImageSmall = $hasImageSmall;
         $this->variant = $variant;

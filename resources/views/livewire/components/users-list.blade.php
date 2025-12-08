@@ -16,9 +16,31 @@ mount(function () {
     $this->users = User::with('roles')->orderBy('name')->get();
 });
 
+$refreshUsers = function () {
+    // Pobierz wszystkich użytkowników z ich rolami
+    $this->users = User::with('roles')->orderBy('name')->get();
+};
+
 ?>
 
-<div class="space-y-4">
+<div x-data @refresh-users.window="$wire.call('refreshUsers')" class="space-y-4">
+    <div class="flex justify-between items-center mb-6">
+        <h2 class="text-xl font-semibold text-gray-900">Lista użytkowników</h2>
+        <flux:button variant="primary" type="button" wire:off x-data=""
+            @click.stop="
+                $dispatch('edit-user', { id: null });
+                $flux.modal('users-modal').close();
+                setTimeout(() => {
+                    $flux.modal('user-form-modal').show();
+                }, 300);
+            ">
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
+            Dodaj użytkownika
+        </flux:button>
+    </div>
+
     @if ($users->count() > 0)
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
@@ -72,6 +94,18 @@ mount(function () {
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                 {{ $user->created_at->format('Y-m-d H:i') }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                <flux:button size="sm" type="button" wire:off x-data=""
+                                    @click.stop="
+                                        $dispatch('edit-user', { id: {{ $user->id }} });
+                                        $flux.modal('users-modal').close();
+                                        setTimeout(() => {
+                                            $flux.modal('user-form-modal').show();
+                                        }, 300);
+                                    ">
+                                    Edytuj
+                                </flux:button>
                             </td>
                         </tr>
                     @endforeach

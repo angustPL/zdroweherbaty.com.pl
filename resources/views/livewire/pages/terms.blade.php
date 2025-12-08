@@ -142,16 +142,27 @@ try {
                         <flux:button type="button" variant="ghost">Anuluj</flux:button>
                     </flux:modal.close>
                     <flux:button type="button" variant="primary" wire:click="saveContent"
-                        x-on:click="
-                            // Synchronizuj wartość Trix z Livewire przed zapisem
-                            const trixEditor = document.querySelector('trix-editor[input=&quot;trix-editingContent&quot;]');
-                            if (trixEditor) {
-                                $wire.set('editingContent', trixEditor.value);
-                            }
-                        ">
+                        x-on:click="syncTrixContent()">
                         Zapisz</flux:button>
                 </div>
             </form>
         </flux:modal>
     @endif
 </div>
+
+@if (Auth::check() && (Auth::user()->hasRole('admin') || Auth::user()->hasRole('editor')))
+    <script>
+        function syncTrixContent() {
+            const trixEditor = document.querySelector('trix-editor[input="trix-editingContent"]');
+            if (trixEditor) {
+                const wireId = document.querySelector('[wire\\:id]')?.getAttribute('wire:id');
+                if (wireId) {
+                    const component = Livewire.find(wireId);
+                    if (component) {
+                        component.set('editingContent', trixEditor.value);
+                    }
+                }
+            }
+        }
+    </script>
+@endif

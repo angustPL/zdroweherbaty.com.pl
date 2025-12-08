@@ -179,7 +179,7 @@ mount(function ($id, $name = null) {
                             {{-- Przycisk dodawania do koszyka --}}
                             <div>
                                 <livewire:components.add-to-cart-button :product-id="$product['ID']" :product-name="$product['Nazwa']"
-                                    :price="$product['BruttoValue']" :image="$product['ID'] . '_200x120.jpg'" :weight="$product['MasaBruttoValue'] ?? 0" />
+                                    :price="$product['BruttoValue']" :image="$product['ID'] . '_200x120.jpg'" :weight="$product['MasaBruttoValue'] ?? 0" :group-clean-name="$product['Grupa'] ?? null" />
                             </div>
                         </div>
                     </div>

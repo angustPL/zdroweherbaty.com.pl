@@ -255,7 +255,7 @@ mount(function () {
             foreach ($this->cart['items'] ?? [] as $productId => $item) {
                 $cartItems[] = [
                     'id' => $item['id'] ?? $productId,
-                    'group' => $item['group'] ?? null,
+                    'group' => $item['group_clean_name'] ?? null, // clean_name grupy produktu (dla promocji)
                     'price' => $item['price'] ?? 0,
                     'quantity' => $item['quantity'] ?? 1,
                 ];

@@ -65,7 +65,7 @@
 
         @if ($showAddToCart && $variant !== 'compact')
             <livewire:components.add-to-cart-button :product-id="$productId" :product-name="$productName" :price="$productPrice"
-                :image="$productId . '_200x120.jpg'" :weight="$productWeight" />
+                :image="$productId . '_200x120.jpg'" :weight="$productWeight" :group-clean-name="$productGroup" />
         @endif
     </div>
 </div>

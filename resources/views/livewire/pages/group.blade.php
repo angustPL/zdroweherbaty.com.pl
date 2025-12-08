@@ -128,11 +128,11 @@ if ($groupContent) {
                     <flux:modal.close>
                         <flux:button variant="ghost">Anuluj</flux:button>
                     </flux:modal.close>
-                    <div x-data="{ loading: false }">
+                    <div x-data="{ loading: false, dbPath: @js($dbPath) }">
                         <flux:button variant="primary" x-bind:disabled="loading"
                             x-on:click.prevent="
                                 loading = true;
-                                const url = '/cache/clear/products_group/' + encodeURIComponent('{{ $dbPath }}');
+                                const url = '/cache/clear/products_group/' + encodeURIComponent(dbPath);
 
                                 fetch(url, {
                                     method: 'POST',

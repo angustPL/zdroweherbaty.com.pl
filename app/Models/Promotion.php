@@ -47,8 +47,8 @@ class Promotion extends Model
         'max_discount_amount' => 'decimal:2',
         'min_order_amount' => 'decimal:2',
         'conditions' => 'array',
-        'valid_from' => 'datetime',
-        'valid_to' => 'datetime',
+        'valid_from' => 'date',
+        'valid_to' => 'date',
         'usage_limit' => 'integer',
         'usage_count' => 'integer',
         'usage_limit_per_user' => 'integer',
@@ -111,13 +111,13 @@ class Promotion extends Model
             return false;
         }
 
-        $now = now();
+        $now = now()->startOfDay();
 
-        if ($this->valid_from && $now->lt($this->valid_from)) {
+        if ($this->valid_from && $now->lt($this->valid_from->startOfDay())) {
             return false;
         }
 
-        if ($this->valid_to && $now->gt($this->valid_to)) {
+        if ($this->valid_to && $now->gt($this->valid_to->startOfDay())) {
             return false;
         }
 
@@ -152,8 +152,12 @@ class Promotion extends Model
 
     /**
      * Sprawdź, czy promocja dotyczy danego produktu.
+     * 
+     * @param int $productId ID produktu
+     * @param string|null $groupCleanName clean_name grupy produktu (np. "Bi fix herbaty zielone" lub "Bi fix herbatki ziołowe\Herbatki ekspresowe")
+     * @return bool
      */
-    public function appliesToProduct(int $productId, string $groupId = null): bool
+    public function appliesToProduct(int $productId, string $groupCleanName = null): bool
     {
         // Jeśli nie ma ograniczeń produktów/grup, dotyczy wszystkich
         $hasProducts = $this->promotionProducts()->count() > 0;
@@ -169,8 +173,18 @@ class Promotion extends Model
         }
 
         // Sprawdź grupy produktów
-        if ($hasGroups && $groupId && $this->promotionGroups()->where('group_path', $groupId)->exists()) {
-            return true;
+        // Promocja dotyczy produktu, jeśli clean_name grupy produktu zaczyna się od group_path z promocji
+        // (np. promocja dla "Bi fix herbaty zielone" dotyczy też "Bi fix herbaty zielone\Podgrupa")
+        if ($hasGroups && $groupCleanName) {
+            $promotionGroupPaths = $this->promotionGroups()->pluck('group_path')->toArray();
+            
+            foreach ($promotionGroupPaths as $promotionGroupPath) {
+                // Sprawdź czy clean_name produktu zaczyna się od group_path promocji
+                // Uwzględniamy też dokładne dopasowanie
+                if ($groupCleanName === $promotionGroupPath || str_starts_with($groupCleanName, $promotionGroupPath . '\\')) {
+                    return true;
+                }
+            }
         }
 
         return false;
