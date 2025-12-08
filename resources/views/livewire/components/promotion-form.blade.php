@@ -316,6 +316,14 @@ $save = function () {
                     </flux:field>
 
                     <flux:field>
+                        <flux:label>Minimalna wartość zamówienia (opcjonalnie)</flux:label>
+                        <flux:input type="number" wire:model="min_order_amount" step="0.01" min="0"
+                            placeholder="0.00" />
+                        <flux:description class="!mt-1">Minimalna wartość zamówienia wymagana do aktywacji promocji
+                        </flux:description>
+                    </flux:field>
+
+                    <flux:field>
                         <flux:label>Ograniczenia</flux:label>
                         <flux:select wire:model.live="restriction_type">
                             <option value="none">Brak ograniczeń</option>
