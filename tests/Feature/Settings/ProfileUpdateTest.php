@@ -2,16 +2,26 @@
 
 use App\Models\User;
 use Livewire\Volt\Volt;
+use Spatie\Permission\Models\Role;
+
+beforeEach(function () {
+    // Stwórz rolę admin jeśli nie istnieje
+    if (!Role::where('name', 'admin')->exists()) {
+        Role::create(['name' => 'admin']);
+    }
+});
 
 test('profile page is displayed', function () {
-    $this->actingAs($user = User::factory()->create());
+    $user = User::factory()->create();
+    $user->assignRole('admin');
+    $this->actingAs($user);
 
     $this->get('/settings/profile')->assertOk();
 });
 
 test('profile information can be updated', function () {
     $user = User::factory()->create();
-
+    $user->assignRole('admin');
     $this->actingAs($user);
 
     $response = Volt::test('settings.profile')
@@ -30,7 +40,7 @@ test('profile information can be updated', function () {
 
 test('email verification status is unchanged when email address is unchanged', function () {
     $user = User::factory()->create();
-
+    $user->assignRole('admin');
     $this->actingAs($user);
 
     $response = Volt::test('settings.profile')
@@ -45,7 +55,7 @@ test('email verification status is unchanged when email address is unchanged', f
 
 test('user can delete their account', function () {
     $user = User::factory()->create();
-
+    $user->assignRole('admin');
     $this->actingAs($user);
 
     $response = Volt::test('settings.delete-user-form')
@@ -62,7 +72,7 @@ test('user can delete their account', function () {
 
 test('correct password must be provided to delete account', function () {
     $user = User::factory()->create();
-
+    $user->assignRole('admin');
     $this->actingAs($user);
 
     $response = Volt::test('settings.delete-user-form')
