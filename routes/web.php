@@ -71,4 +71,10 @@ Route::middleware(['auth'])->group(function () {
     Volt::route('promocje', 'pages.promotions')->name('promotions');
 });
 
+// Newsletter routes
+Route::post('/newsletter/subscribe', [App\Http\Controllers\NewsletterController::class, 'subscribe'])
+    ->name('newsletter.subscribe');
+Route::get('/newsletter/unsubscribe/{id}/{token}', [App\Http\Controllers\NewsletterController::class, 'unsubscribe'])
+    ->name('newsletter.unsubscribe');
+
 require __DIR__ . '/auth.php';

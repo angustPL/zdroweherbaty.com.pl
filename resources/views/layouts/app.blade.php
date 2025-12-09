@@ -262,6 +262,9 @@
         <livewire:components.user-form-modal />
     @endif
 
+    <!-- Newsletter Modal (dla wszystkich) -->
+    <livewire:newsletter-modal />
+
     @livewireScripts
     @fluxScripts
     <!-- Trix Editor -->
