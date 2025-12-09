@@ -72,64 +72,9 @@ unset($__defined_vars, $__key, $__value); ?>
 <?php endif; ?>
     <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
 
-    <input type="hidden" id="trix-<?php echo e($name); ?>" wire:model="<?php echo e($name); ?>" value="<?php echo e($value); ?>">
-
-    <div class="flex flex-col border border-gray-300 rounded-md overflow-hidden" x-data="{
-        syncValue(value) {
-            window.Livewire.find('<?php echo e($_instance->getId()); ?>').set('<?php echo e($name); ?>', value);
-        }
-    }">
-        <trix-toolbar id="trix-toolbar-<?php echo e($name); ?>"></trix-toolbar>
-        <div class="overflow-y-auto max-h-[calc(100vh-400px)]">
-            <trix-editor input="trix-<?php echo e($name); ?>" toolbar="trix-toolbar-<?php echo e($name); ?>"
-                placeholder="<?php echo e($placeholder); ?>" style="min-height: <?php echo e($minHeight); ?>;"></trix-editor>
-        </div>
+    <div wire:ignore>
+        <textarea x-ref="editor" name="<?php echo e($name); ?>" x-init="initTinyMCE(<?php echo \Illuminate\Support\Js::from($name)->toHtml() ?>, <?php echo \Illuminate\Support\Js::from($value)->toHtml() ?>, $el)" class="w-full" placeholder="<?php echo e($placeholder); ?>"><?php echo e($value); ?></textarea>
     </div>
-
-    <script>
-        (function() {
-            const trixInputId = 'trix-<?php echo e($name); ?>';
-            const propertyName = '<?php echo e($name); ?>';
-
-            function initializeTrix() {
-                const trixEditor = document.querySelector(`trix-editor[input="${trixInputId}"]`);
-                if (!trixEditor) return;
-
-                const content = <?php echo \Illuminate\Support\Js::from($value ?? '')->toHtml() ?>;
-                if (content) {
-                    trixEditor.editor.loadHTML(content);
-                }
-            }
-
-            function syncWithLivewire(value) {
-                const hiddenInput = document.getElementById(trixInputId);
-                if (!hiddenInput) return;
-
-                hiddenInput.value = value;
-                // Wywołaj event input dla Livewire
-                hiddenInput.dispatchEvent(new Event('input', {
-                    bubbles: true
-                }));
-            }
-
-            document.addEventListener('trix-initialize', function(event) {
-                if (event.target && event.target.input === trixInputId) {
-                    initializeTrix();
-                }
-            });
-
-            document.addEventListener('trix-change', function(event) {
-                if (event.target && event.target.input === trixInputId) {
-                    syncWithLivewire(event.target.value);
-                }
-            });
-
-            // Inicjalizacja po załadowaniu Livewire
-            document.addEventListener('livewire:init', function() {
-                setTimeout(initializeTrix, 100);
-            });
-        })();
-    </script>
 
     <?php if (isset($component)) { $__componentOriginal5730b1630871592dc0d77210545c88c1 = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginal5730b1630871592dc0d77210545c88c1 = $attributes; } ?>

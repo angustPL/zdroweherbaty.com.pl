@@ -19,6 +19,8 @@ new class extends Component implements Livewire\Volt\Contracts\FunctionalCompone
 
     public $showEditModal;
 
+    public $saved;
+
     public $termsModel;
 
     public function mount()

@@ -716,7 +716,9 @@ class ContentSeeder extends Seeder
             ]
         );
 
-        $this->command->info('✓ Regulamin został dodany do bazy.');
+        if ($this->command) {
+            $this->command->info('✓ Regulamin został dodany do bazy.');
+        }
     }
 
     private function seedPrivacyPolicy(): void
@@ -733,7 +735,9 @@ class ContentSeeder extends Seeder
             ],
         );
 
-        $this->command->info('✓ Polityka prywatności została dodana do bazy.');
+        if ($this->command) {
+            $this->command->info('✓ Polityka prywatności została dodana do bazy.');
+        }
     }
 
     /**
@@ -789,9 +793,11 @@ class ContentSeeder extends Seeder
             }
         }
 
-        $this->command->info("✓ Dodano {$count} treści dla grup produktów.");
-        if ($errors > 0) {
-            $this->command->warn("  ⚠ Pominięto {$errors} plików.");
+        if ($this->command) {
+            $this->command->info("✓ Dodano {$count} treści dla grup produktów.");
+            if ($errors > 0) {
+                $this->command->warn("  ⚠ Pominięto {$errors} plików.");
+            }
         }
     }
 
@@ -831,7 +837,9 @@ class ContentSeeder extends Seeder
             ]
         );
 
-        $this->command->info('✓ Treść strony głównej została dodana do bazy.');
+        if ($this->command) {
+            $this->command->info('✓ Treść strony głównej została dodana do bazy.');
+        }
     }
 
     /**

@@ -28,7 +28,7 @@ SEOTools::opengraph()->addProperty('robots', 'noindex, nofollow');
 // Schema.org JSON-LD - tylko typ (reszta z domyślnych)
 SEOTools::jsonLd()->setType('WebPage');
 
-state(['expandedSections' => [], 'termsContent' => null, 'editingContent' => '', 'showEditModal' => false, 'termsModel' => null]);
+state(['expandedSections' => [], 'termsContent' => '', 'editingContent' => '', 'showEditModal' => false, 'saved' => false, 'termsModel' => null]);
 
 mount(function () {
     // Pobieranie treści regulaminu z bazy danych
@@ -72,7 +72,7 @@ $saveContent = function () {
     $this->editingContent = $this->termsModel->content; // Zaktualizuj również editingContent
     $this->showEditModal = false;
 
-    session()->flash('message', 'Regulamin został zapisany.');
+    $this->saved = true;
 };
 
 $closeEditModal = function () {
@@ -125,44 +125,35 @@ try {
         @endpush
 
         <flux:modal name="edit-terms-modal" flyout position="left"
-            class="md:w-[800px] m-0! rounded-none! h-screen! flex flex-col">
+            class="md:w-[800px] m-0! rounded-none! h-screen! flex flex-col" x-on:close="cleanupTinyMCE()">
             <form class="flex flex-col h-full">
-                <div class="shrink-0 p-6 border-b">
+                <div class="shrink-0 pb-6 border-b">
                     <flux:heading size="lg">Edytuj regulamin</flux:heading>
                     <flux:subheading>Zaktualizuj treść regulaminu sklepu</flux:subheading>
                 </div>
 
                 <div class="flex-1 p-6">
-                    <x-rich-editor name="editingContent" label="Treść regulaminu" :value="$editingContent" />
+                    <x-rich-editor name="editingContent" label="Treść regulaminu" :value="$editingContent"
+                        wire:input="$set('saved', false)" x-on:keydown="$wire.set('saved', false)" />
+
+                    @if ($saved)
+                        <div x-data="{ show: true }" x-init="setTimeout(() => { show = false;
+                            @this.set('saved', false) }, 1000)" x-show="show" x-transition.duration.1000ms
+                            class="mt-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded">
+                            ✓ Regulamin został zapisany.
+                        </div>
+                    @endif
                 </div>
 
                 <div
-                    class="shrink-0 flex justify-end space-x-2 rtl:space-x-reverse p-6 border-t bg-white sticky bottom-0">
+                    class="shrink-0 flex justify-end space-x-2 rtl:space-x-reverse pt-6 border-t bg-white sticky bottom-0">
                     <flux:modal.close>
                         <flux:button type="button" variant="ghost">Anuluj</flux:button>
                     </flux:modal.close>
-                    <flux:button type="button" variant="primary" wire:click="saveContent"
-                        x-on:click="syncTrixContent()">
+                    <flux:button type="button" variant="primary" wire:click="saveContent">
                         Zapisz</flux:button>
                 </div>
             </form>
         </flux:modal>
     @endif
 </div>
-
-@if (Auth::check())
-    <script>
-        function syncTrixContent() {
-            const trixEditor = document.querySelector('trix-editor[input="trix-editingContent"]');
-            if (trixEditor) {
-                const wireId = document.querySelector('[wire\\:id]')?.getAttribute('wire:id');
-                if (wireId) {
-                    const component = Livewire.find(wireId);
-                    if (component) {
-                        component.set('editingContent', trixEditor.value);
-                    }
-                }
-            }
-        }
-    </script>
-@endif
