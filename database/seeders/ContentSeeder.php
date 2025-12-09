@@ -20,13 +20,9 @@ class ContentSeeder extends Seeder
      */
     public function run(): void
     {
-        // 1. Regulamin
         $this->seedTerms();
-
-        // 2. Treści dla grup produktów
+        $this->seedPrivacyPolicy();
         $this->seedProductGroups();
-
-        // 3. Treść dla strony głównej
         $this->seedHome();
     }
 
@@ -721,6 +717,23 @@ class ContentSeeder extends Seeder
         );
 
         $this->command->info('✓ Regulamin został dodany do bazy.');
+    }
+
+    private function seedPrivacyPolicy(): void
+    {
+        Content::updateOrCreate(
+            [
+                'type' => 'terms',
+                'identifier' => 'polityka-prywatnosci',
+            ],
+            [
+                'title' => 'Polityka prywatności',
+                'content' => '<h2 class="text-2xl font-bold text-gray-900 mb-6 mt-8">Polityka prywatności</h2><p class="text-gray-700 mb-4">Treść polityki prywatności do uzupełnienia.</p>',
+                'is_active' => true,
+            ],
+        );
+
+        $this->command->info('✓ Polityka prywatności została dodana do bazy.');
     }
 
     /**

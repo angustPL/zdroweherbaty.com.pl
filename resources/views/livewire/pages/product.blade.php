@@ -142,7 +142,8 @@ mount(function ($id, $name = null) {
                     {{-- Zdjęcie produktu --}}
                     <div class="text-center">
                         <img src="{{ $product['HasImageLarge'] ?? false ? asset('img/towary/' . $product['ID'] . '_800x600.jpg') : asset('img/towary/placeholder.jpg') }}"
-                            alt="{{ $product['Nazwa'] }}" class="w-full max-w-full mx-auto rounded-lg">
+                            alt="{{ $product['Nazwa'] }}"
+                            class="w-full max-w-full max-h-[50vh] object-contain mx-auto rounded-lg">
                     </div>
 
                     {{-- Opis produktu --}}
@@ -171,7 +172,7 @@ mount(function ($id, $name = null) {
                         @endif
 
                         {{-- Cena --}}
-                        <div class="text-center mb-6">
+                        <div class="text-center">
                             <div class="text-3xl font-bold text-primary mb-4">
                                 {{ Number::currency($product['BruttoValue'], 'PLN', 'pl_PL') }}
                             </div>

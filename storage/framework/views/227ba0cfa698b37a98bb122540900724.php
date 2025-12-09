@@ -782,6 +782,21 @@ unset($__split);
 if (isset($__slots)) unset($__slots);
 ?>
 
+    <script>
+        document.addEventListener('livewire:error', (event) => {
+            const detail = event.detail || {};
+            const status = detail.status;
+
+            // Typowe przypadki "page expired" / konflikt stanu Livewire
+            // 419 – wygasła sesja / CSRF
+            // 409 – konflikt snapshotu (np. powrót "wstecz")
+            if (status === 419 || status === 409) {
+                event.preventDefault();
+                window.location.reload();
+            }
+        });
+    </script>
+
     <?php echo \Livewire\Mechanisms\FrontendAssets\FrontendAssets::scripts(); ?>
 
     <?php app('livewire')->forceAssetInjection(); ?>

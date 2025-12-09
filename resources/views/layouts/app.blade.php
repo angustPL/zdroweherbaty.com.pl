@@ -265,6 +265,21 @@
     <!-- Newsletter Modal (dla wszystkich) -->
     <livewire:newsletter-modal />
 
+    <script>
+        document.addEventListener('livewire:error', (event) => {
+            const detail = event.detail || {};
+            const status = detail.status;
+
+            // Typowe przypadki "page expired" / konflikt stanu Livewire
+            // 419 – wygasła sesja / CSRF
+            // 409 – konflikt snapshotu (np. powrót "wstecz")
+            if (status === 419 || status === 409) {
+                event.preventDefault();
+                window.location.reload();
+            }
+        });
+    </script>
+
     @livewireScripts
     @fluxScripts
     <!-- Trix Editor -->

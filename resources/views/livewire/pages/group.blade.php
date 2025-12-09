@@ -102,7 +102,7 @@ if ($groupContent) {
         </div>
     @endif
 
-    @if (Auth::check() && Auth::user()->hasRole('admin'))
+    @if (Auth::check())
         @push('admin-bar-actions')
             <flux:modal.trigger name="confirm-clear-group-cache">
                 <flux:tooltip content="Odśwież cache grupy" position="right">

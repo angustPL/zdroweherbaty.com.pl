@@ -20,6 +20,7 @@ Volt::route('/', 'pages.welcome')->name('home');
 Volt::route('/dostawa', 'pages.delivery')->name('delivery');
 Volt::route('/regulamin', 'pages.terms')->name('terms');
 Volt::route('/kontakt', 'pages.contact')->name('contact');
+Volt::route('/polityka-prywatnosci', 'pages.privacy')->name('privacy');
 
 // Produkty
 Volt::route('/grupa/{group}', 'pages.group')->name('group');

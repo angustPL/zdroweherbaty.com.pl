@@ -110,7 +110,7 @@ try {
         </div>
     </div>
 
-    @if (Auth::check() && (Auth::user()->hasRole('admin') || Auth::user()->hasRole('editor')))
+    @if (Auth::check())
         @push('admin-bar-actions')
             <flux:modal.trigger name="edit-terms-modal">
                 <flux:tooltip content="Edytuj regulamin" position="right">
@@ -150,7 +150,7 @@ try {
     @endif
 </div>
 
-@if (Auth::check() && (Auth::user()->hasRole('admin') || Auth::user()->hasRole('editor')))
+@if (Auth::check())
     <script>
         function syncTrixContent() {
             const trixEditor = document.querySelector('trix-editor[input="trix-editingContent"]');
