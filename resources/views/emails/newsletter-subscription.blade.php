@@ -16,11 +16,18 @@
         }
 
         .header {
-            background-color: #2c5e2e;
+            background-color: #026941;
             color: white;
-            padding: 20px;
+            padding: 30px 20px;
             text-align: center;
-            border-radius: 8px 8px 0 0;
+            margin-bottom: 20px;
+        }
+
+        .header-logo {
+            max-width: 200px;
+            height: auto;
+            margin: 0 auto 15px;
+            display: block;
         }
 
         .content {
@@ -52,7 +59,7 @@
 
 <body>
     <div class="header">
-        <h1>🍵 ZdroweHerbaty.com.pl</h1>
+        <img src="https://www.zdroweherbaty.com.pl/img/bifix-logo.png" alt="BIFIX" class="header-logo" />
         <h2>Nowy subskrybent newslettera</h2>
     </div>
 
@@ -67,15 +74,20 @@
             <p><strong>Adres IP:</strong> {{ $subscription->ip_address ?? 'Nieznany' }}</p>
         </div>
 
-        <p>Subskrybent został pomyślnie dodany do bazy danych i będzie otrzymywać informacje o nowościach, promocjach i
-            artykułach na blogu.</p>
-
-        <p>Możesz zarządzać subskrypcjami w panelu administracyjnym.</p>
+        <p>Subskrybent został pomyślnie dodany do bazy danych i będzie otrzymywać informacje o nowościach i promocjach w
+            sklepie.</p>
     </div>
 
     <div class="footer">
-        <p>Ten email został wygenerowany automatycznie przez system newslettera ZdroweHerbaty.com.pl</p>
-        <p>Jeśli otrzymałeś ten email przez pomyłkę, skontaktuj się z administratorem.</p>
+        <p>
+            Ten email został wygenerowany automatycznie przez system newslettera ZdroweHerbaty.com.pl
+        </p>
+        <p>
+            Jeśli otrzymałeś ten email przez pomyłkę, skontaktuj się z administratorem:
+            <a href="mailto:{{ env('ADMIN_EMAIL', 'admin@zdroweherbaty.com.pl') }}">
+                {{ env('ADMIN_EMAIL', 'admin@zdroweherbaty.com.pl') }}
+            </a>
+        </p>
     </div>
 </body>
 
