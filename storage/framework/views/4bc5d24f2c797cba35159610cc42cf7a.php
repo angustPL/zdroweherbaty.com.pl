@@ -15,13 +15,40 @@ new class extends Component implements Livewire\Volt\Contracts\FunctionalCompone
 
     public $groupName;
 
-    public $dbPath;
+    public $groupContent;
+
+    public $showEditModal;
+
+    public $editingContent;
+
+    public $saved;
 
     public function mount($group)
     {
         (new Actions\InitializeState)->execute(static::$__context, $this, get_defined_vars());
 
         (new Actions\CallHook('mount'))->execute(static::$__context, $this, get_defined_vars());
+    }
+
+    public function openEditModal()
+    {
+        $arguments = [static::$__context, $this, func_get_args()];
+
+        return (new Actions\CallMethod('openEditModal'))->execute(...$arguments);
+    }
+
+    public function saveContent()
+    {
+        $arguments = [static::$__context, $this, func_get_args()];
+
+        return (new Actions\CallMethod('saveContent'))->execute(...$arguments);
+    }
+
+    public function closeEditModal()
+    {
+        $arguments = [static::$__context, $this, func_get_args()];
+
+        return (new Actions\CallMethod('closeEditModal'))->execute(...$arguments);
     }
 
 };

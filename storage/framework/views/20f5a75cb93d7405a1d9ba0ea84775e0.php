@@ -32,7 +32,7 @@ use Artesaos\SEOTools\Facades\SEOMeta;
         </div>
     </div>
 
-    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(Auth::check()): ?>
+    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(Auth::check() && Auth::user()->hasRole('admin')): ?>
         <?php $__env->startPush('admin-bar-actions'); ?>
             <?php if (isset($component)) { $__componentOriginal1db8c57e729d67f7d4103875cf3230cb = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginal1db8c57e729d67f7d4103875cf3230cb = $attributes; } ?>
@@ -84,16 +84,16 @@ use Artesaos\SEOTools\Facades\SEOMeta;
 
         <?php if (isset($component)) { $__componentOriginal8cc9d3143946b992b324617832699c5f = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginal8cc9d3143946b992b324617832699c5f = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'e60dd9d2c3a62d619c9acb38f20d5aa5::modal.index','data' => ['name' => 'edit-terms-modal','flyout' => true,'position' => 'left','class' => 'md:w-[800px] m-0! rounded-none! h-screen! flex flex-col','xOn:close' => 'cleanupTinyMCE()']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'e60dd9d2c3a62d619c9acb38f20d5aa5::modal.index','data' => ['name' => 'edit-terms-modal','flyout' => true,'position' => 'left','class' => 'md:w-[800px] m-0! rounded-none! h-screen! flex flex-col p-0!','xOn:close' => 'cleanupTinyMCE()']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
 <?php $component->withName('flux::modal'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['name' => 'edit-terms-modal','flyout' => true,'position' => 'left','class' => 'md:w-[800px] m-0! rounded-none! h-screen! flex flex-col','x-on:close' => 'cleanupTinyMCE()']); ?>
+<?php $component->withAttributes(['name' => 'edit-terms-modal','flyout' => true,'position' => 'left','class' => 'md:w-[800px] m-0! rounded-none! h-screen! flex flex-col p-0!','x-on:close' => 'cleanupTinyMCE()']); ?>
             <form class="flex flex-col h-full">
-                <div class="shrink-0 pb-6 border-b">
+                <div class="shrink-0 p-6 pb-6 border-b">
                     <?php if (isset($component)) { $__componentOriginale0fd5b6a0986beffac17a0a103dfd7b9 = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginale0fd5b6a0986beffac17a0a103dfd7b9 = $attributes; } ?>
 <?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'e60dd9d2c3a62d619c9acb38f20d5aa5::heading','data' => ['size' => 'lg']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
@@ -137,14 +137,14 @@ use Artesaos\SEOTools\Facades\SEOMeta;
                 <div class="flex-1 p-6">
                     <?php if (isset($component)) { $__componentOriginal5ed719c1971b2710ce6f28e12185de56 = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginal5ed719c1971b2710ce6f28e12185de56 = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.rich-editor','data' => ['name' => 'editingContent','label' => 'Treść regulaminu','value' => $editingContent,'wire:input' => '$set(\'saved\', false)','xOn:keydown' => '$wire.set(\'saved\', false)']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.rich-editor','data' => ['name' => 'editingContent','value' => $editingContent,'wire:input' => '$set(\'saved\', false)','xOn:keydown' => '$wire.set(\'saved\', false)']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
 <?php $component->withName('rich-editor'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['name' => 'editingContent','label' => 'Treść regulaminu','value' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($editingContent),'wire:input' => '$set(\'saved\', false)','x-on:keydown' => '$wire.set(\'saved\', false)']); ?>
+<?php $component->withAttributes(['name' => 'editingContent','value' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($editingContent),'wire:input' => '$set(\'saved\', false)','x-on:keydown' => '$wire.set(\'saved\', false)']); ?>
 <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginal5ed719c1971b2710ce6f28e12185de56)): ?>
@@ -157,8 +157,10 @@ use Artesaos\SEOTools\Facades\SEOMeta;
 <?php endif; ?>
 
                     <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($saved): ?>
-                        <div x-data="{ show: true }" x-init="setTimeout(() => { show = false;
-                            window.Livewire.find('<?php echo e($_instance->getId()); ?>').set('saved', false) }, 1000)" x-show="show" x-transition.duration.1000ms
+                        <div x-data="{ show: true }" x-init="setTimeout(() => {
+                            show = false;
+                            window.Livewire.find('<?php echo e($_instance->getId()); ?>').set('saved', false)
+                        }, 3000)" x-show="show" x-transition.duration.1000ms
                             class="mt-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded">
                             ✓ Regulamin został zapisany.
                         </div>
@@ -166,7 +168,7 @@ use Artesaos\SEOTools\Facades\SEOMeta;
                 </div>
 
                 <div
-                    class="shrink-0 flex justify-end space-x-2 rtl:space-x-reverse pt-6 border-t bg-white sticky bottom-0">
+                    class="shrink-0 flex justify-end space-x-2 rtl:space-x-reverse p-6 pt-6 border-t bg-white sticky bottom-0">
                     <?php if (isset($component)) { $__componentOriginalda55eef372798476d918d03158796935 = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginalda55eef372798476d918d03158796935 = $attributes; } ?>
 <?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'e60dd9d2c3a62d619c9acb38f20d5aa5::modal.close','data' => []] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
@@ -186,7 +188,7 @@ use Artesaos\SEOTools\Facades\SEOMeta;
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['type' => 'button','variant' => 'ghost']); ?>Anuluj <?php echo $__env->renderComponent(); ?>
+<?php $component->withAttributes(['type' => 'button','variant' => 'ghost']); ?>Zamknij <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginalc04b147acd0e65cc1a77f86fb0e81580)): ?>
 <?php $attributes = $__attributesOriginalc04b147acd0e65cc1a77f86fb0e81580; ?>

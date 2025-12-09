@@ -222,7 +222,7 @@ mount(function ($id, $name = null) {
 
                 <div class="flex justify-end space-x-2 rtl:space-x-reverse pt-4 border-t">
                     <flux:modal.close>
-                        <flux:button variant="ghost">Anuluj</flux:button>
+                        <flux:button variant="ghost">Zamknij</flux:button>
                     </flux:modal.close>
                     <div x-data="{ loading: false }">
                         <flux:button variant="primary" x-bind:disabled="loading"

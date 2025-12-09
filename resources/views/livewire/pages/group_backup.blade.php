@@ -110,7 +110,7 @@ try {
         </div>
     </div>
 
-    @if (Auth::check() && Auth::user()->hasRole('admin'))
+    @if (Auth::check())
         @push('admin-bar-actions')
             <flux:modal.trigger name="edit-terms-modal">
                 <flux:tooltip content="Edytuj regulamin" position="right">
@@ -125,22 +125,20 @@ try {
         @endpush
 
         <flux:modal name="edit-terms-modal" flyout position="left"
-            class="md:w-[800px] m-0! rounded-none! h-screen! flex flex-col p-0!" x-on:close="cleanupTinyMCE()">
+            class="md:w-[800px] m-0! rounded-none! h-screen! flex flex-col" x-on:close="cleanupTinyMCE()">
             <form class="flex flex-col h-full">
-                <div class="shrink-0 p-6 pb-6 border-b">
+                <div class="shrink-0 pb-6 border-b">
                     <flux:heading size="lg">Edytuj regulamin</flux:heading>
                     <flux:subheading>Zaktualizuj treść regulaminu sklepu</flux:subheading>
                 </div>
 
                 <div class="flex-1 p-6">
-                    <x-rich-editor name="editingContent" :value="$editingContent" wire:input="$set('saved', false)"
-                        x-on:keydown="$wire.set('saved', false)" />
+                    <x-rich-editor name="editingContent" label="Treść regulaminu" :value="$editingContent"
+                        wire:input="$set('saved', false)" x-on:keydown="$wire.set('saved', false)" />
 
                     @if ($saved)
-                        <div x-data="{ show: true }" x-init="setTimeout(() => {
-                            show = false;
-                            @this.set('saved', false)
-                        }, 3000)" x-show="show" x-transition.duration.1000ms
+                        <div x-data="{ show: true }" x-init="setTimeout(() => { show = false;
+                            @this.set('saved', false) }, 1000)" x-show="show" x-transition.duration.1000ms
                             class="mt-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded">
                             ✓ Regulamin został zapisany.
                         </div>
@@ -148,9 +146,9 @@ try {
                 </div>
 
                 <div
-                    class="shrink-0 flex justify-end space-x-2 rtl:space-x-reverse p-6 pt-6 border-t bg-white sticky bottom-0">
+                    class="shrink-0 flex justify-end space-x-2 rtl:space-x-reverse pt-6 border-t bg-white sticky bottom-0">
                     <flux:modal.close>
-                        <flux:button type="button" variant="ghost">Zamknij</flux:button>
+                        <flux:button type="button" variant="ghost">Anuluj</flux:button>
                     </flux:modal.close>
                     <flux:button type="button" variant="primary" wire:click="saveContent">
                         Zapisz</flux:button>
