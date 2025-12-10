@@ -82,171 +82,26 @@
 
     <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(auth()->guard()->check()): ?>
         <!-- Pływająca belka administracyjna po lewej stronie -->
-        <div class="fixed left-0 top-1/2 -translate-y-1/2 z-[10000]">
-            <div class="bg-black text-white rounded-r-lg shadow-lg overflow-hidden">
-                <div class="flex flex-col gap-0">
-                    <?php echo $__env->yieldPushContent('admin-bar-actions'); ?>
-                    <?php if (isset($component)) { $__componentOriginal1db8c57e729d67f7d4103875cf3230cb = $component; } ?>
-<?php if (isset($attributes)) { $__attributesOriginal1db8c57e729d67f7d4103875cf3230cb = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'e60dd9d2c3a62d619c9acb38f20d5aa5::modal.trigger','data' => ['name' => 'promotions-modal']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
-<?php $component->withName('flux::modal.trigger'); ?>
-<?php if ($component->shouldRender()): ?>
-<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
-<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
-<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
-<?php endif; ?>
-<?php $component->withAttributes(['name' => 'promotions-modal']); ?>
-                        <?php if (isset($component)) { $__componentOriginalf5109f209df079b3a83484e1e6310749 = $component; } ?>
-<?php if (isset($attributes)) { $__attributesOriginalf5109f209df079b3a83484e1e6310749 = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'e60dd9d2c3a62d619c9acb38f20d5aa5::tooltip.index','data' => ['content' => 'Promocje','position' => 'right']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
-<?php $component->withName('flux::tooltip'); ?>
-<?php if ($component->shouldRender()): ?>
-<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
-<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
-<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
-<?php endif; ?>
-<?php $component->withAttributes(['content' => 'Promocje','position' => 'right']); ?>
-                            <button type="button" class="p-2 hover:bg-gray-800 transition-colors block cursor-pointer">
-                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                                    stroke-width="2">
-                                    <path stroke-linecap="round" stroke-linejoin="round"
-                                        d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 005.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 009.568 3z" />
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 6h.008v.008H6V6z" />
-                                </svg>
-                            </button>
-                         <?php echo $__env->renderComponent(); ?>
-<?php endif; ?>
-<?php if (isset($__attributesOriginalf5109f209df079b3a83484e1e6310749)): ?>
-<?php $attributes = $__attributesOriginalf5109f209df079b3a83484e1e6310749; ?>
-<?php unset($__attributesOriginalf5109f209df079b3a83484e1e6310749); ?>
-<?php endif; ?>
-<?php if (isset($__componentOriginalf5109f209df079b3a83484e1e6310749)): ?>
-<?php $component = $__componentOriginalf5109f209df079b3a83484e1e6310749; ?>
-<?php unset($__componentOriginalf5109f209df079b3a83484e1e6310749); ?>
-<?php endif; ?>
-                     <?php echo $__env->renderComponent(); ?>
-<?php endif; ?>
-<?php if (isset($__attributesOriginal1db8c57e729d67f7d4103875cf3230cb)): ?>
-<?php $attributes = $__attributesOriginal1db8c57e729d67f7d4103875cf3230cb; ?>
-<?php unset($__attributesOriginal1db8c57e729d67f7d4103875cf3230cb); ?>
-<?php endif; ?>
-<?php if (isset($__componentOriginal1db8c57e729d67f7d4103875cf3230cb)): ?>
-<?php $component = $__componentOriginal1db8c57e729d67f7d4103875cf3230cb; ?>
-<?php unset($__componentOriginal1db8c57e729d67f7d4103875cf3230cb); ?>
-<?php endif; ?>
-                    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(Auth::user()->hasRole('admin')): ?>
-                        <?php if (isset($component)) { $__componentOriginal1db8c57e729d67f7d4103875cf3230cb = $component; } ?>
-<?php if (isset($attributes)) { $__attributesOriginal1db8c57e729d67f7d4103875cf3230cb = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'e60dd9d2c3a62d619c9acb38f20d5aa5::modal.trigger','data' => ['name' => 'users-modal']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
-<?php $component->withName('flux::modal.trigger'); ?>
-<?php if ($component->shouldRender()): ?>
-<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
-<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
-<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
-<?php endif; ?>
-<?php $component->withAttributes(['name' => 'users-modal']); ?>
-                            <?php if (isset($component)) { $__componentOriginalf5109f209df079b3a83484e1e6310749 = $component; } ?>
-<?php if (isset($attributes)) { $__attributesOriginalf5109f209df079b3a83484e1e6310749 = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'e60dd9d2c3a62d619c9acb38f20d5aa5::tooltip.index','data' => ['content' => 'Użytkownicy','position' => 'right']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
-<?php $component->withName('flux::tooltip'); ?>
-<?php if ($component->shouldRender()): ?>
-<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
-<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
-<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
-<?php endif; ?>
-<?php $component->withAttributes(['content' => 'Użytkownicy','position' => 'right']); ?>
-                                <button type="button" class="p-2 hover:bg-gray-800 transition-colors block cursor-pointer">
-                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                                        stroke-width="2">
-                                        <path stroke-linecap="round" stroke-linejoin="round"
-                                            d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
-                                    </svg>
-                                </button>
-                             <?php echo $__env->renderComponent(); ?>
-<?php endif; ?>
-<?php if (isset($__attributesOriginalf5109f209df079b3a83484e1e6310749)): ?>
-<?php $attributes = $__attributesOriginalf5109f209df079b3a83484e1e6310749; ?>
-<?php unset($__attributesOriginalf5109f209df079b3a83484e1e6310749); ?>
-<?php endif; ?>
-<?php if (isset($__componentOriginalf5109f209df079b3a83484e1e6310749)): ?>
-<?php $component = $__componentOriginalf5109f209df079b3a83484e1e6310749; ?>
-<?php unset($__componentOriginalf5109f209df079b3a83484e1e6310749); ?>
-<?php endif; ?>
-                         <?php echo $__env->renderComponent(); ?>
-<?php endif; ?>
-<?php if (isset($__attributesOriginal1db8c57e729d67f7d4103875cf3230cb)): ?>
-<?php $attributes = $__attributesOriginal1db8c57e729d67f7d4103875cf3230cb; ?>
-<?php unset($__attributesOriginal1db8c57e729d67f7d4103875cf3230cb); ?>
-<?php endif; ?>
-<?php if (isset($__componentOriginal1db8c57e729d67f7d4103875cf3230cb)): ?>
-<?php $component = $__componentOriginal1db8c57e729d67f7d4103875cf3230cb; ?>
-<?php unset($__componentOriginal1db8c57e729d67f7d4103875cf3230cb); ?>
-<?php endif; ?>
-                        <?php if (isset($component)) { $__componentOriginalf5109f209df079b3a83484e1e6310749 = $component; } ?>
-<?php if (isset($attributes)) { $__attributesOriginalf5109f209df079b3a83484e1e6310749 = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'e60dd9d2c3a62d619c9acb38f20d5aa5::tooltip.index','data' => ['content' => 'Ustawienia','position' => 'right']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
-<?php $component->withName('flux::tooltip'); ?>
-<?php if ($component->shouldRender()): ?>
-<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
-<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
-<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
-<?php endif; ?>
-<?php $component->withAttributes(['content' => 'Ustawienia','position' => 'right']); ?>
-                            <a href="<?php echo e(route('settings.profile')); ?>"
-                                class="p-2 hover:bg-gray-800 transition-colors block cursor-pointer">
-                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                                    stroke-width="2">
-                                    <path stroke-linecap="round" stroke-linejoin="round"
-                                        d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                                    <path stroke-linecap="round" stroke-linejoin="round"
-                                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                </svg>
-                            </a>
-                         <?php echo $__env->renderComponent(); ?>
-<?php endif; ?>
-<?php if (isset($__attributesOriginalf5109f209df079b3a83484e1e6310749)): ?>
-<?php $attributes = $__attributesOriginalf5109f209df079b3a83484e1e6310749; ?>
-<?php unset($__attributesOriginalf5109f209df079b3a83484e1e6310749); ?>
-<?php endif; ?>
-<?php if (isset($__componentOriginalf5109f209df079b3a83484e1e6310749)): ?>
-<?php $component = $__componentOriginalf5109f209df079b3a83484e1e6310749; ?>
-<?php unset($__componentOriginalf5109f209df079b3a83484e1e6310749); ?>
-<?php endif; ?>
-                    <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
-                    <form method="POST" action="<?php echo e(route('logout')); ?>">
-                        <?php echo csrf_field(); ?>
-                        <?php if (isset($component)) { $__componentOriginalf5109f209df079b3a83484e1e6310749 = $component; } ?>
-<?php if (isset($attributes)) { $__attributesOriginalf5109f209df079b3a83484e1e6310749 = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'e60dd9d2c3a62d619c9acb38f20d5aa5::tooltip.index','data' => ['content' => 'Wyloguj się','position' => 'right']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
-<?php $component->withName('flux::tooltip'); ?>
-<?php if ($component->shouldRender()): ?>
-<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
-<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
-<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
-<?php endif; ?>
-<?php $component->withAttributes(['content' => 'Wyloguj się','position' => 'right']); ?>
-                            <button type="submit"
-                                class="p-2 hover:bg-gray-800 transition-colors block w-full cursor-pointer">
-                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                                    stroke-width="2">
-                                    <path stroke-linecap="round" stroke-linejoin="round"
-                                        d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                                </svg>
-                            </button>
-                         <?php echo $__env->renderComponent(); ?>
-<?php endif; ?>
-<?php if (isset($__attributesOriginalf5109f209df079b3a83484e1e6310749)): ?>
-<?php $attributes = $__attributesOriginalf5109f209df079b3a83484e1e6310749; ?>
-<?php unset($__attributesOriginalf5109f209df079b3a83484e1e6310749); ?>
-<?php endif; ?>
-<?php if (isset($__componentOriginalf5109f209df079b3a83484e1e6310749)): ?>
-<?php $component = $__componentOriginalf5109f209df079b3a83484e1e6310749; ?>
-<?php unset($__componentOriginalf5109f209df079b3a83484e1e6310749); ?>
-<?php endif; ?>
-                    </form>
-                </div>
-            </div>
-        </div>
+        <?php
+$__split = function ($name, $params = []) {
+    return [$name, $params];
+};
+[$__name, $__params] = $__split('components.admin-bar.admin-sidebar', []);
+
+$key = null;
+
+$key ??= \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::generateKey('lw-3554372278-0', null);
+
+$__html = app('livewire')->mount($__name, $__params, $key);
+
+echo $__html;
+
+unset($__html);
+unset($__name);
+unset($__params);
+unset($__split);
+if (isset($__slots)) unset($__slots);
+?>
     <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
 
     <div class="min-h-screen bg-white">
@@ -509,7 +364,7 @@ $__split = function ($name, $params = []) {
 
 $key = null;
 
-$key ??= \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::generateKey('lw-3554372278-0', null);
+$key ??= \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::generateKey('lw-3554372278-1', null);
 
 $__html = app('livewire')->mount($__name, $__params, $key);
 
@@ -551,7 +406,7 @@ $__split = function ($name, $params = []) {
 
 $key = null;
 
-$key ??= \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::generateKey('lw-3554372278-1', null);
+$key ??= \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::generateKey('lw-3554372278-2', null);
 
 $__html = app('livewire')->mount($__name, $__params, $key);
 
@@ -581,7 +436,7 @@ $__split = function ($name, $params = []) {
 
 $key = null;
 
-$key ??= \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::generateKey('lw-3554372278-2', null);
+$key ??= \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::generateKey('lw-3554372278-3', null);
 
 $__html = app('livewire')->mount($__name, $__params, $key);
 
@@ -675,32 +530,13 @@ if (isset($__slots)) unset($__slots);
         </footer>
     </div>
 
+    <!-- Moduły dla Admin Sidebara -->
     <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(auth()->guard()->check()): ?>
         <?php
 $__split = function ($name, $params = []) {
     return [$name, $params];
 };
-[$__name, $__params] = $__split('components.promotions-modal', []);
-
-$key = null;
-
-$key ??= \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::generateKey('lw-3554372278-3', null);
-
-$__html = app('livewire')->mount($__name, $__params, $key);
-
-echo $__html;
-
-unset($__html);
-unset($__name);
-unset($__params);
-unset($__split);
-if (isset($__slots)) unset($__slots);
-?>
-        <?php
-$__split = function ($name, $params = []) {
-    return [$name, $params];
-};
-[$__name, $__params] = $__split('components.promotion-form-modal', []);
+[$__name, $__params] = $__split('components.admin-bar.admin-sidebar', []);
 
 $key = null;
 
@@ -716,14 +552,13 @@ unset($__params);
 unset($__split);
 if (isset($__slots)) unset($__slots);
 ?>
-    <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
 
-    <?php if(Auth::user()?->hasRole('admin')): ?>
+        <!-- Modale dla Admin Sidebara -->
         <?php
 $__split = function ($name, $params = []) {
     return [$name, $params];
 };
-[$__name, $__params] = $__split('components.users-modal', []);
+[$__name, $__params] = $__split('components.promotions-modal', []);
 
 $key = null;
 
@@ -743,11 +578,55 @@ if (isset($__slots)) unset($__slots);
 $__split = function ($name, $params = []) {
     return [$name, $params];
 };
-[$__name, $__params] = $__split('components.user-form-modal', []);
+[$__name, $__params] = $__split('components.promotion-form-modal', []);
 
 $key = null;
 
 $key ??= \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::generateKey('lw-3554372278-6', null);
+
+$__html = app('livewire')->mount($__name, $__params, $key);
+
+echo $__html;
+
+unset($__html);
+unset($__name);
+unset($__params);
+unset($__split);
+if (isset($__slots)) unset($__slots);
+?>
+    <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+
+    <!-- Modale dla Admin Sidebara (tylko dla Admina -->
+    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(Auth::user()?->hasRole('admin')): ?>
+        <?php
+$__split = function ($name, $params = []) {
+    return [$name, $params];
+};
+[$__name, $__params] = $__split('components.users-modal', []);
+
+$key = null;
+
+$key ??= \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::generateKey('lw-3554372278-7', null);
+
+$__html = app('livewire')->mount($__name, $__params, $key);
+
+echo $__html;
+
+unset($__html);
+unset($__name);
+unset($__params);
+unset($__split);
+if (isset($__slots)) unset($__slots);
+?>
+        <?php
+$__split = function ($name, $params = []) {
+    return [$name, $params];
+};
+[$__name, $__params] = $__split('components.user-form-modal', []);
+
+$key = null;
+
+$key ??= \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::generateKey('lw-3554372278-8', null);
 
 $__html = app('livewire')->mount($__name, $__params, $key);
 
@@ -770,7 +649,7 @@ $__split = function ($name, $params = []) {
 
 $key = null;
 
-$key ??= \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::generateKey('lw-3554372278-7', null);
+$key ??= \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::generateKey('lw-3554372278-9', null);
 
 $__html = app('livewire')->mount($__name, $__params, $key);
 

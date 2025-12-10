@@ -35,6 +35,9 @@ $saveContent = function () {
             'is_active' => true,
         ]);
     }
+    // Wyczyszczenie cache, żeby zmiany były widoczne od razu
+    \Illuminate\Support\Facades\Cache::forget('content_product_group_' . md5($this->groupName));
+
     $this->groupContent = $this->groupContent->fresh();
     $this->saved = true;
 };
@@ -67,7 +70,7 @@ mount(function ($group) {
 
 ?>
 
-<div>
+<div x-data @open-edit-modal.window="$wire.call('openEditModal')">
     <div class="mb-6">
         <h1 class="text-3xl font-bold text-black mt-1 mb-2">
             {{ $groupContent && isset($groupContent->meta['h1']) && !empty($groupContent->meta['h1']) ? $groupContent->meta['h1'] : $groupName }}
@@ -103,7 +106,8 @@ mount(function ($group) {
         @push('admin-bar-actions')
             <flux:modal.trigger name="edit-group-modal">
                 <flux:tooltip content="Edytuj treść grupy" position="right">
-                    <button type="button" wire:click="openEditModal" class="p-2 hover:bg-gray-800 transition-colors block">
+                    <button type="button" @click="$dispatch('open-edit-modal')"
+                        class="p-2 hover:bg-gray-800 transition-colors block">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round"
                                 d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -113,36 +117,9 @@ mount(function ($group) {
             </flux:modal.trigger>
         @endpush
 
-        <flux:modal name="edit-group-modal" flyout position="left"
-            class="md:w-[800px] m-0! rounded-none! h-screen! flex flex-col p-0!" x-on:close="cleanupTinyMCE()">
-            <form class="flex flex-col h-full">
-                <div class="shrink-0 p-6 pb-6 border-b">
-                    <flux:heading size="lg">Edytuj treść grupy</flux:heading>
-                    <flux:subheading>Zaktualizuj treść SEO dla grupy: {{ $groupName }}</flux:subheading>
-                </div>
-
-                <div class="flex-1 p-6">
-                    <x-rich-editor name="editingContent" :value="$editingContent" />
-
-                    @if ($saved)
-                        <div x-data="{ show: true }" x-init="setTimeout(() => {
-                            show = false;
-                            @this.set('saved', false)
-                        }, 3000)" x-show="show" x-transition.duration.1000ms
-                            class="mt-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded">
-                            ✓ Treść grupy została zapisana.
-                        </div>
-                    @endif
-                </div>
-
-                <div
-                    class="shrink-0 flex justify-end space-x-2 rtl:space-x-reverse p-6 pt-6 border-t bg-white sticky bottom-0">
-                    <flux:modal.close>
-                        <flux:button type="button" variant="ghost">Zamknij</flux:button>
-                    </flux:modal.close>
-                    <flux:button type="button" variant="primary" wire:click="saveContent">Zapisz</flux:button>
-                </div>
-            </form>
-        </flux:modal>
+        <x-admin-bar.edit-modal name="edit-group-modal" title="Edytuj treść grupy" :show-success="$saved"
+            success-message="Treść grupy została zapisana.">
+            <x-rich-editor name="editingContent" :value="$editingContent" />
+        </x-admin-bar.edit-modal>
     @endif
 </div>

@@ -13,8 +13,6 @@ window.initTinyMCE = function (field, initialValue, element) {
         menubar: false,
         branding: false,
         skin: "oxide",
-        content_css:
-            "body { font-family: system-ui, -apple-system, sans-serif; } .tox-tbtn--active { background-color: #6b7280 !important; color: white !important; } .tox-tbtn--enabled:hover { background-color: #e5e7eb !important; }",
         content_style:
             "body { font-family: system-ui, -apple-system, sans-serif; }",
         setup: (editor) => {
