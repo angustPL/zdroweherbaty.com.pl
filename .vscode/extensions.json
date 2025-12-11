@@ -1,13 +1,9 @@
 {
     // Lista rekomendowanych rozszerzeń dla tego projektu Laravel + Livewire + frontend
     "recommendations": [
-        "amiralizadeh9480.laravel-extra-intellisense", // relacje Eloquent
-        "bmewburn.vscode-intelephense-client", // podpowiedzi PHP
+        "laravel.vscode-laravel", // Oficjalny rozszerzenie Laravel (zawiera Blade, Routes, Eloquent, Env)
         "ryannaddy.laravel-artisan", // komendy Artisan
-        "onecentlin.laravel-blade", // Blade snippets
-        "onecentlin.laravel5-snippets", // Snippety dla Laravel 5+
-        "shufo.vscode-blade-formatter", // formatowanie Blade
-        "mikestead.dotenv", // .env
+        "bmewburn.vscode-intelephense-client", // podpowiedzi PHP
         "stef-k.laravel-goto-view", // Livewire/Blade nawigacja
         "xdebug.php-debug", // debugowanie PHP
         "editorconfig.editorconfig", // styl kodu
@@ -21,6 +17,11 @@
         "cierra.livewire-vscode", // Livewire support
         "ms-vscode.vscode-typescript-next", // TypeScript
         "formulahendry.auto-rename-tag", // Auto rename paired HTML/XML tags
-        "ms-vscode.vscode-json" // JSON language support
+        "ms-vscode.vscode-json", // JSON language support
+        "ms-vscode.vscode-git-graph", // Git visualization
+        "usernamehw.errorlens", // Inline error display
+        "gruntfuggly.todo-tree", // TODO comments visualization
+        "streetsidesoftware.code-spell-checker", // Spell checker
+        "GitHub.vscode-github-actions" // GitHub Actions support
     ]
 }

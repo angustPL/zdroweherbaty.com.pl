@@ -48,7 +48,8 @@
         "**/node_modules": true,
         "**/vendor": true,
         "**/storage": true,
-        "public/build": true
+        "public/build": true,
+        "materiały": true
     },
     // Ustawienia plików - ukrywanie plików i katalogów w eksploratorze
     "files.exclude": {
@@ -59,10 +60,19 @@
         "**/.DS_Store": true,
         "**/Thumbs.db": true,
         "**/node_modules": true,
-        "**/vendor": true
+        "**/vendor": false,
+        "materiały": true
+    },
+    // Wykluczanie vendor z watchera (nie śledzi zmian dla wydajności)
+    "files.watcherExclude": {
+        "**/vendor/**": true
     },
     // Ustawienia dla lintera Tailwind CSS
     "tailwindCSS.lint.invalidClass": "error",
     "tailwindCSS.lint.invalidApply": "error",
-    "tailwindCSS.lint.conflictingClass": "warning"
+    "tailwindCSS.lint.conflictingClass": "warning",
+
+    "windsurf.codeLens.enabled": false,
+    "windsurf.autoSuggest.enabled": false,
+    "windsurf.maxFileSize": 1000000
 }

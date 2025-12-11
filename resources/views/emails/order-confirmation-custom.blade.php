@@ -18,22 +18,22 @@
     <div class="panel">
         <h3>{{ __('Szczegóły zamówienia') }}</h3>
         <p><strong>{{ __('Order date') }}:</strong> {{ $order->created_at->format('d.m.Y H:i') }}</p>
-        <p><strong>Aktualne dane online:</strong> <a href="{{ config('app.url') }}/zamowienie{{ $order->id }}"
+        <p><strong>Aktualne dane online:</strong> <a href="{{ config('app.url') }}/zamowienie/{{ $order->ext_order_id }}"
                 style="color: #026941;">Sprawdź status zamówienia</a></p>
     </div>
 
     <!-- Customer Data -->
     <div class="panel">
         <h3>{{ __('Customer data') }}</h3>
-        <p><strong>{{ __('Name') }}:</strong> {{ $order->customer_first_name }} {{ $order->customer_last_name }}</p>
+        <p><strong>Imię i nazwisko:</strong> {{ $order->customer_first_name }} {{ $order->customer_last_name }}</p>
         <p><strong>{{ __('Address') }}:</strong> {{ $order->delivery_street }}
             {{ $order->delivery_street_number }}{{ $order->delivery_apartment ? '/' . $order->delivery_apartment : '' }}
         </p>
-        <p><strong>{{ __('Postal code') }}:</strong> {{ $order->delivery_postal_code }} {{ $order->delivery_city }}</p>
+        <p><strong>Kod Poczta:</strong> {{ $order->delivery_postal_code }} {{ $order->delivery_city }}</p>
         @if ($order->customer_phone)
             <p><strong>{{ __('Phone') }}:</strong> {{ $order->customer_phone }}</p>
         @endif
-        <p><strong>{{ __('Email Address') }}:</strong> {{ $order->customer_email }}</p>
+        <p><strong>Adres email:</strong> {{ $order->customer_email }}</p>
     </div>
 
     <!-- Payment Information -->
@@ -133,12 +133,22 @@
                     <td colspan="4" class="text-right">{{ __('Wartość produktów') }}:</td>
                     <td class="text-right">{{ number_format($total, 2, ',', ' ') }} zł</td>
                 </tr>
-                @if ($order->delivery_cost > 0)
+                @if ($order->discount_amount > 0)
                     <tr>
-                        <td colspan="4" class="text-right">{{ __('Delivery') }} ({{ $order->delivery_name }}):</td>
-                        <td class="text-right">{{ number_format($order->delivery_cost, 2, ',', ' ') }} zł</td>
+                        <td colspan="4" class="text-right" style="color: #28a745;">
+                            Zniżka @if ($order->promotion_code)
+                                ({{ $order->promotion_code }})
+                            @endif:
+                        </td>
+                        <td class="text-right" style="color: #28a745;">
+                            -{{ number_format($order->discount_amount, 2, ',', ' ') }} zł
+                        </td>
                     </tr>
                 @endif
+                <tr>
+                    <td colspan="4" class="text-right">{{ __('Delivery') }} ({{ $order->delivery_name }}):</td>
+                    <td class="text-right">{{ number_format($order->delivery_cost, 2, ',', ' ') }} zł</td>
+                </tr>
                 <tr class="total-row">
                     <td colspan="4" class="text-right" style="font-size: 1.2em;">{{ __('Total to pay') }}:</td>
                     <td class="text-right" style="font-size: 1.2em;">

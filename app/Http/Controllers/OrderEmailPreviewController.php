@@ -17,6 +17,8 @@ class OrderEmailPreviewController extends Controller
      */
     public function preview(string $ext_order_id)
     {
+        \Log::info('Email preview requested for GUID: ' . $ext_order_id);
+
         try {
             $enovaOrder = null;
             // Najpierw sprawdź czy zamówienie jest w lokalnej bazie
@@ -59,9 +61,10 @@ class OrderEmailPreviewController extends Controller
                 }
             }
 
-            return view('emails.order-confirmation', [
+            // Użyj Markdown do renderowania emaila tak jak przy password reset
+            return response(app(\Illuminate\Mail\Markdown::class)->render('emails.order-confirmation', [
                 'order' => $order
-            ]);
+            ]), 200, ['Content-Type' => 'text/html']);
         } catch (\Exception $e) {
             // W przypadku błędu, zwróć 404 z informacją o błędzie
             \Log::error('Błąd podglądu emaila: ' . $e->getMessage(), [
@@ -197,5 +200,89 @@ class OrderEmailPreviewController extends Controller
         }
 
         return $order;
+    }
+
+    /**
+     * Wyślij email z zamówieniem
+     */
+    public function sendOrderEmail(string $ext_order_id)
+    {
+        try {
+            // Znajdź zamówienie w lokalnej bazie
+            $order = Order::where('ext_order_id', $ext_order_id)->first();
+
+            if (!$order) {
+                return "Order not found: " . $ext_order_id;
+            }
+
+            // Wyślij email
+            \Mail::to($order->customer_email)->send(new \App\Mail\OrderConfirmation($order));
+
+            return "Email sent successfully to: " . $order->customer_email;
+        } catch (\Exception $e) {
+            return "Error sending email: " . $e->getMessage();
+        }
+    }
+
+    /**
+     * Prosty podgląd emaila dla zamówienia
+     */
+    public function simplePreview(string $ext_order_id)
+    {
+        try {
+            // Znajdź zamówienie w lokalnej bazie
+            $order = Order::where('ext_order_id', $ext_order_id)->first();
+
+            if (!$order) {
+                return "Order not found: " . $ext_order_id;
+            }
+
+            // Użyj oryginalnego szablonu z komponentami mail
+            return view('emails.order-confirmation', [
+                'order' => $order
+            ]);
+        } catch (\Exception $e) {
+            return "Error: " . $e->getMessage();
+        }
+    }
+
+    /**
+     * Wyświetl podgląd emaila z formularza kontaktowego
+     */
+    public function previewContactForm()
+    {
+        // Przykładowe dane do testowania
+        $name = 'Jan Kowalski';
+        $email = 'jan.kowalski@example.com';
+        $messageText = "To jest przykładowa wiadomość testowa z formularza kontaktowego.\n\nSprawdzam jak wygląda nagłówek z logo oraz ogólny wygląd wiadomości email.\n\nPozdrawiam,\nJan Kowalski";
+
+        return view('emails.contact-form', [
+            'name' => $name,
+            'email' => $email,
+            'messageText' => $messageText
+        ]);
+    }
+
+    /**
+     * Wyświetl podgląd emaila resetowania hasła
+     */
+    public function previewPasswordReset()
+    {
+        // Przykładowe dane do testowania resetowania hasła
+        $token = 'abcd1234efgh5678ijkl9012mnop3456';
+
+        // Stworzenie przykładowego użytkownika (bez zapisu do bazy)
+        $user = new class {
+            public $email = 'jan.kowalski@example.com';
+
+            public function getEmailForPasswordReset()
+            {
+                return $this->email;
+            }
+        };
+
+        // Używamy domyślnego szablonu Laravela do resetowania hasła
+        return (new \Illuminate\Auth\Notifications\ResetPassword($token))
+            ->toMail($user);
     }
 }

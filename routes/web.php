@@ -14,6 +14,26 @@ use Livewire\Volt\Volt;
 |
 */
 
+// Email preview routes - must be before other routes to avoid conflicts
+Route::get('/email-preview/test', function () {
+    return 'Route works!';
+});
+
+Route::get('/email-preview/zamowienie/{ext_order_id}', [App\Http\Controllers\OrderEmailPreviewController::class, 'preview'])
+    ->name('order.email-preview');
+
+Route::get('/preview-order/{ext_order_id}', [App\Http\Controllers\OrderEmailPreviewController::class, 'simplePreview'])
+    ->name('order.simple-preview');
+
+Route::get('/send-order-email/{ext_order_id}', [App\Http\Controllers\OrderEmailPreviewController::class, 'sendOrderEmail'])
+    ->name('order.send-email');
+
+Route::get('/email-preview/contact-form', [App\Http\Controllers\OrderEmailPreviewController::class, 'previewContactForm'])
+    ->name('email.preview.contact-form');
+
+Route::get('/email-preview/password-reset', [App\Http\Controllers\OrderEmailPreviewController::class, 'previewPasswordReset'])
+    ->name('email.preview.password-reset');
+
 Volt::route('/', 'pages.welcome')->name('home');
 
 // Strony statyczne
@@ -35,8 +55,6 @@ Volt::route('/zamawianie', 'pages.order-create')->name('order.create');
 Volt::route('/zamowienie/{ext_order_id}', 'pages.order-info')
     ->middleware([\App\Http\Middleware\SetOrderNotFoundStatus::class])
     ->name('order.info');
-Route::get('/zamowienie/{ext_order_id}/email-preview', [App\Http\Controllers\OrderEmailPreviewController::class, 'preview'])
-    ->name('order.email-preview');
 
 // PayU callbacks
 Route::post('/payu/notify', [App\Http\Controllers\PayuController::class, 'notify'])->name('payu.notify');
