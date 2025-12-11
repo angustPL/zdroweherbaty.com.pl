@@ -238,22 +238,6 @@
     @livewireScripts
     @fluxScripts
 
-    <!-- Toast notifications -->
-    <div x-data="{
-        showToast: false,
-        message: '',
-        init() {
-            window.addEventListener('showToast', (event) => {
-                console.log('Toast event received:', event.detail);
-                this.message = Array.isArray(event.detail) ? event.detail[0] : event.detail;
-                this.showToast = true;
-                setTimeout(() => this.showToast = false, 3000);
-            });
-        }
-    }" x-show="showToast" x-transition
-        class="fixed bottom-20 left-4-[999999] bg-green-500 text-white px-4 py-2 rounded shadow-lg" x-text="message">
-    </div>
-
 </body>
 
 </html>

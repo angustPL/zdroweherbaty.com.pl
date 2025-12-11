@@ -30,6 +30,30 @@
             margin-bottom: 20px;
         }
 
+        .header-content {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            max-width: 100%;
+        }
+
+        .logo {
+            height: 80px;
+            margin-top: 15px;
+            margin-bottom: 10px;
+            max-height: 80px;
+            width: 160px;
+            display: inline-block;
+        }
+
+        .header-title {
+            margin: 0;
+            font-size: 19px;
+            font-weight: bold;
+            margin-left: 20px;
+            color: #ffffff;
+        }
+
         .content {
             margin-bottom: 20px;
         }
@@ -62,7 +86,12 @@
 <body>
     <div class="email-container">
         <div class="header">
-            <h1>Nowa wiadomość z formularza kontaktowego</h1>
+            <div class="header-content">
+                <div class="logo">
+                    <flux:image.logo variant="standard" size="md" />
+                </div>
+                <h1 class="header-title">Nowa wiadomość z formularza kontaktowego</h1>
+            </div>
         </div>
 
         <div class="content">
@@ -80,4 +109,3 @@
 </body>
 
 </html>
-
