@@ -16,10 +16,10 @@
 
     <!-- Order Details -->
     <div class="panel">
-        <h3>{{ __('Order details') }}</h3>
-        <p><strong>{{ __('Order number') }}:</strong> {{ $order->orderNumber ?? $order->ext_order_id }}</p>
+        <h3>{{ __('Szczegóły zamówienia') }}</h3>
         <p><strong>{{ __('Order date') }}:</strong> {{ $order->created_at->format('d.m.Y H:i') }}</p>
-        <p><strong>{{ __('Status') }}:</strong> {{ $order->status->label() }}</p>
+        <p><strong>Aktualne dane online:</strong> <a href="{{ config('app.url') }}/zamowienie{{ $order->id }}"
+                style="color: #026941;">Sprawdź status zamówienia</a></p>
     </div>
 
     <!-- Customer Data -->
@@ -34,6 +34,36 @@
             <p><strong>{{ __('Phone') }}:</strong> {{ $order->customer_phone }}</p>
         @endif
         <p><strong>{{ __('Email Address') }}:</strong> {{ $order->customer_email }}</p>
+    </div>
+
+    <!-- Payment Information -->
+    <div class="panel">
+        <h3>Informacje o płatności</h3>
+        @if (isset($order->payment))
+            <p><strong>Metoda płatności:</strong>
+                @if ($order->payment->isPayu())
+                    PayU - {{ $order->payment->payu_option ?? 'płatność online' }}
+                @elseif($order->payment->isCash())
+                    Płatność przy odbiorze
+                @else
+                    {{ $order->payment->payment_method ?? 'Brak danych' }}
+                @endif
+            </p>
+            <p><strong>Status płatności:</strong> {{ $order->payment->status->label() ?? 'Nieopłacone' }}</p>
+            @if (
+                $order->payment->isPayu() &&
+                    ($order->payment->status === \App\Enums\PaymentStatus::PENDING ||
+                        $order->payment->status === \App\Enums\PaymentStatus::WAITING_FOR_CONFIRMATION))
+                <p style="margin-top: 15px; color: #666;">
+                    <strong>Link do płatności:</strong>
+                    <a href="{{ config('app.url') }}/payment/payu/{{ $order->ext_order_id }}"
+                        style="color: #026941;">Dokończ płatność online</a>
+                </p>
+            @endif
+        @else
+            <p><strong>Metoda płatności:</strong> Brak danych</p>
+            <p><strong>Status płatności:</strong> Nieokreślony</p>
+        @endif
     </div>
 
     @if ($order->parcel_locker_name)
@@ -100,7 +130,7 @@
                     @endphp
                 @endforeach
                 <tr>
-                    <td colspan="4" class="text-right">{{ __('Product value') }}:</td>
+                    <td colspan="4" class="text-right">{{ __('Wartość produktów') }}:</td>
                     <td class="text-right">{{ number_format($total, 2, ',', ' ') }} zł</td>
                 </tr>
                 @if ($order->delivery_cost > 0)
@@ -126,15 +156,10 @@
         </div>
     @endif
 
-    <!-- Pickup Info -->
-    <p style="margin: 30px 0; color: #333; font-size: 16px;">
-        Zapraszamy po odbiór zamówienia od poniedziałku do piątku w godz. 8.00-16.00 pod adresem Górki Małe, ul. Dworska 33,
-        95-080 Tuszyn.
-    </p>
-
     <!-- Thanks -->
     <p style="margin: 20px 0; color: #333; font-size: 16px;">
         Dziękujemy za zakupy w naszym sklepie!<br>
-        W razie pytań prosimy o kontakt.
+        W razie pytań prosimy o <a href="mailto:{{ config('mail.from.address') }}?subject=Pytanie dotyczy zamówienia"
+            style="color: #026941;">kontakt</a>.
     </p>
 @endsection

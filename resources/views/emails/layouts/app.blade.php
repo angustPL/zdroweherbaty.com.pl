@@ -56,7 +56,6 @@
         }
 
         .header {
-            background-color: #f8f9fa;
             padding: 30px 30px 20px;
             text-align: center;
             border-bottom: 1px solid #e9ecef;
@@ -77,6 +76,7 @@
         .body {
             background-color: #ffffff;
             padding: 0;
+            border-radius: 8px;
         }
 
         .inner-body {
@@ -112,7 +112,6 @@
         }
 
         .footer {
-            background-color: #f8f9fa;
             padding: 20px 30px;
             text-align: center;
             border-top: 1px solid #e9ecef;
@@ -181,7 +180,8 @@
     <table class="wrapper" width="100%" cellpadding="0" cellspacing="0" role="presentation">
         <tr>
             <td align="center">
-                <table class="content" width="100%" cellpadding="0" cellspacing="0" role="presentation">
+                <table class="content" cellpadding="0" cellspacing="0" role="presentation"
+                    style="margin: 0 auto; min-width: 600px;">
 
                     <!-- Header -->
                     <tr>
@@ -194,24 +194,8 @@
                                 <img src="{{ $logo }}" alt="{{ config('app.name') }} Logo"
                                     style="max-width: 160px; height: auto;" />
                             @else
-                                @php
-                                    $logoPath = public_path('img/bifix-logo.png');
-                                    if (file_exists($logoPath)) {
-                                        $logoBase64 =
-                                            'data:image/png;base64,' . base64_encode(file_get_contents($logoPath));
-                                    } else {
-                                        $logoBase64 = null;
-                                    }
-                                @endphp
-                                @if ($logoBase64)
-                                    <img src="{{ $logoBase64 }}" alt="{{ config('app.name') }} Logo"
-                                        style="max-width: 160px; height: auto;" />
-                                @else
-                                    <div
-                                        style="background-color: #026941; color: white; font-size: 24px; font-weight: bold; padding: 15px 30px; border-radius: 8px; display: inline-block;">
-                                        BIFIX
-                                    </div>
-                                @endif
+                                <img src="{{ config('app.url') }}/img/bifix-logo.png"
+                                    alt="{{ config('app.name') }} Logo" style="max-width: 160px; height: auto;" />
                             @endif
 
                             @if ($headerUrl ?? false)
@@ -241,7 +225,7 @@
                     <!-- Footer -->
                     <tr>
                         <td class="footer">
-                            {{ $footer ?? '&copy; ' . date('Y') . ' ' . config('app.name') . '. ' . __('All rights reserved.') }}
+                            {{ $footer ?? '© ' . date('Y') . ' ' . config('app.name') . '. ' . __('All rights reserved.') }}
                         </td>
                     </tr>
 
