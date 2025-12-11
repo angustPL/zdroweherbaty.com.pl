@@ -13,6 +13,8 @@
 
 @php
     logger('Edit-modal showSuccess: ' . ($showSuccess ? 'true' : 'false'));
+    // Unikalny identyfikator dla każdej instancji komponentu
+    $instanceId = 'edit-modal-' . uniqid();
 @endphp
 
 <flux:modal name="{{ $name }}" flyout position="left" class="m-0! rounded-none! h-screen! flex flex-col p-0!"
@@ -50,15 +52,26 @@
             {{ $slot }}
         </div>
 
-        <div class="shrink-0 flex justify-end space-x-2 rtl:space-x-reverse p-6 pt-6 border-t bg-white sticky bottom-0">
-            <flux:modal.close>
-                <flux:button type="button" variant="ghost">Zamknij</flux:button>
-            </flux:modal.close>
-            @if ($saveAction)
-                <flux:button type="submit" variant="primary">Zapisz</flux:button>
-            @else
-                <flux:button type="button" variant="primary" wire:click="saveContent">Zapisz</flux:button>
+        <div
+            class="shrink-0 flex justify-between space-x-2 rtl:space-x-reverse p-6 pt-6 border-t bg-white sticky bottom-0">
+            <!-- Dodatkowe akcje (slot) - po lewej stronie - tylko jeśli nie puste -->
+            @if (!empty($extraActions))
+                <div class="flex space-x-2">
+                    {{ $extraActions }}
+                </div>
             @endif
+
+            <!-- Buttony akcji - po prawej stronie -->
+            <div class="flex space-x-2">
+                <flux:modal.close>
+                    <flux:button type="button" variant="ghost">Zamknij</flux:button>
+                </flux:modal.close>
+                @if ($saveAction)
+                    <flux:button type="submit" variant="primary">Zapisz</flux:button>
+                @else
+                    <flux:button type="button" variant="primary" wire:click="saveContent">Zapisz</flux:button>
+                @endif
+            </div>
         </div>
     </form>
 </flux:modal>

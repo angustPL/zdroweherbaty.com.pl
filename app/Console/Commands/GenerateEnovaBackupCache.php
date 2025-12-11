@@ -59,11 +59,9 @@ class GenerateEnovaBackupCache extends Command
             $stats['products_by_group'] = $productsResult['products_by_group'];
             $stats['groups'] = $productsResult['groups'];
 
-            // 2. Cache hierarchii grup (jeśli nie został wygenerowany w kroku 1)
-            if ($stats['groups'] == 0) {
-                $this->info('Generowanie cache hierarchii grup...');
-                $stats['groups'] = $this->generateGroupsCache($force);
-            }
+            // 2. Cache hierarchii grup z produktami (poprawione istniejące)
+            $this->info('Generowanie cache hierarchii grup z produktami...');
+            $stats['groups'] = $this->generateGroupsCache($force);
 
             // 3. Cache produktów dla wszystkich grup z hierarchii (uzupełnienie cache z kroku 1)
             $this->info('Generowanie cache produktów dla wszystkich grup z hierarchii...');
@@ -84,7 +82,7 @@ class GenerateEnovaBackupCache extends Command
             $this->line("✓ Produkty: {$stats['products']}");
             $this->line("✓ Pojedyncze produkty: {$stats['individual_products']}");
             $this->line("✓ Produkty w grupach: {$stats['products_by_group']} grup");
-            $this->line("✓ Grupy: " . ($stats['groups'] > 0 ? $stats['groups'] : 'Tak (z hierarchii)'));
+            $this->line("✓ Grupy z produktami: " . ($stats['groups'] > 0 ? 'Tak' : 'Błąd'));
             $this->line("✓ Opcje dostawy: {$stats['deliveries']}");
             $this->line("⏱ Czas wykonania: {$duration}s");
             $this->newLine();
@@ -418,72 +416,6 @@ class GenerateEnovaBackupCache extends Command
             return $processed;
         } catch (\Exception $e) {
             $this->warn("  ⚠ Nie udało się pobrać listy grup: " . $e->getMessage());
-            return 0;
-        }
-    }
-
-    /**
-     * Generuje cache pojedynczych produktów (tylko aktywne)
-     *
-     * @return int Liczba zcache'owanych produktów
-     */
-    private function generateIndividualProductsCache(bool $force): int
-    {
-        $cacheTtl = 48 * 3600; // 48 godzin w sekundach
-        $processed = 0;
-        $errors = 0;
-
-        try {
-            // Pobierz wszystkie produkty
-            $products = Cache::get('enova_products_all') ?? [];
-
-            if (empty($products)) {
-                $this->warn('  ⚠ Brak produktów do zcache\'owania');
-                return 0;
-            }
-
-            foreach ($products as $product) {
-                $productId = $product['ID'] ?? null;
-                if (!$productId) {
-                    continue;
-                }
-
-                $cacheKey = 'enova_product_' . $productId;
-
-                if (!$force && Cache::has($cacheKey)) {
-                    continue;
-                }
-
-                // Jeśli force=true, wyczyść cache żeby wymusić pobranie z Enova
-                if ($force) {
-                    Cache::forget($cacheKey);
-                }
-
-                try {
-                    // getCachedById() automatycznie zapisze do cache po pobraniu z Enova
-                    $productData = Product::getCachedById($productId);
-                    if ($productData) {
-                        $processed++;
-                    }
-                } catch (\Exception $e) {
-                    $errors++;
-                    // Spróbuj użyć istniejącego cache (nawet jeśli wygasł)
-                    $cached = Cache::get($cacheKey);
-                    if ($cached !== null) {
-                        // Przedłuż TTL cache
-                        Cache::put($cacheKey, $cached, $cacheTtl);
-                        $processed++;
-                    }
-                }
-            }
-
-            $this->line("  ✓ Zcache'owano {$processed} pojedynczych produktów");
-            if ($errors > 0) {
-                $this->warn("  ⚠ {$errors} produktów nie udało się zcache'ować");
-            }
-            return $processed;
-        } catch (\Exception $e) {
-            $this->warn("  ⚠ Nie udało się wygenerować cache pojedynczych produktów: " . $e->getMessage());
             return 0;
         }
     }

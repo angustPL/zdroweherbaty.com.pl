@@ -10,7 +10,7 @@ state([
 
 mount(function () {
     // Sprawdź czy użytkownik jest zalogowany
-    if (!Auth::check() || (!Auth::user()->hasRole('admin') && !Auth::user()->hasRole('editor'))) {
+    if (!Auth::check()) {
         abort(403, 'Brak dostępu');
     }
 

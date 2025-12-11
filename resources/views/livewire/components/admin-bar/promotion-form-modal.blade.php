@@ -88,23 +88,25 @@ mount(function ($promotionId = null) {
         abort(403, 'Brak dostępu');
     }
 
-    // Pobierz dostępne grupy z cache - użyj gotowych metod z modelu Group
-    $hierarchicalGroups = Group::getHierarchicalStructure();
+    // Pobierz dostępne grupy z cache - użyj getAllGroupsHierarchy() (43 grupy z produktami)
+    $hierarchicalGroups = Group::getAllGroupsHierarchy();
     $flatGroups = Group::flattenHierarchyForFlux($hierarchicalGroups);
 
     // Przekształć do formatu potrzebnego dla autocomplete
-    $availableGroups = collect($flatGroups)
-        ->take(50) // Ogranicz do 50 pierwszych grup
-        ->map(function ($group) {
-            return [
-                'path' => $group['full_path'],
-                'name' => $group['name'],
-                'full_name' => $group['full_path'], // Użyj pełnej ścieżki jako nazwy
-            ];
-        })
-        ->unique('path') // Usuń duplikaty po ścieżce
-        ->values()
-        ->toArray();
+    $availableGroups = collect($flatGroups)->map(function ($group) {
+        return [
+            'path' => $group['full_path'],
+            'name' => $group['name'],
+            'full_name' => $group['full_path'], // Użyj pełnej ścieżki jako nazwy
+        ];
+    });
+
+    // Debug: sprawdź liczbę grup przed i po unikalności (używamy getAllGroupsHierarchy)
+    logger('Grupy (getAllGroupsHierarchy) przed unique: ' . $availableGroups->count());
+    $availableGroups = $availableGroups->unique('path'); // Usuń duplikaty po ścieżce
+    logger('Grupy (getAllGroupsHierarchy) po unique: ' . $availableGroups->count());
+
+    $availableGroups = $availableGroups->values()->toArray();
 
     $this->available_groups = $availableGroups;
 
@@ -267,6 +269,17 @@ $save = function () {
         widthClass="md:max-w-[50vw]!" save-action="save" :show-success="$saved"
         success-message="{{ $promotionId ? 'Promocja została zaktualizowana.' : 'Promocja została utworzona.' }}"
         x-data="{ promotionId: null }" @edit-promotion.window="promotionId = $event.detail.id">
+        <x-slot name="extraActions">
+            <flux:button type="button" variant="ghost" wire:off x-data=""
+                @click.stop="
+                    $flux.modal('promotion-form-modal').close();
+                    setTimeout(() => {
+                        $flux.modal('promotions-modal').show();
+                    }, 300);
+                ">
+                Lista promocji
+            </flux:button>
+        </x-slot>
         <div x-init="$watch('promotionId', (value) => {
             setTimeout(() => {
                 if (value) {
@@ -395,8 +408,7 @@ $save = function () {
                                         return g.path.startsWith(selectedPath + '\\') || g.path.startsWith(selectedPath + '/');
                                     });
                                     return !isSubgroup;
-                                })
-                                .slice(0, 10);
+                                });
                             console.log('Znalezione sugestie grup:', this.suggestions.length);
                         },
                         addGroup(group) {
@@ -406,7 +418,7 @@ $save = function () {
                         },
                         handleKeydown(e) {
                             if (!this.showSuggestions || this.suggestions.length === 0) return;
-
+                    
                             if (e.key === 'ArrowDown') {
                                 e.preventDefault();
                                 this.selectedIndex = Math.min(this.selectedIndex + 1, this.suggestions.length - 1);
@@ -427,7 +439,8 @@ $save = function () {
                                 placeholder="Wpisz nazwę grupy (min. 2 znaki)" />
 
                             <div x-show="showSuggestions && suggestions.length > 0"
-                                class="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                                class="fixed z-50 bg-white border border-gray-300 rounded-lg shadow-lg max-h-96 overflow-y-auto"
+                                :style="`top: ${$el.previousElementSibling.getBoundingClientRect().bottom + window.scrollY + 4}px; left: ${$el.previousElementSibling.getBoundingClientRect().left + window.scrollX}px; width: ${$el.previousElementSibling.offsetWidth}px;`">
                                 <template x-for="(suggestion, index) in suggestions"
                                     :key="suggestion.path + '_' + index">
                                     <div @click="addGroup(suggestion)"
@@ -493,28 +506,27 @@ $save = function () {
                             const query = this.search.toLowerCase();
                             const queryTrimmed = this.search.trim();
                             console.log('Filtruję produkty dla query:', query, 'selectedProducts:', this.selectedProducts);
-
+                    
                             this.suggestions = this.products
                                 .filter(p => {
                                     // Sprawdź czy produkt nie jest już wybrany
                                     if (this.selectedProducts.includes(p.ID)) {
                                         return false;
                                     }
-
+                    
                                     // Sprawdź czy ID pasuje (wyszukiwanie od lewej)
                                     const productIdStr = p.ID.toString();
                                     if (productIdStr.startsWith(queryTrimmed)) {
                                         return true;
                                     }
-
+                    
                                     // Sprawdź czy nazwa pasuje (jeśli istnieje)
                                     if (p.Nazwa && p.Nazwa.toLowerCase().includes(query)) {
                                         return true;
                                     }
-
+                    
                                     return false;
-                                })
-                                .slice(0, 10);
+                                });
                             console.log('Znalezione sugestie produktów:', this.suggestions.length);
                         },
                         addProduct(product) {
@@ -527,7 +539,7 @@ $save = function () {
                         },
                         handleKeydown(e) {
                             if (!this.showSuggestions || this.suggestions.length === 0) return;
-
+                    
                             if (e.key === 'ArrowDown') {
                                 e.preventDefault();
                                 this.selectedIndex = Math.min(this.selectedIndex + 1, this.suggestions.length - 1);
@@ -548,7 +560,8 @@ $save = function () {
                                 placeholder="Wpisz nazwę produktu lub ID (min. 2 znaki)" />
 
                             <div x-show="showSuggestions && suggestions.length > 0"
-                                class="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                                class="fixed z-50 bg-white border border-gray-300 rounded-lg shadow-lg max-h-96 overflow-y-auto"
+                                :style="`top: ${$el.previousElementSibling.getBoundingClientRect().bottom + window.scrollY + 4}px; left: ${$el.previousElementSibling.getBoundingClientRect().left + window.scrollX}px; width: ${$el.previousElementSibling.offsetWidth}px;`">
                                 <template x-for="(suggestion, index) in suggestions" :key="suggestion.ID">
                                     <div @click="addProduct(suggestion)"
                                         :class="index === selectedIndex ? 'bg-blue-50' : 'bg-white'"

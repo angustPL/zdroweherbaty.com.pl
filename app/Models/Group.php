@@ -238,4 +238,82 @@ class Group extends EnovaModel
 
         return $result;
     }
+
+    /**
+     * Pobiera wszystkie grupy (bez filtracji produktów) - podobnie jak drzewko.
+     * Używane do autocomplete gdzie potrzebujemy wszystkie grupy.
+     *
+     * @param int|null $ttl Czas życia cache w sekundach (domyślnie z konfiguracji)
+     * @return array
+     */
+    public static function getAllGroupsHierarchy(?int $ttl = null): array
+    {
+        $cacheKey = 'enova_all_groups_hierarchy';
+
+        return static::getCachedWithBackup(
+            $cacheKey,
+            function () {
+                // Formularz promocji potrzebuje TYLKO grupy z produktami
+                $prefix = config('enova.features.product_group_prefix');
+                $productGroupName = config('enova.features.product_group');
+
+                // Debug: pokaż konfigurację
+                logger('DEBUG - Prefix: ' . $prefix);
+                logger('DEBUG - ProductGroupName: ' . $productGroupName);
+
+                // Pobierz grupy TYLKO z produktów (formularz promocji)
+                $query = self::select('Features.Data', 'Features.Name')
+                    ->where('Features.Data', 'like', $prefix . '%')
+                    ->where('Features.Name', $productGroupName)
+                    ->whereExists(function ($subQuery) {
+                        $subQuery->select(DB::raw(1))
+                            ->from('Towary')
+                            ->whereColumn('Towary.ID', 'Features.Parent');
+                    });
+
+                // Debug: pokaż zapytanie SQL
+                logger('DEBUG - SQL Query: ' . $query->toSql());
+                logger('DEBUG - SQL Bindings: ' . json_encode($query->getBindings()));
+
+                $allGroups = $query->orderBy('Features.Data')->get();
+
+                // Debug: pokaż liczbę grup z bazy
+                logger('DEBUG - Grupy z produktami (przed hierarchią): ' . $allGroups->count());
+
+                // Debug: pokaż pierwsze 5 grup do analizy
+                foreach ($allGroups->take(5) as $group) {
+                    logger('DEBUG - Przykładowa grupa z produktem: ' . $group->Data);
+                }
+
+                $hierarchy = [];
+
+                foreach ($allGroups as $group) {
+                    $path = Str::after($group->Data, $prefix);
+                    $path = rtrim($path, '\\');
+                    $parts = explode('\\', $path);
+
+                    $current = &$hierarchy;
+
+                    foreach ($parts as $part) {
+                        if (!isset($current[$part])) {
+                            $current[$part] = [
+                                'name' => $part,
+                                'full_path' => implode('\\', array_slice($parts, 0, array_search($part, $parts) + 1)),
+                                'children' => []
+                            ];
+                        }
+                        $current = &$current[$part]['children'];
+                    }
+                }
+
+                // Debug: pokaż liczbę grup po hierarchii
+                logger('DEBUG - Grupy z produktami po hierarchii: ' . count($hierarchy, COUNT_RECURSIVE));
+
+                return $hierarchy;
+            },
+            [], // wartość domyślna: pusta tablica
+            $ttl,
+            'all groups hierarchy'
+        );
+    }
 }
