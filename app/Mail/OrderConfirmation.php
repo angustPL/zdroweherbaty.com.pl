@@ -21,6 +21,11 @@ class OrderConfirmation extends Mailable
     public function __construct($order)
     {
         $this->order = $order;
+
+        // Load payment relationship if order exists in database
+        if (isset($order->id) && $order->id) {
+            $this->order->load('payment');
+        }
     }
 
     /**
