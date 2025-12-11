@@ -105,7 +105,7 @@ try {
         </div>
     </div>
 
-    @if (Auth::check() && Auth::user()->hasRole('admin'))
+    @if (Auth::check())
         @push('admin-bar-actions')
             <flux:modal.trigger name="edit-privacy-modal">
                 <flux:tooltip content="Edytuj politykę prywatności" position="right">
@@ -121,7 +121,7 @@ try {
         @endpush
 
         <x-admin-bar.edit-modal name="edit-privacy-modal" title="Edytuj politykę prywatności"
-            subtitle="Zaktualizuj treść polityki prywatności sklepu" :show-success="$saved"
+            subtitle="Zaktualizuj treść polityki prywatności sklepu" widthClass="md:max-w-[50vw]!" :show-success="$saved"
             success-message="Polityka prywatności została zapisana.">
             <x-rich-editor name="editingContent" :value="$editingContent" wire:input="$set('saved', false)"
                 x-on:keydown="$wire.set('saved', false)" />

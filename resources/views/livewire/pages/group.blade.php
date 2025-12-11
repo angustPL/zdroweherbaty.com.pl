@@ -117,8 +117,8 @@ mount(function ($group) {
             </flux:modal.trigger>
         @endpush
 
-        <x-admin-bar.edit-modal name="edit-group-modal" title="Edytuj treść grupy" :show-success="$saved"
-            success-message="Treść grupy została zapisana.">
+        <x-admin-bar.edit-modal name="edit-group-modal" title="Edytuj treść grupy" widthClass="md:max-w-[50vw]!"
+            :show-success="$saved" success-message="Treść grupy została zapisana.">
             <x-rich-editor name="editingContent" :value="$editingContent" />
         </x-admin-bar.edit-modal>
     @endif

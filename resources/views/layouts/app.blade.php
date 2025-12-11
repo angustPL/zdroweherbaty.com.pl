@@ -203,7 +203,7 @@
 
         <!-- Modale dla Admin Sidebara -->
         <livewire:components.promotions-modal />
-        <livewire:components.promotion-form-modal />
+        <livewire:components.admin-bar.promotion-form-modal />
     @endauth
 
     <!-- Modale dla Admin Sidebara (tylko dla Admina -->
